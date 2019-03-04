@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -170,7 +170,7 @@ namespace GoLive.Saturn.Data
 
                     map.IdMemberMap.SetSerializer(new StringSerializer().WithRepresentation(BsonType.ObjectId))
                         .SetIdGenerator(StringObjectIdGenerator.Instance)
-                        .SetDefaultValue(ObjectId.GenerateNewId().ToString());
+                        .SetIgnoreIfDefault(true);
                 });
             }
         }
@@ -363,11 +363,6 @@ namespace GoLive.Saturn.Data
 
         public async Task Upsert<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-            if (string.IsNullOrWhiteSpace(entity.Id))
-            {
-                entity.Id = ObjectId.GenerateNewId().ToString();
-            }
-
             var collection = GetCollection<T>(overrideCollectionName);
 
             var updateResult = await collection.ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions { IsUpsert = true });
