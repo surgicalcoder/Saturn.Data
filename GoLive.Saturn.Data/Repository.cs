@@ -305,6 +305,11 @@ namespace GoLive.Saturn.Data
 
         public async Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
         {
+            if (!entities.Any())
+            {
+                return;
+            }
+
             var collection = GetCollection<T>(overrideCollectionName);
             await collection.InsertManyAsync(entities, new InsertManyOptions() { IsOrdered = true });
         }
@@ -321,6 +326,11 @@ namespace GoLive.Saturn.Data
             }
 
             var collection = GetCollection<T>(overrideCollectionName);
+
+            foreach (var x1 in entity.Where(e=>string.IsNullOrWhiteSpace(e.Id)))
+            {
+                x1.Id = ObjectId.GenerateNewId().ToString();
+            }
 
             var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true });
 
@@ -349,6 +359,11 @@ namespace GoLive.Saturn.Data
 
         public async Task UpdateMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
         {
+            if (!entity.Any())
+            {
+                return;
+            }
+
             var collection = GetCollection<T>(overrideCollectionName);
 
             var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = false });
@@ -364,6 +379,11 @@ namespace GoLive.Saturn.Data
         public async Task Upsert<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
             var collection = GetCollection<T>(overrideCollectionName);
+
+            if (string.IsNullOrWhiteSpace(entity.Id))
+            {
+                entity.Id = ObjectId.GenerateNewId().ToString();
+            }
 
             var updateResult = await collection.ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions { IsUpsert = true });
 
