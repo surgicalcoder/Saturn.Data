@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.0.31" />
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.0.47" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.0.39" />
     <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.0.41" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.2.0" />
