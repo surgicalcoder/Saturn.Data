@@ -40,7 +40,7 @@ namespace GoLive.Saturn.Data
 
             var settings = MongoClientSettings.FromConnectionString(configuration[connectionStringName]);
 
-            if (configuration["Debug:OutputMongoDB"].ToLower() == "true" && options?.CommandStartedCallback != null)
+            if (configuration["Debug:OutputMongoDB"] != null && configuration["Debug:OutputMongoDB"].ToLower() == "true" && options?.CommandStartedCallback != null)
             {
                 settings.ClusterConfigurator = cb =>
                 {
