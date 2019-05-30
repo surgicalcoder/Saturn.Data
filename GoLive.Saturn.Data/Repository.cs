@@ -40,14 +40,33 @@ namespace GoLive.Saturn.Data
 
             var settings = MongoClientSettings.FromConnectionString(configuration[connectionStringName]);
 
-            if (configuration["Debug:OutputMongoDB"] != null && configuration["Debug:OutputMongoDB"].ToLower() == "true" && options?.CommandStartedCallback != null)
+            if (configuration["Debug:OutputMongoDB"] != null && !String.IsNullOrWhiteSpace(configuration["Debug:OutputMongoDB"]) && configuration["Debug:OutputMongoDB"].ToLower() == "true")
             {
                 settings.ClusterConfigurator = cb =>
                 {
-                    cb.Subscribe<CommandStartedEvent>(e =>
+                    if (options?.CommandStartedCallback != null)
                     {
-                        options?.CommandStartedCallback?.Invoke(e.CommandName, e.Command.ToJson());
-                    });
+                        cb.Subscribe<CommandStartedEvent>(e =>
+                        {
+                            options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
+                        });
+                    }
+
+                    if (options?.CommandFailedCallback != null)
+                    {
+                        cb.Subscribe<CommandFailedEvent>(e =>
+                        {
+                            options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
+                        });
+                    }
+
+                    if (options?.CommandCompletedCallback != null)
+                    {
+                        cb.Subscribe<CommandSucceededEvent>(e =>
+                        {
+                            options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
+                        });
+                    }
                 };
             }
 
