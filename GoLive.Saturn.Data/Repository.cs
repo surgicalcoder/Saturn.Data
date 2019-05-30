@@ -116,6 +116,7 @@ namespace GoLive.Saturn.Data
             }
             var collection = GetCollection<T>(overrideCollectionName);
             var list = entity.Select(r => r.Id).ToList();
+
             await collection.DeleteManyAsync(arg => list.Contains(arg.Id));
         }
 
@@ -284,6 +285,36 @@ namespace GoLive.Saturn.Data
             var collection = mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName));
             var where = new BsonDocument(WhereClause);
             var result = await (await collection.FindAsync(where, null)).ToListAsync();
+
+            return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
+        }
+
+        public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
+        {
+            if (pageSize == 0 || PageNumber == 0)
+            {
+                return await Many<T>(predicate, overrideCollectionName);
+            }
+
+            var collection = GetCollection<T>(overrideCollectionName);
+            return await Task.Run(() => collection.AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize));
+
+        }
+
+        public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
+        {
+            if (pageSize == 0 || PageNumber == 0)
+            {
+                return await Many<T>(WhereClause, overrideCollectionName);
+            }
+
+            var collection = mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName));
+            var where = new BsonDocument(WhereClause);
+            var result = await(await collection.FindAsync(where, new FindOptions<BsonDocument>()
+            {
+                Skip = (PageNumber - 1) * pageSize,
+                Limit = pageSize,
+            } )).ToListAsync();
 
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
