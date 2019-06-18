@@ -223,7 +223,23 @@ namespace GoLive.Saturn.Data
                 return options?.CollectionNameOverride?.Invoke(collectionNameOverride);
             }
 
-            return string.IsNullOrWhiteSpace(collectionNameOverride) ? typeof(T).Name : collectionNameOverride.Replace(".", "");
+            if (string.IsNullOrWhiteSpace(collectionNameOverride))
+            {
+                var name = typeof(T).Name.AsSpan();
+
+                var genericSeperator = "`".AsSpan();
+
+                if (name.Contains(genericSeperator, StringComparison.CurrentCulture))
+                {
+                    return name.Slice(0, name.IndexOf(genericSeperator)).ToString();
+                }
+
+                return name.ToString();
+            }
+            else
+            {
+                return collectionNameOverride.Replace(".", "");
+            }
         }
 
 
@@ -295,10 +311,10 @@ namespace GoLive.Saturn.Data
             {
                 return await Many<T>(predicate, overrideCollectionName);
             }
-
+            
             var collection = GetCollection<T>(overrideCollectionName);
+            
             return await Task.Run(() => collection.AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize));
-
         }
 
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
