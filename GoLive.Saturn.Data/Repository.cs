@@ -222,11 +222,11 @@ namespace GoLive.Saturn.Data
             {
                 var name = typeof(T).Name.AsSpan();
 
-                var genericSeperator = "`".AsSpan();
+                var genericSeparator = "`".AsSpan();
 
-                if (name.Contains(genericSeperator, StringComparison.CurrentCulture))
+                if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
                 {
-                    return name.Slice(0, name.IndexOf(genericSeperator)).ToString();
+                    return name.Slice(0, name.IndexOf(genericSeparator)).ToString();
                 }
 
                 return name.ToString();
