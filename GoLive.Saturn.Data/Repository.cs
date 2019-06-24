@@ -7,7 +7,6 @@ using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
 using GoLive.Saturn.Data.EntitySerializers;
-using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
@@ -19,7 +18,7 @@ using Newtonsoft.Json.Linq;
 
 namespace GoLive.Saturn.Data
 {
-    public class Repository : IRepository, IDisposable
+    public class Repository : IRepository
     {
         #region Props
         private static RepositoryOptions options { get; set; }
@@ -32,15 +31,17 @@ namespace GoLive.Saturn.Data
 
         #endregion
 
-        public Repository(IConfiguration configuration, RepositoryOptions repositoryOptions = null)
+        public Repository(RepositoryOptions repositoryOptions)
         {
-            options = repositoryOptions;
+            options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
 
-            string connectionStringName = options?.ConnectionStringName ?? "ConnectionString";
+            string connectionString = options.ConnectionString ?? throw new ArgumentNullException("repositoryOptions.ConnectionString");
 
-            var settings = MongoClientSettings.FromConnectionString(configuration[connectionStringName]);
+            var mongoUrl = new MongoUrl(connectionString);
 
-            if (configuration["Debug:OutputMongoDB"] != null && !String.IsNullOrWhiteSpace(configuration["Debug:OutputMongoDB"]) && configuration["Debug:OutputMongoDB"].ToLower() == "true")
+            var settings = MongoClientSettings.FromUrl(mongoUrl);
+            
+            if (options != null && options.DebugMode)
             {
                 settings.ClusterConfigurator = cb =>
                 {
@@ -71,8 +72,7 @@ namespace GoLive.Saturn.Data
             }
 
             client = new MongoClient(settings);
-
-            var mongoUrl = new MongoUrl(configuration[connectionStringName]);
+            
             mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
 
             RegisterConventions();
@@ -118,11 +118,6 @@ namespace GoLive.Saturn.Data
             var list = entity.Select(r => r.Id).ToList();
 
             await collection.DeleteManyAsync(arg => list.Contains(arg.Id));
-        }
-
-        public void DisposeConnection()
-        {
-            Dispose();
         }
 
         private void RegisterConventions()
