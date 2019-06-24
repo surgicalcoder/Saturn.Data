@@ -43,32 +43,7 @@ namespace GoLive.Saturn.Data
             
             if (options != null && options.DebugMode)
             {
-                settings.ClusterConfigurator = cb =>
-                {
-                    if (options?.CommandStartedCallback != null)
-                    {
-                        cb.Subscribe<CommandStartedEvent>(e =>
-                        {
-                            options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
-                        });
-                    }
-
-                    if (options?.CommandFailedCallback != null)
-                    {
-                        cb.Subscribe<CommandFailedEvent>(e =>
-                        {
-                            options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
-                        });
-                    }
-
-                    if (options?.CommandCompletedCallback != null)
-                    {
-                        cb.Subscribe<CommandSucceededEvent>(e =>
-                        {
-                            options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
-                        });
-                    }
-                };
+                performCallbackBindings(settings);
             }
 
             client = new MongoClient(settings);
@@ -77,6 +52,36 @@ namespace GoLive.Saturn.Data
 
             RegisterConventions();
             InitDatabase();
+        }
+
+        private static void performCallbackBindings(MongoClientSettings settings)
+        {
+            settings.ClusterConfigurator = cb =>
+            {
+                if (options?.CommandStartedCallback != null)
+                {
+                    cb.Subscribe<CommandStartedEvent>(e =>
+                    {
+                        options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
+                    });
+                }
+
+                if (options?.CommandFailedCallback != null)
+                {
+                    cb.Subscribe<CommandFailedEvent>(e =>
+                    {
+                        options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
+                    });
+                }
+
+                if (options?.CommandCompletedCallback != null)
+                {
+                    cb.Subscribe<CommandSucceededEvent>(e =>
+                    {
+                        options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
+                    });
+                }
+            };
         }
 
         public void Dispose()
@@ -364,36 +369,48 @@ namespace GoLive.Saturn.Data
             await collection.InsertOneAsync(entity);
         }
 
-        public async Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
+        public Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
         {
-            if (!entities.Any())
+            return AddMany<T>(entities.ToArray().AsMemory(), overrideCollectionName);
+        }
+
+        public async Task AddMany<T>(ReadOnlyMemory<T> entities, string overrideCollectionName = "") where T : Entity
+        {
+            if (entities.Length == 0)
             {
                 return;
             }
-
+            
             var collection = GetCollection<T>(overrideCollectionName);
-            await collection.InsertManyAsync(entities, new InsertManyOptions() { IsOrdered = true });
+            await collection.InsertManyAsync(entities.ToArray(), new InsertManyOptions() { IsOrdered = true });
         }
 
         #endregion
 
         #region Delete
 
-        public async Task UpsertMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
+        public async Task UpsertMany<T>(ReadOnlyMemory<T> entity, string overrideCollectionName = "") where T : Entity
         {
-            if (entity.Count == 0)
+            if (entity.Length == 0)
             {
                 return;
             }
 
             var collection = GetCollection<T>(overrideCollectionName);
 
-            foreach (var x1 in entity.Where(e=>string.IsNullOrWhiteSpace(e.Id)))
-            {
-                x1.Id = ObjectId.GenerateNewId().ToString();
-            }
+            var writeModel = new List<ReplaceOneModel<T>>(entity.Length);
 
-            var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true });
+            for (int i = 0; i < entity.Length; i++)
+            {
+                var id = entity.Span[i].Id.AsMemory();
+
+                if (string.IsNullOrWhiteSpace(id.ToString()))
+                {
+                    id = ObjectId.GenerateNewId().ToString().AsMemory();
+                }
+
+                writeModel.Add(new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == id.ToString()), entity.Span[i]));
+            }
 
             var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
 
@@ -401,6 +418,11 @@ namespace GoLive.Saturn.Data
             {
                 throw new FailedToUpsertException();
             }
+        }
+
+        public Task UpsertMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
+        {
+            return UpsertMany<T>(new ReadOnlyMemory<T>(entity.to))
         }
 
         public async Task Delete<T>(T entity, string overrideCollectionName = "") where T : Entity
