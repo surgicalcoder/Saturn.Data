@@ -97,7 +97,7 @@ namespace GoLive.Saturn.Data
 
         public async Task DeleteMany<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
         {
-            if (!IDs.Any())
+            if (IDs.Count == 0)
             {
                 return;
             }
@@ -381,7 +381,7 @@ namespace GoLive.Saturn.Data
 
         public async Task UpsertMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
         {
-            if (!entity.Any())
+            if (entity.Count == 0)
             {
                 return;
             }
@@ -420,7 +420,7 @@ namespace GoLive.Saturn.Data
 
         public async Task UpdateMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
         {
-            if (!entity.Any())
+            if (entity.Count == 0)
             {
                 return;
             }
