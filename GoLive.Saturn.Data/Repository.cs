@@ -388,12 +388,12 @@ namespace GoLive.Saturn.Data
 
             var collection = GetCollection<T>(overrideCollectionName);
 
-            foreach (var x1 in entity.Where(e=>string.IsNullOrWhiteSpace(e.Id)))
-            {
-                x1.Id = ObjectId.GenerateNewId().ToString();
-            }
+            var writeModel = new ReplaceOneModel<T>[entity.Count];
 
-            var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true });
+            for (var i = 0; i < entity.Count; i++)
+            {
+                writeModel[i] = new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == (string.IsNullOrWhiteSpace(entity[i].Id) ? ObjectId.GenerateNewId().ToString() : entity[i].Id)), entity[i]) { IsUpsert = true };
+            }
 
             var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
 
