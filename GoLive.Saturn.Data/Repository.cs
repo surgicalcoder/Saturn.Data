@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
@@ -13,8 +14,11 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using Newtonsoft.Json.Linq;
+
+[assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 
 namespace GoLive.Saturn.Data
 {
@@ -27,9 +31,32 @@ namespace GoLive.Saturn.Data
         public static DateTime InitLastChecked { get; set; }
 
         private IMongoDatabase mongoDatabase { get; set; }
-        private MongoClient client { get; set; }
+        private IMongoClient client { get; set; }
 
         #endregion
+
+        internal Repository(RepositoryOptions repositoryOptions, IMongoClient client)
+        {
+            options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
+
+            string connectionString = options.ConnectionString ?? throw new ArgumentNullException("repositoryOptions.ConnectionString");
+
+            var mongoUrl = new MongoUrl(connectionString);
+
+            var settings = MongoClientSettings.FromUrl(mongoUrl);
+
+            if (options != null && options.DebugMode)
+            {
+                settings.ClusterConfigurator = cb => { setupCallbacks(cb); };
+            }
+
+            this.client = client;
+
+            mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
+
+            RegisterConventions();
+            InitDatabase();
+        }
 
         public Repository(RepositoryOptions repositoryOptions)
         {
@@ -43,32 +70,7 @@ namespace GoLive.Saturn.Data
             
             if (options != null && options.DebugMode)
             {
-                settings.ClusterConfigurator = cb =>
-                {
-                    if (options?.CommandStartedCallback != null)
-                    {
-                        cb.Subscribe<CommandStartedEvent>(e =>
-                        {
-                            options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
-                        });
-                    }
-
-                    if (options?.CommandFailedCallback != null)
-                    {
-                        cb.Subscribe<CommandFailedEvent>(e =>
-                        {
-                            options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
-                        });
-                    }
-
-                    if (options?.CommandCompletedCallback != null)
-                    {
-                        cb.Subscribe<CommandSucceededEvent>(e =>
-                        {
-                            options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
-                        });
-                    }
-                };
+                settings.ClusterConfigurator = cb => { setupCallbacks(cb); };
             }
 
             client = new MongoClient(settings);
@@ -77,6 +79,33 @@ namespace GoLive.Saturn.Data
 
             RegisterConventions();
             InitDatabase();
+        }
+
+        private static void setupCallbacks(ClusterBuilder cb)
+        {
+            if (options?.CommandStartedCallback != null)
+            {
+                cb.Subscribe<CommandStartedEvent>(e =>
+                {
+                    options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
+                });
+            }
+
+            if (options?.CommandFailedCallback != null)
+            {
+                cb.Subscribe<CommandFailedEvent>(e =>
+                {
+                    options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
+                });
+            }
+
+            if (options?.CommandCompletedCallback != null)
+            {
+                cb.Subscribe<CommandSucceededEvent>(e =>
+                {
+                    options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
+                });
+            }
         }
 
         public void Dispose()
@@ -394,6 +423,30 @@ namespace GoLive.Saturn.Data
             {
                 writeModel[i] = new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == (string.IsNullOrWhiteSpace(entity[i].Id) ? ObjectId.GenerateNewId().ToString() : entity[i].Id)), entity[i]) { IsUpsert = true };
             }
+
+            var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
+
+            if (!bulkWriteResult.IsAcknowledged)
+            {
+                throw new FailedToUpsertException();
+            }
+        }
+
+        public async Task UpsertManyLinq<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
+        {
+            if (!entity.Any())
+            {
+                return;
+            }
+
+            var collection = GetCollection<T>(overrideCollectionName);
+
+            foreach (var x1 in entity.Where(e => string.IsNullOrWhiteSpace(e.Id)))
+            {
+                x1.Id = ObjectId.GenerateNewId().ToString();
+            }
+
+            var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true });
 
             var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
 
