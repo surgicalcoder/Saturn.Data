@@ -6,7 +6,7 @@ using MongoDB.Bson;
 
 namespace GoLive.Saturn.Data.Benchmarks
 {
-    [ClrJob(baseline: true), CoreJob, CoreRtJob]
+    [CoreJob]
     [RPlotExporter, RankColumn]
     [MemoryDiagnoser]
     public class Benchmark
@@ -39,23 +39,61 @@ namespace GoLive.Saturn.Data.Benchmarks
             }, new TestMongoClient());
         }
 
+        //[Benchmark]
+        //public void ManyTest()
+        //{
+        //    repository.UpsertMany(entities).Wait();
+        //}
+
         [Benchmark]
-        public void ManyTest()
+        public void NameWithDotTest()
         {
-            repository.UpsertMany(entities).Wait();
+            repository.GetCollectionNameForType<string>("This.Is.A.Test");
         }
 
         [Benchmark]
-        public void ManyTestLinq()
+        public void ClassName()
         {
-            repository.UpsertManyLinq(entities).Wait();
+            repository.GetCollectionNameForType<TestEntity1>(null);
         }
 
+        [Benchmark]
+        public void GenericClassName()
+        {
+            repository.GetCollectionNameForType<TestEntity2<string>>(null);
+        }
+
+
+ [Benchmark]
+        public void NameWithDotTest2()
+        {
+            repository.GetCollectionNameForType2<string>("This.Is.A.Test");
+        }
+
+        [Benchmark]
+        public void ClassName2()
+        {
+            repository.GetCollectionNameForType2<TestEntity1>(null);
+        }
+
+        [Benchmark]
+        public void GenericClassName2()
+        {
+            repository.GetCollectionNameForType2<TestEntity2<string>>(null);
+        }
+
+
+        
     }
 
 
     public class TestEntity1 : Entity
     {
         public int Counter { get; set; }
+    }
+
+    public class TestEntity2<T> : Entity
+    {
+        public T Key { get; set; }
     }
 }

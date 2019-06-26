@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
@@ -240,7 +241,7 @@ namespace GoLive.Saturn.Data
             options?.InitCallback?.Invoke(this);
         }
 
-        private string GetCollectionNameForType<T>(string collectionNameOverride)
+        internal string GetCollectionNameForType<T>(string collectionNameOverride)
         {
             if (options?.CollectionNameOverride != null)
             {
@@ -266,6 +267,44 @@ namespace GoLive.Saturn.Data
             }
         }
 
+        Dictionary<string, string> kvp = new Dictionary<string, string>();
+        internal string GetCollectionNameForType2<T>(string collectionNameOverride)
+        {
+            //var readOnlyMemory = collectionNameOverride.AsMemory();
+            if (options?.CollectionNameOverride != null)
+            {
+                return options?.CollectionNameOverride?.Invoke(collectionNameOverride);
+            }
+
+            if (string.IsNullOrWhiteSpace(collectionNameOverride))
+            {
+                var name = typeof(T).Name.AsSpan();
+
+                if (kvp.ContainsKey(name.ToString()))
+                {
+                    return kvp[name.ToString()];
+                }
+
+                var genericSeparator = "`".AsSpan();
+
+                if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
+                {
+                    kvp.Add(name.ToString(), name.Slice(0, name.IndexOf(genericSeparator)).ToString());
+                    return kvp[name.ToString()];
+                }
+                kvp.Add(name.ToString(), name.ToString());
+                return name.ToString();
+            }
+            else
+            {
+                if (kvp.ContainsKey(collectionNameOverride))
+                {
+                    return kvp[collectionNameOverride];
+                }
+                kvp.Add(collectionNameOverride, collectionNameOverride.Replace(".", ""));
+                return kvp[collectionNameOverride];
+            }
+        }
 
         #region Get
 
@@ -417,38 +456,12 @@ namespace GoLive.Saturn.Data
 
             var collection = GetCollection<T>(overrideCollectionName);
 
-            var writeModel = new ReplaceOneModel<T>[entity.Count];
-
-            for (var i = 0; i < entity.Count; i++)
-            {
-                writeModel[i] = new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == (string.IsNullOrWhiteSpace(entity[i].Id) ? ObjectId.GenerateNewId().ToString() : entity[i].Id)), entity[i]) { IsUpsert = true };
-            }
-
-            var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
-
-            if (!bulkWriteResult.IsAcknowledged)
-            {
-                throw new FailedToUpsertException();
-            }
-        }
-
-        public async Task UpsertManyLinq<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
-        {
-            if (!entity.Any())
-            {
-                return;
-            }
-
-            var collection = GetCollection<T>(overrideCollectionName);
-
             foreach (var x1 in entity.Where(e => string.IsNullOrWhiteSpace(e.Id)))
             {
                 x1.Id = ObjectId.GenerateNewId().ToString();
             }
 
-            var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true });
-
-            var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
+            var bulkWriteResult = await collection.BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }));
 
             if (!bulkWriteResult.IsAcknowledged)
             {

@@ -11,7 +11,7 @@ namespace GoLive.Saturn.Data.Benchmarks
             
             
             var summary = BenchmarkRunner.Run<Benchmark>(new DebugInProcessConfig());
-            Console.ReadLine();
+            //Console.ReadLine();
         }
     }
 }
