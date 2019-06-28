@@ -132,10 +132,7 @@ namespace GoLive.Saturn.Data
                 return;
             }
 
-            var collection = GetCollection<T>(overrideCollectionName);
-
-            await collection.DeleteManyAsync(f => IDs.Contains(f.Id));
-
+            await GetCollection<T>(overrideCollectionName).DeleteManyAsync(f => IDs.Contains(f.Id));
         }
 
         public async Task DeleteMany<T>(IEnumerable<T> entity, string overrideCollectionName = "") where T : Entity
@@ -144,10 +141,9 @@ namespace GoLive.Saturn.Data
             {
                 return;
             }
-            var collection = GetCollection<T>(overrideCollectionName);
             var list = entity.Select(r => r.Id).ToList();
 
-            await collection.DeleteManyAsync(arg => list.Contains(arg.Id));
+            await GetCollection<T>(overrideCollectionName).DeleteManyAsync(arg => list.Contains(arg.Id));
         }
 
         private void RegisterConventions()
@@ -267,60 +263,18 @@ namespace GoLive.Saturn.Data
             }
         }
 
-        Dictionary<string, string> kvp = new Dictionary<string, string>();
-        internal string GetCollectionNameForType2<T>(string collectionNameOverride)
-        {
-            //var readOnlyMemory = collectionNameOverride.AsMemory();
-            if (options?.CollectionNameOverride != null)
-            {
-                return options?.CollectionNameOverride?.Invoke(collectionNameOverride);
-            }
-
-            if (string.IsNullOrWhiteSpace(collectionNameOverride))
-            {
-                var name = typeof(T).Name.AsSpan();
-
-                if (kvp.ContainsKey(name.ToString()))
-                {
-                    return kvp[name.ToString()];
-                }
-
-                var genericSeparator = "`".AsSpan();
-
-                if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
-                {
-                    kvp.Add(name.ToString(), name.Slice(0, name.IndexOf(genericSeparator)).ToString());
-                    return kvp[name.ToString()];
-                }
-                kvp.Add(name.ToString(), name.ToString());
-                return name.ToString();
-            }
-            else
-            {
-                if (kvp.ContainsKey(collectionNameOverride))
-                {
-                    return kvp[collectionNameOverride];
-                }
-                kvp.Add(collectionNameOverride, collectionNameOverride.Replace(".", ""));
-                return kvp[collectionNameOverride];
-            }
-        }
-
         #region Get
 
         public async Task<T> ById<T>(string id, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-
-            var result = await collection.FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 });
+            var result = await GetCollection<T>(overrideCollectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 });
 
             return await result.FirstOrDefaultAsync();
         }
 
         public async Task<List<T>> ById<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-            var result = await collection.FindAsync(e => IDs.Contains(e.Id));
+            var result = await GetCollection<T>(overrideCollectionName).FindAsync(e => IDs.Contains(e.Id));
             return await result.ToListAsync();
         }
 
@@ -351,9 +305,7 @@ namespace GoLive.Saturn.Data
 
         public async Task<T> One<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-
-            var result = await collection.FindAsync(predicate, new FindOptions<T> { Limit = 1 });
+            var result = await GetCollection<T>(overrideCollectionName).FindAsync(predicate, new FindOptions<T> { Limit = 1 });
 
             return await result.FirstOrDefaultAsync();
         }
@@ -361,9 +313,8 @@ namespace GoLive.Saturn.Data
 
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, string overrideCollectionName = "") where T : Entity
         {
-            var collection = mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName));
             var where = new BsonDocument(WhereClause);
-            var result = await (await collection.FindAsync(where, null)).ToListAsync();
+            var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, null)).ToListAsync();
 
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
@@ -374,10 +325,8 @@ namespace GoLive.Saturn.Data
             {
                 return await Many<T>(predicate, overrideCollectionName);
             }
-            
-            var collection = GetCollection<T>(overrideCollectionName);
-            
-            return await Task.Run(() => collection.AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize));
+
+            return await Task.Run(() => GetCollection<T>(overrideCollectionName).AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize));
         }
 
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
@@ -387,9 +336,8 @@ namespace GoLive.Saturn.Data
                 return await Many<T>(WhereClause, overrideCollectionName);
             }
 
-            var collection = mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName));
             var where = new BsonDocument(WhereClause);
-            var result = await(await collection.FindAsync(where, new FindOptions<BsonDocument>()
+            var result = await(await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, new FindOptions<BsonDocument>()
             {
                 Skip = (PageNumber - 1) * pageSize,
                 Limit = pageSize,
@@ -405,15 +353,13 @@ namespace GoLive.Saturn.Data
 
         public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-            return await collection.CountDocumentsAsync(predicate);
+            return await GetCollection<T>(overrideCollectionName).CountDocumentsAsync(predicate);
         }
 
 
         public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-            return await Task.Run(() => collection.AsQueryable().Where(predicate));
+            return await Task.Run(() => GetCollection<T>(overrideCollectionName).AsQueryable().Where(predicate));
         }
 
         public async Task<IQueryable<T>> All<T>(string overrideCollectionName = "") where T : Entity
@@ -427,9 +373,7 @@ namespace GoLive.Saturn.Data
 
         public async Task Add<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-
-            await collection.InsertOneAsync(entity);
+            await GetCollection<T>(overrideCollectionName).InsertOneAsync(entity);
         }
 
         public async Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
@@ -439,8 +383,7 @@ namespace GoLive.Saturn.Data
                 return;
             }
 
-            var collection = GetCollection<T>(overrideCollectionName);
-            await collection.InsertManyAsync(entities, new InsertManyOptions() { IsOrdered = true });
+            await GetCollection<T>(overrideCollectionName).InsertManyAsync(entities, new InsertManyOptions() { IsOrdered = true });
         }
 
         #endregion
@@ -454,14 +397,12 @@ namespace GoLive.Saturn.Data
                 return;
             }
 
-            var collection = GetCollection<T>(overrideCollectionName);
-
             foreach (var x1 in entity.Where(e => string.IsNullOrWhiteSpace(e.Id)))
             {
                 x1.Id = ObjectId.GenerateNewId().ToString();
             }
 
-            var bulkWriteResult = await collection.BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }));
+            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }));
 
             if (!bulkWriteResult.IsAcknowledged)
             {
@@ -491,11 +432,9 @@ namespace GoLive.Saturn.Data
                 return;
             }
 
-            var collection = GetCollection<T>(overrideCollectionName);
-
             var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = false });
 
-            var bulkWriteResult = await collection.BulkWriteAsync(writeModel);
+            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(writeModel);
 
             if (!bulkWriteResult.IsAcknowledged)
             {
@@ -505,14 +444,13 @@ namespace GoLive.Saturn.Data
 
         public async Task Upsert<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
 
             if (string.IsNullOrWhiteSpace(entity.Id))
             {
                 entity.Id = ObjectId.GenerateNewId().ToString();
             }
 
-            var updateResult = await collection.ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions { IsUpsert = true });
+            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions { IsUpsert = true });
 
             if (!updateResult.IsAcknowledged)
             {
@@ -520,18 +458,14 @@ namespace GoLive.Saturn.Data
             }
         }
 
-        public async Task<bool> Update<T>(T entity, string overrideCollectionName = "") where T : Entity
+        public async Task Update<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-            var collection = GetCollection<T>(overrideCollectionName);
-
-            var updateResult = await collection.ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions() { IsUpsert = false });
+            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions() { IsUpsert = false });
 
             if (!updateResult.IsAcknowledged)
             {
                 throw new FailedToUpdateException();
             }
-
-            return true;
         }
 
         #endregion

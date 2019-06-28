@@ -64,23 +64,23 @@ namespace GoLive.Saturn.Data.Benchmarks
         }
 
 
- [Benchmark]
-        public void NameWithDotTest2()
-        {
-            repository.GetCollectionNameForType2<string>("This.Is.A.Test");
-        }
+ //[Benchmark]
+ //       public void NameWithDotTest2()
+ //       {
+ //           repository.GetCollectionNameForType2<string>("This.Is.A.Test");
+ //       }
 
-        [Benchmark]
-        public void ClassName2()
-        {
-            repository.GetCollectionNameForType2<TestEntity1>(null);
-        }
+ //       [Benchmark]
+ //       public void ClassName2()
+ //       {
+ //           repository.GetCollectionNameForType2<TestEntity1>(null);
+ //       }
 
-        [Benchmark]
-        public void GenericClassName2()
-        {
-            repository.GetCollectionNameForType2<TestEntity2<string>>(null);
-        }
+ //       [Benchmark]
+ //       public void GenericClassName2()
+ //       {
+ //           repository.GetCollectionNameForType2<TestEntity2<string>>(null);
+ //       }
 
 
         
