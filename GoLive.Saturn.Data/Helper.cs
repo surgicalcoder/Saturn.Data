@@ -15,4 +15,22 @@ namespace GoLive.Saturn.Data
                 : asString.Substring(firstDelim + 1).TrimEnd(endTrim);
         }
     }
+
+    public class AlwaysCacheAttribute : Attribute
+    {
+        public AlwaysCacheAttribute(int? cacheDuration)
+        {
+            CacheDuration = cacheDuration;
+        }
+
+        public int? CacheDuration { get; set; }
+        public AlwaysCacheAttribute()
+        {
+        }
+    }
+
+    public class NeverCacheAttribute : Attribute
+    {
+
+    }
 }

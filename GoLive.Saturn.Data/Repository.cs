@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Foundatio.Caching;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
@@ -23,20 +25,187 @@ using Newtonsoft.Json.Linq;
 
 namespace GoLive.Saturn.Data
 {
+
     public class Repository : IRepository
+    {
+        private RepositoryInternal repository;
+        private RepositoryOptions options;
+        public Repository(RepositoryOptions options)
+        {
+            repository = new RepositoryInternal(options);
+            this.options = options;
+        }
+
+        public void Dispose()
+        {
+            repository.Dispose();
+        }
+
+        internal string GetCollectionNameForType<T>(string collectionNameOverride)
+        {
+            if (options?.CollectionNameOverride != null)
+            {
+                return options?.CollectionNameOverride?.Invoke(collectionNameOverride);
+            }
+
+            if (string.IsNullOrWhiteSpace(collectionNameOverride))
+            {
+                var name = typeof(T).Name.AsSpan();
+
+                var genericSeparator = "`".AsSpan();
+
+                if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
+                {
+                    return name.Slice(0, name.IndexOf(genericSeparator)).ToString();
+                }
+
+                return name.ToString();
+            }
+            else
+            {
+                return collectionNameOverride.Replace(".", "");
+            }
+        }
+
+        public async Task<T> ById<T>(string id, string overrideCollectionName = "") where T : Entity
+        {
+            return await repository.ById<T>(id);
+        }
+
+        public async Task<List<T>> ById<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> Item, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<T> ByRef<T>(Ref<T> Item, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<Ref<T>> PopulateRef<T>(Ref<T> Item, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IQueryable<T>> All<T>(string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<T> One<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Add<T>(T entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Update<T>(T entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task UpdateMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Upsert<T>(T entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task UpsertMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Delete<T>(T entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Delete<T>(Expression<Func<T, bool>> filter, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task Delete<T>(string Id, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task DeleteMany<T>(IEnumerable<T> entity, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task DeleteMany<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
+        {
+            throw new NotImplementedException();
+        }
+
+        public void InitDatabase()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+
+
+    internal class RepositoryInternal
     {
         #region Props
         private static RepositoryOptions options { get; set; }
 
         public static bool InitRun { get; set; }
         public static DateTime InitLastChecked { get; set; }
+        private static ICacheClient cacheClient { get; set; }
 
         private IMongoDatabase mongoDatabase { get; set; }
         private IMongoClient client { get; set; }
 
         #endregion
 
-        internal Repository(RepositoryOptions repositoryOptions, IMongoClient client)
+        internal RepositoryInternal(RepositoryOptions repositoryOptions, IMongoClient client)
         {
             options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
 
@@ -59,7 +228,7 @@ namespace GoLive.Saturn.Data
             InitDatabase();
         }
 
-        public Repository(RepositoryOptions repositoryOptions)
+        public RepositoryInternal(RepositoryOptions repositoryOptions)
         {
             options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
 
@@ -265,11 +434,65 @@ namespace GoLive.Saturn.Data
 
         #region Get
 
-        public async Task<T> ById<T>(string id, string overrideCollectionName = "") where T : Entity
+        public class Test123
         {
-            var result = await GetCollection<T>(overrideCollectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 });
+            public bool Store { get; set; }
+            public int? CacheDuration { get; set; }
+        }
 
-            return await result.FirstOrDefaultAsync();
+        public async Task<T> ById<T>(string id, string collectionName) where T : Entity
+        {
+            var toCacheKey = $"repository_tocache_{collectionName}";
+            var cacheLocationKey = $"repository_item_{collectionName}_{id}";
+
+            var cache1 = await cacheClient.GetAsync<Test123>(toCacheKey);
+
+            if (cache1.HasValue)
+            {
+                if (cache1.Value.Store)
+                {
+                    
+                    var item = await cacheClient.GetAsync<T>(cacheLocationKey);
+
+                    if (item.HasValue)
+                    {
+                        return item.Value;
+                    }
+                    else
+                    {
+                        var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+
+                        await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?) null);
+
+                        return result;
+                    }
+                }
+                else
+                {
+                    var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+                    return result;
+                }
+            }
+            else
+            {
+                var alwaysCacheAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<AlwaysCacheAttribute>();
+                var test = new Test123();
+
+                if (alwaysCacheAttribute != null)
+                {
+                    test.Store = true;
+                    test.CacheDuration = alwaysCacheAttribute.CacheDuration;
+                }
+                else
+                {
+                    test.Store = false;
+                }
+
+                await cacheClient.SetAsync(toCacheKey, test);
+                var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+                return result;
+            }
+
         }
 
         public async Task<List<T>> ById<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
@@ -346,9 +569,9 @@ namespace GoLive.Saturn.Data
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
 
-        private IMongoCollection<T> GetCollection<T>(string overrideCollectionName) where T : Entity
+        private IMongoCollection<T> GetCollection<T>(string collectionName) where T : Entity
         {
-            return mongoDatabase.GetCollection<T>(GetCollectionNameForType<T>(overrideCollectionName));
+            return mongoDatabase.GetCollection<T>(collectionName);
         }
 
         public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
