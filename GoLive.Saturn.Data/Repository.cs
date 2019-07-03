@@ -440,7 +440,7 @@ namespace GoLive.Saturn.Data
             public int? CacheDuration { get; set; }
         }
 
-        public async Task<T> ById<T>(string id, string collectionName) where T : Entity
+        public async Task<T> ReadFromCache<T>(Func<T> PerformAction, string id, string collectionName)
         {
             var toCacheKey = $"repository_tocache_{collectionName}";
             var cacheLocationKey = $"repository_item_{collectionName}_{id}";
@@ -451,25 +451,22 @@ namespace GoLive.Saturn.Data
             {
                 if (cache1.Value.Store)
                 {
-                    
+
                     var item = await cacheClient.GetAsync<T>(cacheLocationKey);
 
                     if (item.HasValue)
                     {
                         return item.Value;
                     }
-                    else
-                    {
-                        var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
 
-                        await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?) null);
+                    var result= PerformAction.Invoke();
+                    await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?)null);
 
-                        return result;
-                    }
+                    return result;
                 }
                 else
                 {
-                    var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+                    var result = PerformAction.Invoke();
                     return result;
                 }
             }
@@ -489,10 +486,30 @@ namespace GoLive.Saturn.Data
                 }
 
                 await cacheClient.SetAsync(toCacheKey, test);
-                var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+                var result = PerformAction.Invoke();
+
+                if (test.Store)
+                {
+                    await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?)null);
+                }
+
                 return result;
             }
 
+        }
+
+
+
+        public async Task<T> ById<T>(string id, string collectionName) where T : Entity
+        {
+            return await ReadFromCache<T>(async () =>
+            {
+                var result =
+                    await (await GetCollection<T>(collectionName)
+                        .FindAsync(e => e.Id == id, new FindOptions<T> {Limit = 1})).FirstOrDefaultAsync();
+
+                return result;
+            }, id, collectionName);
         }
 
         public async Task<List<T>> ById<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
