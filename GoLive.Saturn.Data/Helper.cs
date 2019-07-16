@@ -16,21 +16,21 @@ namespace GoLive.Saturn.Data
         }
     }
 
-    public class AlwaysCacheAttribute : Attribute
-    {
-        public AlwaysCacheAttribute(int? cacheDuration)
-        {
-            CacheDuration = cacheDuration;
-        }
+    //public class AlwaysCacheAttribute : Attribute
+    //{
+    //    public AlwaysCacheAttribute(int? cacheDuration)
+    //    {
+    //        CacheDuration = cacheDuration;
+    //    }
 
-        public int? CacheDuration { get; set; }
-        public AlwaysCacheAttribute()
-        {
-        }
-    }
+    //    public int? CacheDuration { get; set; }
+    //    public AlwaysCacheAttribute()
+    //    {
+    //    }
+    //}
 
-    public class NeverCacheAttribute : Attribute
-    {
+    //public class NeverCacheAttribute : Attribute
+    //{
 
-    }
+    //}
 }
