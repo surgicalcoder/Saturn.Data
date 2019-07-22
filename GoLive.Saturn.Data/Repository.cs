@@ -434,7 +434,7 @@ namespace GoLive.Saturn.Data
 
         private IMongoCollection<T> GetCollection<T>(string collectionName) where T : Entity
         {
-            return mongoDatabase.GetCollection<T>(collectionName);
+            return mongoDatabase.GetCollection<T>(GetCollectionNameForType<T>(collectionName));
         }
 
         public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
