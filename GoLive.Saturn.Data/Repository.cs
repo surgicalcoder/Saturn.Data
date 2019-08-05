@@ -28,7 +28,46 @@ using ExpressionVisitor = System.Linq.Expressions.ExpressionVisitor;
 
 namespace GoLive.Saturn.Data
 {
+    class Converter<TTo>
+    {
+        class ConversionVisitor : ExpressionVisitor
+        {
+            private readonly ParameterExpression newParameter;
+            private readonly ParameterExpression oldParameter;
 
+            public ConversionVisitor(ParameterExpression newParameter, ParameterExpression oldParameter)
+            {
+                this.newParameter = newParameter;
+                this.oldParameter = oldParameter;
+            }
+
+            protected override Expression VisitParameter(ParameterExpression node)
+            {
+                return newParameter; // replace all old param references with new ones
+            }
+
+            protected override Expression VisitMember(MemberExpression node)
+            {
+                if (node.Expression != oldParameter) // if instance is not old parameter - do nothing
+                    return base.VisitMember(node);
+
+                var newObj = Visit(node.Expression);
+                var newMember = newParameter.Type.GetMember(node.Member.Name).First();
+                return Expression.MakeMemberAccess(newObj, newMember);
+            }
+        }
+
+        public static Expression<Func<TTo, TR>> Convert<TFrom, TR>(
+            Expression<Func<TFrom, TR>> e
+        )
+        {
+            var oldParameter = e.Parameters[0];
+            var newParameter = Expression.Parameter(typeof(TTo), oldParameter.Name);
+            var converter = new ConversionVisitor(newParameter, oldParameter);
+            var newBody = converter.Visit(e.Body);
+            return Expression.Lambda<Func<TTo, TR>>(newBody, newParameter);
+        }
+    }
     public class ParameterRebinder : ExpressionVisitor
     {
         private readonly Dictionary<ParameterExpression, ParameterExpression> map;
@@ -478,10 +517,36 @@ namespace GoLive.Saturn.Data
             return Item;
         }
 
-        public async Task Watch<T>(Expression<Func<T, bool>> predicate, Action<T> callback, string overrideCollectionName = "") where T : Entity
+
+        public class ChangeStreamDocumentTest<T> where T : Entity
+        {
+            public T FullDocument { get; set; }
+        }
+
+
+        public async Task Watch<T>(Expression<Func<ChangeStreamDocumentTest<T>, bool>> predicate, Action<T> callback, string overrideCollectionName = "") where T : Entity
         {
             var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
 
+            // https://stackoverflow.com/questions/5094489/how-do-i-dynamically-create-an-expressionfuncmyclass-bool-predicate-from-ex
+
+            ChangeStreamDocument<T> a;
+            
+
+            var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
+
+            //ParameterExpression argParam = Expression.Parameter(typeof(ChangeStreamDocument<T>), "s");
+            //Expression nameProperty = Expression.Property(argParam, "FullDocument");
+
+            //var val123 = ((BinaryExpression) predicate.Body).Right;
+            //var op = ((BinaryExpression) predicate.Body).Method;
+
+            //BinaryExpression ex = BinaryExpression.Equal(nameProperty, val123);
+
+
+
+
+        //    var lambda = Expression.Lambda<Func<ChangeStreamDocument<T>, bool>>(ex, argParam);
 
 
 
@@ -496,23 +561,11 @@ namespace GoLive.Saturn.Data
 
 
 
+           // var compile = predicate.Compile();
 
-
-
-
-
-
-
-
-
-
-
-
-
-            var compile = predicate.Compile();
-
-            Expression<Func<ChangeStreamDocument<T>, bool>> expression = e => compile.Invoke(e.FullDocument);
+           // Expression<Func<ChangeStreamDocument<T>, bool>> expression = e => compile.Invoke(e.FullDocument);
             var definition = pipelineDefinition.Match(expression);
+          //  var definition = pipelineDefinition.Match(lambda);
 
             GetCollection<T>("").Watch(definition);
 
