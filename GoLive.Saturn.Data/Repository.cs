@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using ExpressionBuilder.Generics;
+using ExpressionBuilder.Operations;
 using Foundatio.Caching;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
@@ -20,11 +22,98 @@ using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using Newtonsoft.Json.Linq;
+using ExpressionVisitor = System.Linq.Expressions.ExpressionVisitor;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 
 namespace GoLive.Saturn.Data
 {
+
+    public class ParameterRebinder : ExpressionVisitor
+    {
+        private readonly Dictionary<ParameterExpression, ParameterExpression> map;
+
+        public ParameterRebinder(Dictionary<ParameterExpression, ParameterExpression> map)
+        {
+            this.map = map ?? new Dictionary<ParameterExpression, ParameterExpression>();
+        }
+
+        public static Expression ReplaceParameters(Dictionary<ParameterExpression, ParameterExpression> map, Expression exp)
+        {
+            return new ParameterRebinder(map).Visit(exp);
+        }
+
+        protected override Expression VisitParameter(ParameterExpression p)
+        {
+            ParameterExpression replacement;
+            if (map.TryGetValue(p, out replacement))
+            {
+                p = replacement;
+            }
+            return base.VisitParameter(p);
+        }
+    }
+    internal class ExpressionConverter<TInput, TOutput> : ExpressionVisitor
+    {
+        public Expression<Func<TOutput, bool>> Convert(Expression<Func<TInput, bool>> expression)
+        {
+            return (Expression<Func<TOutput, bool>>)Visit(expression);
+        }
+
+        private ParameterExpression replaceParam;
+
+        protected override Expression VisitLambda<T>(Expression<T> node)
+        {
+            if (typeof(T) == typeof(Func<TInput, bool>))
+            {
+                replaceParam = Expression.Parameter(typeof(TOutput), "p");
+                return Expression.Lambda<Func<TOutput, bool>>(Visit(node.Body), replaceParam);
+            }
+            return base.VisitLambda<T>(node);
+        }
+
+        protected override Expression VisitParameter(ParameterExpression node)
+        {
+            if (node.Type == typeof(TInput))
+                return replaceParam;
+            return base.VisitParameter(node);
+        }
+
+        protected override Expression VisitMember(MemberExpression node)
+        {
+            if (node.Member.DeclaringType == typeof(TInput))
+            {
+                var member = typeof(TOutput).GetMember(node.Member.Name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance).FirstOrDefault();
+                if (member == null)
+                    throw new InvalidOperationException("Cannot identify corresponding member of DataObject");
+                return Expression.MakeMemberAccess(Visit(node.Expression), member);
+            }
+            return base.VisitMember(node);
+        }
+    }
+
+
+    internal static class PredicateBuilder
+    {
+        public static Expression<Func<T, bool>> True<T>() { return f => true; }
+        public static Expression<Func<T, bool>> False<T>() { return f => false; }
+
+        public static Expression<Func<T, bool>> Or<T>(this Expression<Func<T, bool>> expr1,
+            Expression<Func<T, bool>> expr2)
+        {
+            var invokedExpr = Expression.Invoke(expr2, expr1.Parameters.Cast<Expression>());
+            return Expression.Lambda<Func<T, bool>>
+                (Expression.OrElse(expr1.Body, invokedExpr), expr1.Parameters);
+        }
+
+        public static Expression<Func<T, bool>> And<T>(this Expression<Func<T, bool>> expr1,
+            Expression<Func<T, bool>> expr2)
+        {
+            var invokedExpr = Expression.Invoke(expr2, expr1.Parameters.Cast<Expression>());
+            return Expression.Lambda<Func<T, bool>>
+                (Expression.AndAlso(expr1.Body, invokedExpr), expr1.Parameters);
+        }
+    }
 
     public class Repository : IRepository
     {
@@ -389,6 +478,55 @@ namespace GoLive.Saturn.Data
             return Item;
         }
 
+        public async Task Watch<T>(Expression<Func<T, bool>> predicate, Action<T> callback, string overrideCollectionName = "") where T : Entity
+        {
+            var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            var compile = predicate.Compile();
+
+            Expression<Func<ChangeStreamDocument<T>, bool>> expression = e => compile.Invoke(e.FullDocument);
+            var definition = pipelineDefinition.Match(expression);
+
+            GetCollection<T>("").Watch(definition);
+
+            var collection = GetCollection<T>(overrideCollectionName);
+
+            using (var asyncCursor = await collection.WatchAsync(pipelineDefinition))
+            {
+                foreach (var changeStreamDocument in asyncCursor.ToEnumerable())
+                {
+                    callback.Invoke(changeStreamDocument.FullDocument);
+                }
+            }
+        }
+
         public async Task<T> One<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
             var result = await GetCollection<T>(overrideCollectionName).FindAsync(predicate, new FindOptions<T> { Limit = 1 });
@@ -401,7 +539,7 @@ namespace GoLive.Saturn.Data
         {
             var where = new BsonDocument(WhereClause);
             var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, null)).ToListAsync();
-
+            
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
 
