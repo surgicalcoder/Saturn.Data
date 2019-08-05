@@ -529,7 +529,7 @@ namespace GoLive.Saturn.Data
             var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
 
             // https://stackoverflow.com/questions/5094489/how-do-i-dynamically-create-an-expressionfuncmyclass-bool-predicate-from-ex
-
+            // https://stackoverflow.com/questions/4601844/expression-tree-copy-or-convert
             ChangeStreamDocument<T> a;
             
 
