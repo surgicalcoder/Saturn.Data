@@ -542,58 +542,13 @@ namespace GoLive.Saturn.Data
         {
             var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
 
-            // https://stackoverflow.com/questions/5094489/how-do-i-dynamically-create-an-expressionfuncmyclass-bool-predicate-from-ex
-            // https://stackoverflow.com/questions/4601844/expression-tree-copy-or-convert
-            ChangeStreamDocument<T> a;
-            //a.
-
-            //ParameterRebinder.ReplaceParameters(new Dictionary<ParameterExpression, ParameterExpression>
-            //{
-            //    {Expression.Parameter(typeof(ChangeStreamDocumentTest<T>)), Expression.Parameter(typeof(ChangeStreamDocument<T>)) }
-            //}, predi)
-
-            //ParameterRebinder rebinder = new ParameterRebinder(new Dictionary<ParameterExpression, ParameterExpression>
-            //{
-            //    {Expression.Parameter(typeof(ChangeStreamDocumentTest<T>)), Expression.Parameter(typeof(ChangeStreamDocument<T>)) }
-            //});
-
-
-            
             var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
 
-            //ParameterExpression argParam = Expression.Parameter(typeof(ChangeStreamDocument<T>), "s");
-            //Expression nameProperty = Expression.Property(argParam, "FullDocument");
+            var opType = (ChangeStreamOperationType) opTypeTest;
 
-            //var val123 = ((BinaryExpression) predicate.Body).Right;
-            //var op = ((BinaryExpression) predicate.Body).Method;
-
-            //BinaryExpression ex = BinaryExpression.Equal(nameProperty, val123);
-
-
-
-
-        //    var lambda = Expression.Lambda<Func<ChangeStreamDocument<T>, bool>>(ex, argParam);
-
-
-
-        ChangeStreamOperationType opType = (ChangeStreamOperationType) opTypeTest;
-
-        //ChangeStreamOperationType opType = Enum.Parse(typeof(ChangeStreamOperationType), opTypeTest.ToString());
-
-
-
-
-
-
-
-
-           // var compile = predicate.Compile();
-
-           // Expression<Func<ChangeStreamDocument<T>, bool>> expression = e => compile.Invoke(e.FullDocument);
             var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
-          //  var definition = pipelineDefinition.Match(lambda);
 
-            GetCollection<T>("").Watch(definition);
+            GetCollection<T>(overrideCollectionName).Watch(definition);
 
             var collection = GetCollection<T>(overrideCollectionName);
 
