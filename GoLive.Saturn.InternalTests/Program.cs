@@ -16,7 +16,7 @@ namespace GoLive.Saturn.InternalTests
             new Thread(() =>
             {
                 Console.WriteLine("Waiting...");
-                repository.Watch<TestEntity>(e => e.FullDocument.Name == "Test123", entity => Console.WriteLine(entity.Name)).Wait();
+                repository.Watch<TestEntity>(e => e.FullDocument.Name == "Test123", Repository.ChangeStreamOperationTypeTest.Insert, entity => Console.WriteLine(entity.Name)).Wait();
             }).Start();
             Thread.Sleep(1000);
             await repository.Add(new TestEntity() {Name = "Test123"});

@@ -56,7 +56,7 @@ namespace GoLive.Saturn.Data
                 return Expression.MakeMemberAccess(newObj, newMember);
             }
         }
-
+        
         public static Expression<Func<TTo, TR>> Convert<TFrom, TR>(
             Expression<Func<TFrom, TR>> e
         )
@@ -68,6 +68,7 @@ namespace GoLive.Saturn.Data
             return Expression.Lambda<Func<TTo, TR>>(newBody, newParameter);
         }
     }
+
     public class ParameterRebinder : ExpressionVisitor
     {
         private readonly Dictionary<ParameterExpression, ParameterExpression> map;
@@ -521,18 +522,43 @@ namespace GoLive.Saturn.Data
         public class ChangeStreamDocumentTest<T> where T : Entity
         {
             public T FullDocument { get; set; }
+
+        }
+        public enum ChangeStreamOperationTypeTest
+        {
+            /// <summary>An insert operation type.</summary>
+            Insert,
+            /// <summary>An update operation type.</summary>
+            Update,
+            /// <summary>A replace operation type.</summary>
+            Replace,
+            /// <summary>A delete operation type.</summary>
+            Delete,
+            /// <summary>An invalidate operation type.</summary>
+            Invalidate,
         }
 
-
-        public async Task Watch<T>(Expression<Func<ChangeStreamDocumentTest<T>, bool>> predicate, Action<T> callback, string overrideCollectionName = "") where T : Entity
+        public async Task Watch<T>(Expression<Func<ChangeStreamDocumentTest<T>, bool>> predicate, ChangeStreamOperationTypeTest opTypeTest, Action<T> callback, string overrideCollectionName = "") where T : Entity
         {
             var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
 
             // https://stackoverflow.com/questions/5094489/how-do-i-dynamically-create-an-expressionfuncmyclass-bool-predicate-from-ex
             // https://stackoverflow.com/questions/4601844/expression-tree-copy-or-convert
             ChangeStreamDocument<T> a;
-            
+            //a.
 
+            //ParameterRebinder.ReplaceParameters(new Dictionary<ParameterExpression, ParameterExpression>
+            //{
+            //    {Expression.Parameter(typeof(ChangeStreamDocumentTest<T>)), Expression.Parameter(typeof(ChangeStreamDocument<T>)) }
+            //}, predi)
+
+            //ParameterRebinder rebinder = new ParameterRebinder(new Dictionary<ParameterExpression, ParameterExpression>
+            //{
+            //    {Expression.Parameter(typeof(ChangeStreamDocumentTest<T>)), Expression.Parameter(typeof(ChangeStreamDocument<T>)) }
+            //});
+
+
+            
             var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
 
             //ParameterExpression argParam = Expression.Parameter(typeof(ChangeStreamDocument<T>), "s");
@@ -550,9 +576,9 @@ namespace GoLive.Saturn.Data
 
 
 
+        ChangeStreamOperationType opType = (ChangeStreamOperationType) opTypeTest;
 
-
-
+        //ChangeStreamOperationType opType = Enum.Parse(typeof(ChangeStreamOperationType), opTypeTest.ToString());
 
 
 
@@ -564,7 +590,7 @@ namespace GoLive.Saturn.Data
            // var compile = predicate.Compile();
 
            // Expression<Func<ChangeStreamDocument<T>, bool>> expression = e => compile.Invoke(e.FullDocument);
-            var definition = pipelineDefinition.Match(expression);
+            var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
           //  var definition = pipelineDefinition.Match(lambda);
 
             GetCollection<T>("").Watch(definition);
