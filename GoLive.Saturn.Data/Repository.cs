@@ -6,9 +6,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using ExpressionBuilder.Generics;
-using ExpressionBuilder.Operations;
-using Foundatio.Caching;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
@@ -34,7 +31,7 @@ namespace GoLive.Saturn.Data
 
         public static bool InitRun { get; set; }
         public static DateTime InitLastChecked { get; set; }
-        private static ICacheClient cacheClient { get; set; }
+//        private static ICacheClient cacheClient { get; set; }
 
         private IMongoDatabase mongoDatabase { get; set; }
         private IMongoClient client { get; set; }
@@ -391,24 +388,6 @@ namespace GoLive.Saturn.Data
         }
 
 
-        public class ChangedEntity<T> where T : Entity
-        {
-            public T FullDocument { get; set; }
-
-        }
-        public enum ChangeOperation
-        {
-            /// <summary>An insert operation type.</summary>
-            Insert,
-            /// <summary>An update operation type.</summary>
-            Update,
-            /// <summary>A replace operation type.</summary>
-            Replace,
-            /// <summary>A delete operation type.</summary>
-            Delete,
-            /// <summary>An invalidate operation type.</summary>
-            Invalidate,
-        }
 
         public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation op, Action<T, string, ChangeOperation> callback, string overrideCollectionName = "") where T : Entity
         {
