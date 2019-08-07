@@ -22,139 +22,11 @@ using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using Newtonsoft.Json.Linq;
-using ExpressionVisitor = System.Linq.Expressions.ExpressionVisitor;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 
 namespace GoLive.Saturn.Data
 {
-    class Converter<TTo>
-    {
-        class ConversionVisitor : ExpressionVisitor
-        {
-            private readonly ParameterExpression newParameter;
-            private readonly ParameterExpression oldParameter;
-
-            public ConversionVisitor(ParameterExpression newParameter, ParameterExpression oldParameter)
-            {
-                this.newParameter = newParameter;
-                this.oldParameter = oldParameter;
-            }
-
-            protected override Expression VisitParameter(ParameterExpression node)
-            {
-                return newParameter; // replace all old param references with new ones
-            }
-
-            protected override Expression VisitMember(MemberExpression node)
-            {
-                if (node.Expression != oldParameter) // if instance is not old parameter - do nothing
-                    return base.VisitMember(node);
-
-                var newObj = Visit(node.Expression);
-                var newMember = newParameter.Type.GetMember(node.Member.Name).First();
-                return Expression.MakeMemberAccess(newObj, newMember);
-            }
-        }
-        
-        public static Expression<Func<TTo, TR>> Convert<TFrom, TR>(
-            Expression<Func<TFrom, TR>> e
-        )
-        {
-            var oldParameter = e.Parameters[0];
-            var newParameter = Expression.Parameter(typeof(TTo), oldParameter.Name);
-            var converter = new ConversionVisitor(newParameter, oldParameter);
-            var newBody = converter.Visit(e.Body);
-            return Expression.Lambda<Func<TTo, TR>>(newBody, newParameter);
-        }
-    }
-
-    public class ParameterRebinder : ExpressionVisitor
-    {
-        private readonly Dictionary<ParameterExpression, ParameterExpression> map;
-
-        public ParameterRebinder(Dictionary<ParameterExpression, ParameterExpression> map)
-        {
-            this.map = map ?? new Dictionary<ParameterExpression, ParameterExpression>();
-        }
-
-        public static Expression ReplaceParameters(Dictionary<ParameterExpression, ParameterExpression> map, Expression exp)
-        {
-            return new ParameterRebinder(map).Visit(exp);
-        }
-
-        protected override Expression VisitParameter(ParameterExpression p)
-        {
-            ParameterExpression replacement;
-            if (map.TryGetValue(p, out replacement))
-            {
-                p = replacement;
-            }
-            return base.VisitParameter(p);
-        }
-    }
-    internal class ExpressionConverter<TInput, TOutput> : ExpressionVisitor
-    {
-        public Expression<Func<TOutput, bool>> Convert(Expression<Func<TInput, bool>> expression)
-        {
-            return (Expression<Func<TOutput, bool>>)Visit(expression);
-        }
-
-        private ParameterExpression replaceParam;
-
-        protected override Expression VisitLambda<T>(Expression<T> node)
-        {
-            if (typeof(T) == typeof(Func<TInput, bool>))
-            {
-                replaceParam = Expression.Parameter(typeof(TOutput), "p");
-                return Expression.Lambda<Func<TOutput, bool>>(Visit(node.Body), replaceParam);
-            }
-            return base.VisitLambda<T>(node);
-        }
-
-        protected override Expression VisitParameter(ParameterExpression node)
-        {
-            if (node.Type == typeof(TInput))
-                return replaceParam;
-            return base.VisitParameter(node);
-        }
-
-        protected override Expression VisitMember(MemberExpression node)
-        {
-            if (node.Member.DeclaringType == typeof(TInput))
-            {
-                var member = typeof(TOutput).GetMember(node.Member.Name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance).FirstOrDefault();
-                if (member == null)
-                    throw new InvalidOperationException("Cannot identify corresponding member of DataObject");
-                return Expression.MakeMemberAccess(Visit(node.Expression), member);
-            }
-            return base.VisitMember(node);
-        }
-    }
-
-
-    internal static class PredicateBuilder
-    {
-        public static Expression<Func<T, bool>> True<T>() { return f => true; }
-        public static Expression<Func<T, bool>> False<T>() { return f => false; }
-
-        public static Expression<Func<T, bool>> Or<T>(this Expression<Func<T, bool>> expr1,
-            Expression<Func<T, bool>> expr2)
-        {
-            var invokedExpr = Expression.Invoke(expr2, expr1.Parameters.Cast<Expression>());
-            return Expression.Lambda<Func<T, bool>>
-                (Expression.OrElse(expr1.Body, invokedExpr), expr1.Parameters);
-        }
-
-        public static Expression<Func<T, bool>> And<T>(this Expression<Func<T, bool>> expr1,
-            Expression<Func<T, bool>> expr2)
-        {
-            var invokedExpr = Expression.Invoke(expr2, expr1.Parameters.Cast<Expression>());
-            return Expression.Lambda<Func<T, bool>>
-                (Expression.AndAlso(expr1.Body, invokedExpr), expr1.Parameters);
-        }
-    }
-
     public class Repository : IRepository
     {
         #region Props
@@ -519,12 +391,12 @@ namespace GoLive.Saturn.Data
         }
 
 
-        public class ChangeStreamDocumentTest<T> where T : Entity
+        public class ChangedEntity<T> where T : Entity
         {
             public T FullDocument { get; set; }
 
         }
-        public enum ChangeStreamOperationTypeTest
+        public enum ChangeOperation
         {
             /// <summary>An insert operation type.</summary>
             Insert,
@@ -538,17 +410,17 @@ namespace GoLive.Saturn.Data
             Invalidate,
         }
 
-        public async Task Watch<T>(Expression<Func<ChangeStreamDocumentTest<T>, bool>> predicate, ChangeStreamOperationTypeTest opTypeTest, Action<T> callback, string overrideCollectionName = "") where T : Entity
+        public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation op, Action<T, string, ChangeOperation> callback, string overrideCollectionName = "") where T : Entity
         {
             var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
 
             var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
 
-            var opType = (ChangeStreamOperationType) opTypeTest;
+            var opType = (ChangeStreamOperationType) op;
 
             var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
 
-            GetCollection<T>(overrideCollectionName).Watch(definition);
+            await GetCollection<T>(overrideCollectionName).WatchAsync(definition);
 
             var collection = GetCollection<T>(overrideCollectionName);
 
@@ -556,7 +428,7 @@ namespace GoLive.Saturn.Data
             {
                 foreach (var changeStreamDocument in asyncCursor.ToEnumerable())
                 {
-                    callback.Invoke(changeStreamDocument.FullDocument);
+                    callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(), (ChangeOperation) changeStreamDocument.OperationType );
                 }
             }
         }
