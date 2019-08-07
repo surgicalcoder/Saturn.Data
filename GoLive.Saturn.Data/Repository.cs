@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Foundatio.Caching;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
@@ -25,7 +24,6 @@ using Newtonsoft.Json.Linq;
 
 namespace GoLive.Saturn.Data
 {
-
     public class Repository : IRepository
     {
         #region Props
@@ -33,7 +31,7 @@ namespace GoLive.Saturn.Data
 
         public static bool InitRun { get; set; }
         public static DateTime InitLastChecked { get; set; }
-        private static ICacheClient cacheClient { get; set; }
+//        private static ICacheClient cacheClient { get; set; }
 
         private IMongoDatabase mongoDatabase { get; set; }
         private IMongoClient client { get; set; }
@@ -389,6 +387,31 @@ namespace GoLive.Saturn.Data
             return Item;
         }
 
+
+
+        public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation op, Action<T, string, ChangeOperation> callback, string overrideCollectionName = "") where T : Entity
+        {
+            var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
+
+            var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
+
+            var opType = (ChangeStreamOperationType) op;
+
+            var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
+
+            await GetCollection<T>(overrideCollectionName).WatchAsync(definition);
+
+            var collection = GetCollection<T>(overrideCollectionName);
+
+            using (var asyncCursor = await collection.WatchAsync(pipelineDefinition))
+            {
+                foreach (var changeStreamDocument in asyncCursor.ToEnumerable())
+                {
+                    callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(), (ChangeOperation) changeStreamDocument.OperationType );
+                }
+            }
+        }
+
         public async Task<T> One<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
             var result = await GetCollection<T>(overrideCollectionName).FindAsync(predicate, new FindOptions<T> { Limit = 1 });
@@ -401,7 +424,7 @@ namespace GoLive.Saturn.Data
         {
             var where = new BsonDocument(WhereClause);
             var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, null)).ToListAsync();
-
+            
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
 
