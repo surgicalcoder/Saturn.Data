@@ -6,7 +6,7 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data.Benchmarks
 {
-    internal class TestMongoDatabase : IMongoDatabase
+    public class TestMongoDatabase : IMongoDatabase
     {
         public void CreateCollection(string name, CreateCollectionOptions options = null,
             CancellationToken cancellationToken = new CancellationToken())

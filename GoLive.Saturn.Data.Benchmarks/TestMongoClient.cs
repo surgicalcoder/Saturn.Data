@@ -7,7 +7,7 @@ using MongoDB.Driver.Core.Clusters;
 
 namespace GoLive.Saturn.Data.Benchmarks
 {
-    internal class TestMongoClient : IMongoClient
+    public class TestMongoClient : IMongoClient
     {
         public void DropDatabase(string name, CancellationToken cancellationToken = new CancellationToken())
         {

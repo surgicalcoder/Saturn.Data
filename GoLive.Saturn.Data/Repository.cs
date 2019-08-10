@@ -21,6 +21,7 @@ using MongoDB.Driver.Core.Events;
 using Newtonsoft.Json.Linq;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
+[assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
 
 namespace GoLive.Saturn.Data
 {
@@ -213,7 +214,8 @@ namespace GoLive.Saturn.Data
 
                     map.IdMemberMap.SetSerializer(new StringSerializer().WithRepresentation(BsonType.ObjectId))
                         .SetIdGenerator(StringObjectIdGenerator.Instance)
-                        .SetIgnoreIfDefault(true);
+                        .SetIgnoreIfDefault(true)
+                        .SetDefaultValue(()=> ObjectId.GenerateNewId().ToString());
                 });
             }
         }
@@ -511,7 +513,7 @@ namespace GoLive.Saturn.Data
                 x1.Id = ObjectId.GenerateNewId().ToString();
             }
 
-            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }));
+            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions(){IsOrdered = false});
 
             if (!bulkWriteResult.IsAcknowledged)
             {
@@ -543,7 +545,7 @@ namespace GoLive.Saturn.Data
 
             var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = false });
 
-            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(writeModel);
+            var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(writeModel, new BulkWriteOptions() { IsOrdered = false });
 
             if (!bulkWriteResult.IsAcknowledged)
             {

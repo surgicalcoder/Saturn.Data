@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data.Benchmarks
 {
-    internal class TestMongoCollection<T> : IMongoCollection<T>
+    public class TestMongoCollection<T> : IMongoCollection<T>
     {
         public IAsyncCursor<TResult> Aggregate<TResult>(PipelineDefinition<T, TResult> pipeline, AggregateOptions options = null,
             CancellationToken cancellationToken = new CancellationToken())
