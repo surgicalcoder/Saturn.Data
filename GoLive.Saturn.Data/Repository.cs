@@ -91,7 +91,7 @@ namespace GoLive.Saturn.Data
             {
                 cb.Subscribe<CommandStartedEvent>(e =>
                 {
-                    options?.CommandStartedCallback?.Invoke(e.RequestId, e.CommandName, e.Command.ToJson());
+                    options?.CommandStartedCallback?.Invoke(new CommandStartedArgs(){Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId});
                 });
             }
 
@@ -99,7 +99,7 @@ namespace GoLive.Saturn.Data
             {
                 cb.Subscribe<CommandFailedEvent>(e =>
                 {
-                    options?.CommandFailedCallback.Invoke(e.RequestId, e.CommandName, e.Failure);
+                    options?.CommandFailedCallback.Invoke(new CommandFailedArgs(){CommandName = e.CommandName, RequestId = e.RequestId, Exception = e.Failure});
                 });
             }
 
@@ -107,7 +107,7 @@ namespace GoLive.Saturn.Data
             {
                 cb.Subscribe<CommandSucceededEvent>(e =>
                 {
-                    options?.CommandCompletedCallback.Invoke(e.RequestId, e.CommandName, e.Duration);
+                    options?.CommandCompletedCallback.Invoke(new CommandCompletedArgs() {CommandName = e.CommandName, RequestId = e.RequestId, Time = e.Duration});
                 });
             }
         }
