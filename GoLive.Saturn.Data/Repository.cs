@@ -157,7 +157,8 @@ namespace GoLive.Saturn.Data
                 new IgnoreEmptyArraysConvention(),
                 new IgnoreExtraElementsConvention(true),
                 new NamedIdMemberConvention("Id"),
-                new StringObjectIdIdGeneratorConvention()
+                new StringObjectIdIdGeneratorConvention(),
+                new IgnoreEmptyStringsConvention()
             };
 
             ConventionRegistry.Register("Custom Conventions", pack, t => true);
