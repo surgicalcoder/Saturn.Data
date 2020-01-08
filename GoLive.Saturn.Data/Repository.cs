@@ -32,7 +32,6 @@ namespace GoLive.Saturn.Data
 
         public static bool InitRun { get; set; }
         public static DateTime InitLastChecked { get; set; }
-//        private static ICacheClient cacheClient { get; set; }
 
         private IMongoDatabase mongoDatabase { get; set; }
         private IMongoClient client { get; set; }
@@ -275,88 +274,12 @@ namespace GoLive.Saturn.Data
         }
 
         #region Get
-
-        //public class Test123
-        //{
-        //    public bool Store { get; set; }
-        //    public int? CacheDuration { get; set; }
-        //}
-
-        //public async Task<T> ReadFromCache<T>(Func<T> PerformAction, string id, string collectionName)
-        //{
-        //    var toCacheKey = $"repository_tocache_{collectionName}";
-        //    var cacheLocationKey = $"repository_item_{collectionName}_{id}";
-
-        //    var cache1 = await cacheClient.GetAsync<Test123>(toCacheKey);
-
-        //    if (cache1.HasValue)
-        //    {
-        //        if (cache1.Value.Store)
-        //        {
-
-        //            var item = await cacheClient.GetAsync<T>(cacheLocationKey);
-
-        //            if (item.HasValue)
-        //            {
-        //                return item.Value;
-        //            }
-
-        //            var result= PerformAction.Invoke();
-        //            await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?)null);
-
-        //            return result;
-        //        }
-        //        else
-        //        {
-        //            var result = PerformAction.Invoke();
-        //            return result;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        var alwaysCacheAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<AlwaysCacheAttribute>();
-        //        var test = new Test123();
-
-        //        if (alwaysCacheAttribute != null)
-        //        {
-        //            test.Store = true;
-        //            test.CacheDuration = alwaysCacheAttribute.CacheDuration;
-        //        }
-        //        else
-        //        {
-        //            test.Store = false;
-        //        }
-
-        //        await cacheClient.SetAsync(toCacheKey, test);
-        //        var result = PerformAction.Invoke();
-
-        //        if (test.Store)
-        //        {
-        //            await cacheClient.SetAsync(cacheLocationKey, result, cache1.Value.CacheDuration.HasValue ? TimeSpan.FromSeconds(cache1.Value.CacheDuration.Value) : (TimeSpan?)null);
-        //        }
-
-        //        return result;
-        //    }
-
-        //}
-
-
-
+        
         public async Task<T> ById<T>(string id, string collectionName) where T : Entity
         {
-            var result =
-                await (await GetCollection<T>(collectionName)
-                    .FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+            var result = await (await GetCollection<T>(collectionName).FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
 
             return result;
-            //return await ReadFromCache<T>(async () =>
-            //{
-            //    var result =
-            //        await (await GetCollection<T>(collectionName)
-            //            .FindAsync(e => e.Id == id, new FindOptions<T> {Limit = 1})).FirstOrDefaultAsync();
-
-            //    return result;
-            //}, id, collectionName).ConfigureAwait(false);
         }
 
         public async Task<List<T>> ById<T>(List<string> IDs, string overrideCollectionName = "") where T : Entity
@@ -389,8 +312,6 @@ namespace GoLive.Saturn.Data
 
             return Item;
         }
-
-
 
         public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation op, Action<T, string, ChangeOperation> callback, string overrideCollectionName = "") where T : Entity
         {
@@ -556,14 +477,13 @@ namespace GoLive.Saturn.Data
 
         public async Task Upsert<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-
             if (string.IsNullOrWhiteSpace(entity.Id))
             {
                 entity.Id = ObjectId.GenerateNewId().ToString();
             }
 
-            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions { IsUpsert = true });
-
+            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true });
+            
             if (!updateResult.IsAcknowledged)
             {
                 throw new FailedToUpsertException();
@@ -572,7 +492,7 @@ namespace GoLive.Saturn.Data
 
         public async Task Update<T>(T entity, string overrideCollectionName = "") where T : Entity
         {
-            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new UpdateOptions() { IsUpsert = false });
+            var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = false });
 
             if (!updateResult.IsAcknowledged)
             {
