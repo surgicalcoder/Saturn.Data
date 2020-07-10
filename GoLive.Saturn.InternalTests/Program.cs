@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data;
 using GoLive.Saturn.Data.Abstractions;
-using GoLive.Saturn.Data.Benchmarks;
 using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.InternalTests
@@ -12,13 +11,19 @@ namespace GoLive.Saturn.InternalTests
     {
         static async Task Main(string[] args)
         {
-            
-            NullIdInsertTest niit = new NullIdInsertTest();
-            await niit.Run();
+            Repository repository = new Repository(new RepositoryOptions() { ConnectionString = "mongodb://localhost/GoLiveSaturn" });
+            StringEmptyInsertTest seit = new StringEmptyInsertTest();
+            seit.Value1 = "Test 1";
+            seit.Value2 = "      ";
+            await repository.UpsertMany(new List<StringEmptyInsertTest> {seit});
+            //await repository.Add(seit);
 
-            //WatchTests test = new WatchTests();
-            //await test.Run();
-            Console.WriteLine("Hello World!");
+            //NullIdInsertTest niit = new NullIdInsertTest();
+            //await niit.Run();
+
+            ////WatchTests test = new WatchTests();
+            ////await test.Run();
+            //Console.WriteLine("Hello World!");
         }
     }
 

@@ -161,21 +161,18 @@ namespace GoLive.Saturn.Data
             };
 
             ConventionRegistry.Register("Custom Conventions", pack, t => true);
-
+            
             try
             {
-                BsonSerializer.RegisterDiscriminatorConvention(typeof(JObject), new JObjectDiscriminatorConvention());
+                BsonSerializer.RegisterSerializer(typeof(Timestamp), new TimestampSerializer());
 
                 BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
                 BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
 
                 BsonSerializer.RegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
                 BsonSerializer.RegisterSerializer(typeof(HashedString), new HashedStringSerializer());
-                BsonSerializer.RegisterSerializer(typeof(JObject), new JObjectSerializer());
-
-                BsonSerializer.RegisterSerializer(typeof(Timestamp), new TimestampSerializer());
             }
-            catch (BsonSerializationException bsex) when (bsex.Message == "There is already a discriminator convention registered for type Newtonsoft.Json.Linq.JObject.") { }
+            catch (ArgumentException bsex) when (bsex.Message == "There is already a serializer registered for type Timestamp") { }
 
             if (options?.DiscriminatorConventions != null)
             {
@@ -347,6 +344,7 @@ namespace GoLive.Saturn.Data
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, string overrideCollectionName = "") where T : Entity
         {
             var where = new BsonDocument(WhereClause);
+
             var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, null)).ToListAsync();
             
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();

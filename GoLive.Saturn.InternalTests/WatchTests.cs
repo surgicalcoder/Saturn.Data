@@ -13,6 +13,8 @@ namespace GoLive.Saturn.InternalTests
         {
             Repository repository = new Repository(new RepositoryOptions() { ConnectionString = "mongodb://localhost/GoLiveSaturn" });
 
+            
+
             new Thread(() =>
             {
                 Console.WriteLine("Waiting...");
@@ -26,5 +28,11 @@ namespace GoLive.Saturn.InternalTests
             await repository.Add(new TestEntity() { Name = "Test123" });
 
         }
+    }
+
+    public class StringEmptyInsertTest : Entity
+    {
+        public string Value1 { get; set; }
+        public string Value2 { get; set; }
     }
 }

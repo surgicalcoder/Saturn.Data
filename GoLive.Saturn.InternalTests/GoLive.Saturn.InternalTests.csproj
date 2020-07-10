@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GoLive.Saturn.Data.Benchmarks\GoLive.Saturn.Data.Benchmarks.csproj" />
     <ProjectReference Include="..\GoLive.Saturn.Data\GoLive.Saturn.Data.csproj" />
   </ItemGroup>
 
