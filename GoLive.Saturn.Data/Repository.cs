@@ -18,7 +18,6 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
-using Newtonsoft.Json.Linq;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
