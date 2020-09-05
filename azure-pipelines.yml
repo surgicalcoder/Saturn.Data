@@ -12,7 +12,7 @@ pool:
 steps:
 - task: DotNetCoreInstaller@0
   inputs:
-    version: '3.1.x'
+    version: '3.1.7'
 - script: dotnet build GoLive.Saturn.Data/GoLive.Saturn.Data.csproj
 - script: dotnet publish GoLive.Saturn.Data/GoLive.Saturn.Data.csproj --output $(Build.ArtifactStagingDirectory)
 - script: dotnet pack GoLive.Saturn.Data/GoLive.Saturn.Data.csproj /p:PackageVersion=$(version) --output $(Build.ArtifactStagingDirectory)
