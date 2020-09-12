@@ -21,9 +21,11 @@ namespace GoLive.Saturn.Data.Conventions
 
         public void Apply(BsonMemberMap memberMap)
         {
+            var typ = memberMap.MemberType;
             if (!typeof(IEnumerable).IsAssignableFrom(memberMap.MemberType) || //Allow IEnumerable
-                typeof(string) == memberMap.MemberType || //But not String
-                typeof(IDictionary).IsAssignableFrom(memberMap.MemberType)) //Or Dictionary (concrete classes only see below)
+                typeof(string) == memberMap.MemberType  //But not String
+                // || typeof(IDictionary).IsAssignableFrom(memberMap.MemberType)
+                ) //Or Dictionary (concrete classes only see below)
                 return;
 
             //*NOTE Microsoft was too stupid to make the generic dictionary interfaces implement IDictonary even though every single concrete class does
