@@ -293,7 +293,7 @@ namespace GoLive.Saturn.Data
 
         public async Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> Item, string overrideCollectionName = "") where T : Entity
         {
-            var enumerable = Item.Where(e => e != null).Select(f => f.Id).ToList();
+            var enumerable = Item.Where(e => string.IsNullOrWhiteSpace(e.Id)).Select(f => f.Id).ToList();
             var res = await ById<T>(enumerable, overrideCollectionName);
 
             return res.Select(r => new Ref<T>(r)).ToList();
@@ -301,14 +301,14 @@ namespace GoLive.Saturn.Data
 
         public async Task<T> ByRef<T>(Ref<T> Item, string overrideCollectionName = "") where T : Entity
         {
-            return Item == null ? null : await ById<T>(Item.Id, overrideCollectionName);
+            return string.IsNullOrWhiteSpace(Item.Id) ? null : await ById<T>(Item.Id, overrideCollectionName);
         }
 
         public async Task<Ref<T>> PopulateRef<T>(Ref<T> Item, string overrideCollectionName = "") where T : Entity
         {
-            if (Item == null || string.IsNullOrWhiteSpace(Item.Id))
+            if (string.IsNullOrWhiteSpace(Item.Id))
             {
-                return null;
+                return default;
             }
 
             Item.Item = await ById<T>(Item.Id, overrideCollectionName);
@@ -429,15 +429,23 @@ namespace GoLive.Saturn.Data
 
         public async Task UpsertMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
         {
-            if (entity.Count == 0)
+            if (entity == null || entity.Count == 0)
             {
                 return;
             }
 
-            foreach (var x1 in entity.Where(e => string.IsNullOrWhiteSpace(e.Id)))
+            for (int i = 0; i < entity.Count; i++)
             {
-                x1.Id = ObjectId.GenerateNewId().ToString();
+                if (entity[i].Id.Length == 0)
+                {
+                    entity[i].Id = ObjectId.GenerateNewId().ToString();
+                }
             }
+
+            //foreach (var x1 in entity.Where(e => string.IsNullOrWhiteSpace(e.Id)))
+            //{
+            //    x1.Id = ObjectId.GenerateNewId().ToString();
+            //}
 
             var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions(){IsOrdered = false});
 
@@ -485,7 +493,7 @@ namespace GoLive.Saturn.Data
             {
                 entity.Id = ObjectId.GenerateNewId().ToString();
             }
-
+            
             var updateResult = await GetCollection<T>(overrideCollectionName).ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true });
             
             if (!updateResult.IsAcknowledged)
@@ -506,5 +514,4 @@ namespace GoLive.Saturn.Data
 
         #endregion
     }
-   
 }
