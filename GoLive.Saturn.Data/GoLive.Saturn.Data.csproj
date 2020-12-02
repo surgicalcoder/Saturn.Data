@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.204" />
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.0.199" />
-    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.0.194" />
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.208" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.1.207" />
+    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.1.209" />
     <PackageReference Include="MongoDB.Bson" Version="2.11.4" />
     <PackageReference Include="MongoDB.Driver" Version="2.11.4" />
     <PackageReference Include="System.Memory" Version="4.5.4" />

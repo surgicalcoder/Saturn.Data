@@ -8,10 +8,7 @@ pool:
 
 steps:
 - task: UseDotNet@2
-  displayName: 'Use .NET Core sdk'
   inputs:
-    packageType: sdk
-    version: 3.x
-    installationPath: $(Agent.ToolsDirectory)/dotnet
+    version: '5.0.x'
 - script: dotnet pack GoLive.Saturn.Data/GoLive.Saturn.Data.csproj -p:PackageVersion=$(version) --output $(Build.ArtifactStagingDirectory)
 - task: PublishBuildArtifacts@1
