@@ -26,7 +26,7 @@ using MongoDB.Driver.Core.Events;
 
 namespace GoLive.Saturn.Data
 {
-    public class Repository : IRepository
+    public partial class Repository : IRepository, IScopedReadonlyRepository
     {
         #region Props
         private static RepositoryOptions options { get; set; }
@@ -259,7 +259,7 @@ namespace GoLive.Saturn.Data
 
                 if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
                 {
-                    var genericName = name.Slice(0, name.IndexOf(genericSeparator)).ToString();
+                    var genericName = name[..name.IndexOf(genericSeparator)].ToString();
 
                     if (genericName == "WrappedEntity")
                     {
@@ -383,7 +383,7 @@ namespace GoLive.Saturn.Data
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
         }
 
-        private IMongoCollection<T> GetCollection<T>(string collectionName) where T : Entity
+        private IMongoCollection<T> GetCollection<T>(string collectionName = null) where T : Entity
         {
             return mongoDatabase.GetCollection<T>(GetCollectionNameForType<T>(collectionName));
         }
@@ -513,5 +513,64 @@ namespace GoLive.Saturn.Data
         }
 
         #endregion
+
+
+
+        public async Task<T> ById<T, T2>(T2 scope, string id) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            var result = await (await GetCollection<T>().FindAsync(e => e.Id == id && e.Scope == scope, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+
+            return result;
+        }
+
+        public async Task<List<T>> ById<T, T2>(T2 scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope);
+            return await result.ToListAsync().ConfigureAwait(false);
+        }
+
+        public async Task<IQueryable<T>> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
+            return await Task.Run(() => scopedEntities);
+        }
+
+        public async Task<T> One<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
+            var combinedPred = firstPred.And(predicate);
+            var result = await GetCollection<T>().FindAsync(combinedPred, new FindOptions<T> { Limit = 1 });
+
+            return await result.FirstOrDefaultAsync();
+        }
+
+        public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+
+            return await Task.Run(() => scopedEntities);
+        }
+
+        public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int PageNumber) where T : ScopedEntity<T2> where T2 : Entity
+        {
+            if (pageSize == 0 || PageNumber == 0)
+            {
+                return await Many(scope, predicate).ConfigureAwait(false);
+            }
+
+            var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize);
+            return await Task.Run(() => res);
+        }
+
+        public async Task<long> CountMany<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity
+        {
+           Expression< Func<T, bool>>firstPred = item => item.Scope == scope;
+           var combinedPred = firstPred.And(predicate);
+            
+            return await GetCollection<T>().CountDocumentsAsync(combinedPred);
+        }
+        
+
     }
+ 
 }
