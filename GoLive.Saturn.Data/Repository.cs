@@ -20,6 +20,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
+using MongoDB.Driver.Linq;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
@@ -346,6 +347,19 @@ namespace GoLive.Saturn.Data
             return await result.FirstOrDefaultAsync().ConfigureAwait(false);
         }
 
+        public async Task<T> Random<T>(string overrideCollectionName = "") where T : Entity
+        {
+            var item = await GetCollection<T>(overrideCollectionName).AsQueryable().Sample(1).FirstOrDefaultAsync();
+
+            return item;
+        }
+        
+        public async Task<List<T>> Random<T>(int count, string overrideCollectionName = "") where T : Entity
+        {
+            var item = await GetCollection<T>(overrideCollectionName).AsQueryable().Sample(1).ToListAsync();
+
+            return item;
+        }
 
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, string overrideCollectionName = "") where T : Entity
         {
