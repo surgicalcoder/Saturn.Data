@@ -27,7 +27,7 @@ using MongoDB.Driver.Linq;
 
 namespace GoLive.Saturn.Data
 {
-    public partial class Repository : IRepository, IScopedReadonlyRepository
+    public partial class Repository : IRepository, IScopedRepository
     {
         #region Props
         private static RepositoryOptions options { get; set; }
@@ -377,7 +377,7 @@ namespace GoLive.Saturn.Data
                 return await Many<T>(predicate, overrideCollectionName).ConfigureAwait(false);
             }
 
-            return await Task.Run(() => GetCollection<T>(overrideCollectionName).AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize)).ConfigureAwait(false);
+            return await Task.Run(() => Queryable.Take(GetCollection<T>(overrideCollectionName).AsQueryable().Where(predicate).Skip((PageNumber - 1) * pageSize), pageSize)).ConfigureAwait(false);
         }
 
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, int pageSize, int PageNumber, string overrideCollectionName = "") where T : Entity
@@ -410,7 +410,7 @@ namespace GoLive.Saturn.Data
 
         public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, string overrideCollectionName = "") where T : Entity
         {
-            return await Task.Run(() => GetCollection<T>(overrideCollectionName).AsQueryable().Where(predicate));
+            return await Task.Run(() => Queryable.Where(GetCollection<T>(overrideCollectionName).AsQueryable(), predicate));
         }
 
         public async Task<IQueryable<T>> All<T>(string overrideCollectionName = "") where T : Entity
@@ -545,7 +545,7 @@ namespace GoLive.Saturn.Data
 
         public async Task<IQueryable<T>> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity
         {
-            var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
+            var scopedEntities = Queryable.Where(GetCollection<T>().AsQueryable(), f => f.Scope == scope);
             return await Task.Run(() => scopedEntities);
         }
 
@@ -560,7 +560,7 @@ namespace GoLive.Saturn.Data
 
         public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity
         {
-            var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+            var scopedEntities = Queryable.Where(GetCollection<T>().AsQueryable().Where(f => f.Scope == scope), predicate);
 
             return await Task.Run(() => scopedEntities);
         }
@@ -572,7 +572,7 @@ namespace GoLive.Saturn.Data
                 return await Many(scope, predicate).ConfigureAwait(false);
             }
 
-            var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate).Skip((PageNumber - 1) * pageSize).Take(pageSize);
+            var res = Queryable.Take(GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate).Skip((PageNumber - 1) * pageSize), pageSize);
             return await Task.Run(() => res);
         }
 
@@ -583,8 +583,92 @@ namespace GoLive.Saturn.Data
             
             return await GetCollection<T>().CountDocumentsAsync(combinedPred);
         }
-        
 
+
+        public async Task Add<T, T2>(T2 scope, T entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            entity.Scope = scope;
+            await Add(entity);
+        }
+
+        public async Task AddMany<T, T2>(IEnumerable<T> entities, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await AddMany(entities);
+        }
+
+        public async Task AddMany<T, T2>(T2 scope, IEnumerable<T> entities, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            foreach (var scopedEntity in entities)
+            {
+                scopedEntity.Scope = scope;
+            }
+            
+            await AddMany(entities);
+        }
+
+        public async Task Update<T, T2>(T2 scope, T entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            entity.Scope = scope;
+            await Update(entity);
+        }
+
+        public async Task UpdateMany<T, T2>(List<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await UpdateMany(entity);
+        }
+
+        public async Task UpdateMany<T, T2>(T2 scope, List<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            entity.ForEach(f=>f.Scope = scope);
+            await UpdateMany(entity);
+        }
+
+        public async Task Upsert<T, T2>(T2 scope, T entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            entity.Scope = scope;
+            await Upsert(entity);
+        }
+
+        public async Task UpsertMany<T, T2>(List<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await UpsertMany(entity);
+        }
+
+        public async Task UpsertMany<T, T2>(T2 scope, List<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            entity.ForEach(f=>f.Scope = scope);
+            await UpsertMany(entity);
+        }
+
+        public async Task Delete<T, T2>(T2 scope, T entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await Delete<T>(f => f.Scope == scope && f.Id == entity.Id);
+        }
+
+        public async Task Delete<T, T2>(T2 scope, Expression<Func<T, bool>> filter, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await Delete<T>(filter.And(e => e.Scope == scope));
+        }
+
+        public async Task Delete<T, T2>(T2 scope, string Id, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await Delete<T>(f => f.Scope == scope && f.Id == Id);
+        }
+
+        public async Task DeleteMany<T, T2>(IEnumerable<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await DeleteMany(entity); // todo
+        }
+
+        public async Task DeleteMany<T, T2>(T2 scope, IEnumerable<T> entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await DeleteMany<T>(entity); // todo
+        }
+
+        public async Task DeleteMany<T, T2>(T2 scope, List<string> IDs, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity
+        {
+            await DeleteMany<T>(IDs); // todo
+        }
     }
  
 }
