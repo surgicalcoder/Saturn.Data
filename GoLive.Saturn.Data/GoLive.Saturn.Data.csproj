@@ -5,11 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.229" />
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.231" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.1.227" />
     <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.1.228" />
-    <PackageReference Include="MongoDB.Bson" Version="2.12.4" />
-    <PackageReference Include="MongoDB.Driver" Version="2.12.4" />
+    <PackageReference Include="MongoDB.Bson" Version="2.13.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.13.1" />
     <PackageReference Include="System.Memory" Version="4.5.4" />
   </ItemGroup>
 
