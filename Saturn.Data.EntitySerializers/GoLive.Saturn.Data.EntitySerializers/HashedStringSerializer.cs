@@ -11,6 +11,11 @@ namespace GoLive.Saturn.Data.EntitySerializers
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, HashedString value)
         {
+            if (value == null || (string.IsNullOrEmpty(value.Hash) && string.IsNullOrEmpty(value.Salt)) || string.IsNullOrEmpty(value.Decoded))
+            {
+                context.Writer.WriteNull();
+            }
+            
             if (String.IsNullOrEmpty(value.Salt))
             {
                 value.Salt = Crypto.Random.GetRandomString(32);
@@ -46,12 +51,20 @@ namespace GoLive.Saturn.Data.EntitySerializers
             }
 
             context.Reader.ReadStartDocument();
+            
             var item = new HashedString
             {
                 Hash = context.Reader.ReadString("Hash"),
                 Salt = context.Reader.ReadString("Salt")
             };
+            
             context.Reader.ReadEndDocument();
+            
+            if (!string.IsNullOrWhiteSpace(item.Hash) && !string.IsNullOrWhiteSpace(item.Salt))
+            {
+                item.Populated = true;
+            }
+            
             return item;
         }
     }

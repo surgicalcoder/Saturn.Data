@@ -11,7 +11,7 @@ namespace GoLive.Saturn.Data.EntitySerializers
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ref<T> value)
         {
-            if (value == default || value.Id == null)
+            if (value == default || value.Id == null || string.IsNullOrWhiteSpace(value.Id))
             {
                 context.Writer.WriteNull();
             }

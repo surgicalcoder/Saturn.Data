@@ -11,19 +11,20 @@ namespace GoLive.Saturn.Data.EntitySerializers
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, EncryptedString value)
         {
-            if (String.IsNullOrEmpty(value.Salt))
+            if (value == null || (( string.IsNullOrEmpty(value.Encoded) && string.IsNullOrEmpty(value.Hash) && string.IsNullOrEmpty(value.Salt)) || string.IsNullOrEmpty(value.Decoded)))
+            {
+                context.Writer.WriteNull();
+            }
+            
+            if (string.IsNullOrEmpty(value.Salt))
             {
                 value.Salt = Crypto.Random.GetRandomString(32);
             }
+            
             if (!string.IsNullOrWhiteSpace(value.Decoded))
             {
                 value.Encoded = Crypto.Encryption.EncryptStringAES(value.Decoded, Crypto.CryptoSingleton.Instance.MasterEncryptionKey, value.Salt);
                 value.Hash = Crypto.Hash.CalculateSHA512(value.Decoded);
-            }
-            else
-            {
-                context.Writer.WriteNull();
-                return;
             }
 
             context.Writer.WriteStartDocument();
@@ -47,18 +48,22 @@ namespace GoLive.Saturn.Data.EntitySerializers
             }
 
             context.Reader.ReadStartDocument();
+            
             var item = new EncryptedString
             {
                 Encoded = context.Reader.ReadString(),
                 Hash = context.Reader.ReadString("Hash"),
                 Salt = context.Reader.ReadString("Salt")
             };
+            
             context.Reader.ReadEndDocument();
 
-            if (!String.IsNullOrWhiteSpace(item.Encoded))
+            if (!string.IsNullOrWhiteSpace(item.Encoded) && !string.IsNullOrWhiteSpace(item.Salt))
             {
                 item.Decoded = Crypto.Encryption.DecryptStringAES(item.Encoded, Crypto.CryptoSingleton.Instance.MasterEncryptionKey, item.Salt);
+                item.Populated = true;
             }
+            
             return item;
         }
     }
