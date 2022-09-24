@@ -15,5 +15,6 @@ jobs:
           uses: rohith/publish-nuget@v2
           with:
             PROJECT_FILE_PATH: Saturn.Data.Abstractions/GoLive.Saturn.Data.Abstractions.sln
-            VERSION_FILE_PATH: Saturn.Data.Abstractions/Directory.build.props
+            VERSION_FILE_PATH: Saturn.Data.Abstractions/Directory.Build.props
+            VERSION_REGEX: ^\s*<Version>(.*)<\/Version>\s*$
             NUGET_KEY: ${{secrets.NUGET_KEY}}

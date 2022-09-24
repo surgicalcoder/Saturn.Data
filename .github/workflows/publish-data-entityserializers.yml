@@ -15,5 +15,6 @@ jobs:
           uses: rohith/publish-nuget@v2
           with:
             PROJECT_FILE_PATH: Saturn.Data.EntitySerializers/GoLive.Saturn.Data.EntitySerializers.sln
-            VERSION_FILE_PATH: Saturn.Data.EntitySerializers/Directory.build.props
+            VERSION_FILE_PATH: Saturn.Data.EntitySerializers/Directory.Build.props
+            VERSION_REGEX: ^\s*<Version>(.*)<\/Version>\s*$
             NUGET_KEY: ${{secrets.NUGET_KEY}}
