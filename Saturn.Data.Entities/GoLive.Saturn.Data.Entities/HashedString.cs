@@ -1,6 +1,6 @@
 ﻿namespace GoLive.Saturn.Data.Entities
 {
-    public sealed class HashedString : Entity, IUpdatableFrom<HashedString>
+    public sealed class HashedString : IUpdatableFrom<HashedString>
     {
         public string Decoded { get; set; }
         public string Salt { get; set; }

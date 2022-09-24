@@ -11,8 +11,7 @@
         {
             return new WrappedEntity<T>() { Item = item };
         }
-
-
+        
         public T Item { get; set; }
     }
 }
