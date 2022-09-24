@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+      <PackageId>GoLive.Saturn.Data</PackageId>
+      <Authors>SurgicalCoder</Authors>
+      <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+      <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
+      <Copyright>Copyright 2020-2022 - SurgicalCoder</Copyright>
+      <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>
+      <PublishRepositoryUrl>true</PublishRepositoryUrl>
+      <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+      <PackOnBuild>true</PackOnBuild>
+      <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+      <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+      <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.231" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.1.227" />
+    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.1.228" />
+    <PackageReference Include="MongoDB.Bson" Version="2.16.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.16.1" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
+
+</Project>

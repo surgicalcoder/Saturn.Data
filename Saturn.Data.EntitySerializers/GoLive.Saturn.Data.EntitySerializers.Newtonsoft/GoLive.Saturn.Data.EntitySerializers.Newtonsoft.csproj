@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+      <PackageId>GoLive.Saturn.Data.EntitySerializers.Newtonsoft</PackageId>
+      <Authors>SurgicalCoder</Authors>
+      <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+      <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
+      <Copyright>Copyright 2020-2022 - SurgicalCoder</Copyright>
+      <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>
+      <PublishRepositoryUrl>true</PublishRepositoryUrl>
+      <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+      <PackOnBuild>true</PackOnBuild>
+      <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+      <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+      <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Bson" Version="2.12.4" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+</Project>
