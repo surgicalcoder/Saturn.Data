@@ -19,10 +19,10 @@
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="1.1.231" />
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="1.1.227" />
-    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="1.1.228" />
-    <PackageReference Include="MongoDB.Bson" Version="2.16.1" />
-    <PackageReference Include="MongoDB.Driver" Version="2.16.1" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.0.2" />
+    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="2.0.0" />
+    <PackageReference Include="MongoDB.Bson" Version="2.17.1" />
+    <PackageReference Include="MongoDB.Driver" Version="2.17.1" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
 

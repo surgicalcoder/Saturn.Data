@@ -494,10 +494,7 @@ namespace GoLive.Saturn.Data
             var writeModel = entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = false });
 
             var bulkWriteResult = await GetCollection<T>(overrideCollectionName).BulkWriteAsync(writeModel, new BulkWriteOptions() { IsOrdered = false });
-
-            var updr = Builders<T>.Update;
-            updr
-//await GetCollection<T>(overrideCollectionName).FindOneAndUpdate()
+            
             if (!bulkWriteResult.IsAcknowledged)
             {
                 throw new FailedToUpdateException();
