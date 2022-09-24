@@ -6,6 +6,7 @@
         public string Encoded { get; set; }
         public string Salt { get; set; }
         public string Hash { get; set; }
+        public string Populated { get; set; }
 
         public static implicit operator EncryptedString(string Decoded)
         {
