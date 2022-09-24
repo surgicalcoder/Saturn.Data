@@ -11,9 +11,10 @@ namespace GoLive.Saturn.Data.EntitySerializers
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, EncryptedString value)
         {
-            if (value == null || (( string.IsNullOrEmpty(value.Encoded) && string.IsNullOrEmpty(value.Hash) && string.IsNullOrEmpty(value.Salt)) || string.IsNullOrEmpty(value.Decoded)))
+            if (value == null || (( string.IsNullOrEmpty(value.Encoded) && string.IsNullOrEmpty(value.Hash) && string.IsNullOrEmpty(value.Salt)) && string.IsNullOrEmpty(value.Decoded)))
             {
                 context.Writer.WriteNull();
+                return;
             }
             
             if (string.IsNullOrEmpty(value.Salt))
