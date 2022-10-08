@@ -2,7 +2,7 @@
 {
     public abstract class ExternallyPopulatedEntity : Entity
     {
-        public string ExernalId { get; set; }
+        public string ExternalId { get; set; }
         public string ExternalPopulator { get; set; }
 
         public bool Disabled { get; set; }
