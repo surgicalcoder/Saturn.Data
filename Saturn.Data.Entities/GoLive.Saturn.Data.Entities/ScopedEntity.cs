@@ -2,6 +2,6 @@
 {
     public abstract class ScopedEntity<T> : Entity where T : Entity, new()
     {
-        public Ref<T> Scope { get; set; }
+        public virtual Ref<T> Scope { get; set; }
     }
 }
