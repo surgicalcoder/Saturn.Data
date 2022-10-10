@@ -429,7 +429,7 @@ namespace GoLive.Saturn.Data
 
         public async Task AddMany<T>(IEnumerable<T> entities, string overrideCollectionName = "") where T : Entity
         {
-            if (!entities.Any())
+            if (entities == null || !entities.Any())
             {
                 return;
             }
@@ -450,7 +450,7 @@ namespace GoLive.Saturn.Data
 
             for (int i = 0; i < entity.Count; i++)
             {
-                if (entity[i].Id.Length == 0)
+                if (string.IsNullOrEmpty(entity[i].Id))
                 {
                     entity[i].Id = ObjectId.GenerateNewId().ToString();
                 }
@@ -486,7 +486,7 @@ namespace GoLive.Saturn.Data
 
         public async Task UpdateMany<T>(List<T> entity, string overrideCollectionName = "") where T : Entity
         {
-            if (entity.Count == 0)
+            if (entity == null || entity.Count == 0)
             {
                 return;
             }
