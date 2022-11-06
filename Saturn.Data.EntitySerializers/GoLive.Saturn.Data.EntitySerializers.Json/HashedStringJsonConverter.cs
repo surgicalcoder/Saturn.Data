@@ -1,0 +1,48 @@
+﻿using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using GoLive.Saturn.Data.Entities;
+
+namespace GoLive.Saturn.Data.EntitySerializers.Json
+{
+    public class HashedStringJsonConverter : JsonConverter<HashedString>
+    {
+        public override HashedString Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var str = new HashedString();
+
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject)
+                {
+                    return str;
+                }
+
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var propertyName = reader.GetString()?.ToLowerInvariant();
+                    reader.Read();
+
+                    if (propertyName == nameof(EncryptedString.Decoded).ToLowerInvariant())
+                    {
+                        var decoded = reader.GetString();
+                        str.Decoded = decoded;
+                    }
+                    else if (propertyName == nameof(EncryptedString.Populated).ToLowerInvariant())
+                    {
+                        var val = reader.GetBoolean();
+                        str.Populated = val;
+                    }
+                }
+            }
+            throw new JsonException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, HashedString value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WriteBoolean(nameof(EncryptedString.Populated), value.Populated);
+            writer.WriteEndObject();
+        }
+    }
+}
