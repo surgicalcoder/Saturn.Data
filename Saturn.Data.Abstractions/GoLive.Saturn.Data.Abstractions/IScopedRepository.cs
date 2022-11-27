@@ -19,6 +19,8 @@ namespace GoLive.Saturn.Data.Abstractions
         Task UpdateMany<T, T2>(T2 scope, List<T> entity, string overrideCollectionName = "")  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task Update<T, T2>(string scope, T entity, string overrideCollectionName = "")  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task UpdateMany<T, T2>(string scope, List<T> entity, string overrideCollectionName = "")  where T : ScopedEntity<T2> where T2 : Entity, new();
+        
+        Task JsonUpdate<T>(string Scope, string Id, int Version, string Json, string overrideCollectionName = "") where T : Entity;
 
         Task Upsert<T, T2>(T2 scope, T entity, string overrideCollectionName = "")  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task UpsertMany<T, T2>(List<T> entity, string overrideCollectionName = "")  where T : ScopedEntity<T2> where T2 : Entity, new();
