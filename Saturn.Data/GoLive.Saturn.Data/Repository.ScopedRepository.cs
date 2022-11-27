@@ -104,6 +104,17 @@ namespace GoLive.Saturn.Data
             await UpdateMany(entity);
         }
 
+
+        public async Task JsonUpdate<T, T2>(string Scope, string Id, int Version, string Json, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity, new()
+        {
+            var updateOneAsync = await GetCollection<T>(overrideCollectionName).UpdateOneAsync(e => e.Id == Id && e.Scope == Scope && ((e.Version.HasValue && e.Version <= Version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(Json));
+
+            if (!updateOneAsync.IsAcknowledged)
+            {
+                throw new FailedToUpdateException();
+            }
+        }
+
         public async Task Upsert<T, T2>(T2 scope, T entity, string overrideCollectionName = "") where T : ScopedEntity<T2> where T2 : Entity, new()
         {
             entity.Scope = scope;

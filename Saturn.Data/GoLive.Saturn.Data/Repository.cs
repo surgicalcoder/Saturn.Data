@@ -139,6 +139,16 @@ namespace GoLive.Saturn.Data
             await GetCollection<T>(overrideCollectionName).DeleteManyAsync(f => IDs.Contains(f.Id));
         }
 
+        public async Task JsonUpdate<T>(string Id, int Version, string Json, string overrideCollectionName = "") where T : Entity
+        {
+            var updateOneAsync = await GetCollection<T>(overrideCollectionName).UpdateOneAsync(e => e.Id == Id && ((e.Version.HasValue && e.Version <= Version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(Json));
+
+            if (!updateOneAsync.IsAcknowledged)
+            {
+                throw new FailedToUpdateException();
+            }
+        }
+
         public async Task DeleteMany<T>(IEnumerable<T> entity, string overrideCollectionName = "") where T : Entity
         {
             if (!entity.Any())
