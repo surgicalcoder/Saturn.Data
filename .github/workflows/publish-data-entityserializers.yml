@@ -1,4 +1,4 @@
-name: Publish Saturn.Data.EntitySerializers to Nuget
+name: Saturn.Data.EntitySerializers
 on: workflow_dispatch
 jobs: 
   publish:
