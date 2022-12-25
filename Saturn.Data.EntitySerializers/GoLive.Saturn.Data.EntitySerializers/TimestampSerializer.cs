@@ -1,5 +1,6 @@
 using System;
 using GoLive.Saturn.Data.Entities;
+using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -12,16 +13,25 @@ namespace GoLive.Saturn.Data.EntitySerializers
 
         public override Timestamp Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
         {
-            var bsonReader = context.Reader;
-
+            if (context.Reader.IsAtEndOfFile())
+            {
+                return null;
+            }
+            
+            if (context.Reader.CurrentBsonType == BsonType.Null)
+            {
+                context.Reader.ReadNull();
+                return null;
+            }
+            
             var ts = new Timestamp();
 
-            bsonReader.ReadStartDocument();
+            context.Reader.ReadStartDocument();
 
-            var CreatedDate = bsonReader.ReadDateTime("CreatedDate");
-            var LastModifiedDate = bsonReader.ReadDateTime("LastModifiedDate");
+            var CreatedDate = context.Reader.ReadDateTime("CreatedDate");
+            var LastModifiedDate = context.Reader.ReadDateTime("LastModifiedDate");
 
-            bsonReader.ReadEndDocument();
+            context.Reader.ReadEndDocument();
 
             ts.CreatedDate = epoch.AddMilliseconds(CreatedDate);
             ts.LastModifiedDate = epoch.AddMilliseconds(LastModifiedDate);
