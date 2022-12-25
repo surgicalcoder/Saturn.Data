@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
       <PackageId>GoLive.Saturn.Data.Abstractions</PackageId>
       <Authors>SurgicalCoder</Authors>
       <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.2.0" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.3.0" />
   </ItemGroup>
 
 </Project>

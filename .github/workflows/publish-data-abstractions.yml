@@ -1,4 +1,4 @@
-name: Publish Saturn.Data.Abstractions to Nuget
+name: Saturn.Data.Abstractions
 on: workflow_dispatch
 jobs: 
   publish:
@@ -9,7 +9,7 @@ jobs:
         - name: Setup dotnet
           uses: actions/setup-dotnet@v1
           with:
-            dotnet-version: 5.x
+            dotnet-version: 6.x
         - name: Publish
           id: publish_nuget
           uses: rohith/publish-nuget@v2
