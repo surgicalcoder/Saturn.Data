@@ -27,7 +27,13 @@ namespace GoLive.Saturn.Data.EntitySerializers
             var ts = new Timestamp();
 
             context.Reader.ReadStartDocument();
-
+            
+            if (context.Reader.CurrentBsonType == BsonType.Null) // Not sure why we need this, seem to have an odd case somewhere.
+            {
+                context.Reader.ReadNull();
+                return null;
+            }
+            
             var CreatedDate = context.Reader.ReadDateTime("CreatedDate");
             var LastModifiedDate = context.Reader.ReadDateTime("LastModifiedDate");
 
@@ -86,10 +92,6 @@ namespace GoLive.Saturn.Data.EntitySerializers
             context.Writer.WriteEndDocument();
         }
 
-        long getEpoch(DateTime dateTime)
-        {
-
-            return (long)dateTime.ToUniversalTime().Subtract(epoch).TotalMilliseconds;
-        }
+        long getEpoch(DateTime dateTime) => (long)dateTime.ToUniversalTime().Subtract(epoch).TotalMilliseconds;
     }
 }

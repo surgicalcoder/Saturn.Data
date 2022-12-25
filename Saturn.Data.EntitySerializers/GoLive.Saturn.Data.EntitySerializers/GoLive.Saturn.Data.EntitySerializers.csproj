@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
       <PackageId>GoLive.Saturn.Data.EntitySerializers</PackageId>
       <Authors>SurgicalCoder</Authors>
       <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Crypto" Version="1.0.15" />
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.2.0" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.3.0" />
     <PackageReference Include="MongoDB.Bson" Version="2.18.0" />
   </ItemGroup>
 
