@@ -13,7 +13,6 @@ namespace GoLive.Saturn.Data.EntitySerializers
 
         public override Timestamp Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
         {
-
             if (context.Reader.IsAtEndOfFile())
             {
                 return null;
@@ -37,6 +36,13 @@ namespace GoLive.Saturn.Data.EntitySerializers
             if (context.Reader.CurrentBsonType == BsonType.Null)
             {
                 context.Reader.ReadNull();
+
+                if (context.Reader.State == BsonReaderState.Name)
+                {
+                    context.Reader.ReadName();
+                    context.Reader.ReadNull();
+                }
+                context.Reader.ReadEndDocument();
                 return null;
             }
 
