@@ -13,43 +13,46 @@ namespace GoLive.Saturn.Data.EntitySerializers
 
         public override Timestamp Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
         {
-            try
-            {
-                if (context.Reader.IsAtEndOfFile())
-                {
-                    return null;
-                }
-            
-                if (context.Reader.CurrentBsonType == BsonType.Null)
-                {
-                    context.Reader.ReadNull();
-                    return null;
-                }
-            
-                var ts = new Timestamp();
 
-                context.Reader.ReadStartDocument();
-            
-                if (context.Reader.CurrentBsonType == BsonType.Null) // Not sure why we need this, seem to have an odd case somewhere.
-                {
-                    context.Reader.ReadNull();
-                    return null;
-                }
-            
-                var CreatedDate = context.Reader.ReadDateTime("CreatedDate");
-                var LastModifiedDate = context.Reader.ReadDateTime("LastModifiedDate");
-
-                context.Reader.ReadEndDocument();
-
-                ts.CreatedDate = epoch.AddMilliseconds(CreatedDate);
-                ts.LastModifiedDate = epoch.AddMilliseconds(LastModifiedDate);
-
-                return ts;
-            }
-            catch (Exception)
+            if (context.Reader.IsAtEndOfFile())
             {
                 return null;
             }
+        
+            if (context.Reader.CurrentBsonType == BsonType.Null)
+            {
+                context.Reader.ReadNull();
+                return null;
+            }
+        
+            var ts = new Timestamp();
+
+            context.Reader.ReadStartDocument();
+            
+            long CreatedDate;
+            long? LastModifiedDate;
+            
+            context.Reader.ReadName("CreatedDate");
+
+            if (context.Reader.CurrentBsonType == BsonType.Null)
+            {
+                context.Reader.ReadNull();
+                return null;
+            }
+
+            CreatedDate = context.Reader.ReadDateTime();
+
+            context.Reader.ReadName("LastModifiedDate");
+
+            LastModifiedDate = context.Reader.CurrentBsonType != BsonType.Null ? context.Reader.ReadDateTime() : CreatedDate;
+
+            context.Reader.ReadEndDocument();
+
+            ts.CreatedDate = epoch.AddMilliseconds(CreatedDate);
+            ts.LastModifiedDate = epoch.AddMilliseconds(LastModifiedDate.Value);
+            
+            return ts;
+
         }
 
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Timestamp value)
