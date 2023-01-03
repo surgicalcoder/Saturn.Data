@@ -20,7 +20,7 @@
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="2.3.0" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.3.0" />
-    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="2.2.1" />
+    <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="2.2.3" />
     <PackageReference Include="MongoDB.Bson" Version="2.18.0" />
     <PackageReference Include="MongoDB.Driver" Version="2.18.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
