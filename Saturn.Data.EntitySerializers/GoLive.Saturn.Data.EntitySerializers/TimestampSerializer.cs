@@ -37,7 +37,7 @@ namespace GoLive.Saturn.Data.EntitySerializers
             {
                 context.Reader.ReadNull();
 
-                if (context.Reader.State == BsonReaderState.Name)
+                if (context.Reader.State is BsonReaderState.Name or BsonReaderState.Type)
                 {
                     context.Reader.ReadName();
                     context.Reader.ReadNull();
