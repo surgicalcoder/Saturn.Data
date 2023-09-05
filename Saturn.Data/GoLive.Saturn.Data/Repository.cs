@@ -266,11 +266,9 @@ namespace GoLive.Saturn.Data
             {
                 var name = typeof(T).Name.AsSpan();
 
-                var genericSeparator = "`".AsSpan();
-
-                if (name.Contains(genericSeparator, StringComparison.CurrentCulture))
+                if (name.Contains(Statics.Separator(), StringComparison.CurrentCulture))
                 {
-                    var genericName = name[..name.IndexOf(genericSeparator)].ToString();
+                    var genericName = name[..name.IndexOf(Statics.Separator())].ToString();
 
                     if (genericName == "WrappedEntity")
                     {
