@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace GoLive.Saturn.Data.Entities
 {
-    public class Ref<T> : IEquatable<Ref<T>> where T : Entity, new()
+    public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged where T : Entity, new()
     {
         public Ref(string refId)
         {
@@ -20,56 +22,6 @@ namespace GoLive.Saturn.Data.Entities
             {
                 Id = item.Id;
             }
-        }
-
-        public static implicit operator string(Ref<T> item)
-        {
-            if (item == null)
-            {
-                return null;
-            }
-
-            if (item.Item != null && !string.IsNullOrWhiteSpace(item.Item.Id))
-            {
-                return item.Item.Id;
-            }
-            
-            if (!string.IsNullOrWhiteSpace(item.Id))
-            {
-                return item.Id;
-            }
-
-            return null;
-        }
-
-        public static implicit operator T(Ref<T> item)
-        {
-            if (item == null)
-            {
-                return null;
-            }
-
-            if (item.Item != null)
-            {
-                return item.Item;
-            }
-
-            return item.Id != null ? new T(){Id = item.Id} : null;
-        }
-
-        public static implicit operator Ref<T>(T item)
-        {
-            return item == default ? default : new Ref<T>() { Item = item };
-        }
-
-        public static implicit operator Ref<T>(string item)
-        {
-            return string.IsNullOrWhiteSpace(item) ? default : new Ref<T>(item);
-        }
-
-        public static implicit operator Entity(Ref<T> item)
-        {
-            return item?.Item;
         }
 
         private string _refId;
@@ -95,72 +47,26 @@ namespace GoLive.Saturn.Data.Entities
         {
             return Id;
         }
-
-        public void Fetch(IQueryable<T> items)
-        {
-            Item = items.FirstOrDefault(f => f.Id == _refId);
-        }
-
-        public void Fetch(IList<T> items)
-        {
-            Item = items.FirstOrDefault(f => f.Id == _refId);
-        }
-
-        public void Fetch(Func<string, T> expr)
-        {
-            this.Item = expr.Invoke(this.Id);
-        }
-
-        static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
-        {
-            while (toCheck != null && toCheck != typeof(object))
-            {
-                var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
-
-                if (generic == cur)
-                {
-                    return true;
-                }
-
-                toCheck = toCheck.BaseType;
-            }
-            return false;
-        }
-
+        
         public Ref()
         {
         }
 
-        /*public string Type => typeof(T).FullName;*/
+        public event PropertyChangedEventHandler PropertyChanged;
 
-        public bool Equals(Ref<T> other)
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return string.Equals(_refId, other._refId);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public override bool Equals(object obj)
+        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((Ref<T>)obj);
-        }
+            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
 
-        public override int GetHashCode()
-        {
-            return (_refId != null ? _refId.GetHashCode() : 0);
-        }
+            field = value;
+            OnPropertyChanged(propertyName);
 
-        public static bool operator ==(Ref<T> left, Ref<T> right)
-        {
-            return Equals(left, right);
-        }
-
-        public static bool operator !=(Ref<T> left, Ref<T> right)
-        {
-            return !Equals(left, right);
+            return true;
         }
     }
 }

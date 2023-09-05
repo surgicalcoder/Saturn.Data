@@ -17,4 +17,13 @@
       <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Update="Ref.fetch.cs">
+      <DependentUpon>Ref.cs</DependentUpon>
+    </Compile>
+    <Compile Update="Ref.operators.cs">
+      <DependentUpon>Ref.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
