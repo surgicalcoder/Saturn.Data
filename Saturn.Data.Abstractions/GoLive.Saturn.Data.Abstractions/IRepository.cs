@@ -12,7 +12,7 @@ namespace GoLive.Saturn.Data.Abstractions
         Task InsertMany<T>(IEnumerable<T> entities) where T : Entity;
         
         Task Save<T>(T entity) where T : Entity;
-        Task SaveMany<T>(T entity) where T : Entity;
+        Task SaveMany<T>(List<T> entities) where T : Entity;
         
         Task Update<T>(T entity) where T : Entity;
         Task UpdateMany<T>(List<T> entities) where T : Entity;
