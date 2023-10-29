@@ -8,7 +8,7 @@ namespace GoLive.Saturn.Data.EntitySerializers
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, ObjectId value)
         {
-            if (value == ObjectId.Empty)
+            if (value == default || value == ObjectId.Empty)
             {
                 value = ObjectId.GenerateNewId();
             }
