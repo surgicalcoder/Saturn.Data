@@ -9,7 +9,7 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data
 {
-    public partial class Repository : IMultiScopedReadonlyRepository
+    /*public partial class Repository : IMultiScopedReadonlyRepository
     {
         public async Task<T> ById<T, T2>(T2 PrimaryScope, IEnumerable<string> SecondaryScope, string id) where T : MultiscopedEntity<T2> where T2 : Entity, new()
         {
@@ -69,5 +69,5 @@ namespace GoLive.Saturn.Data
             var combinedPred = firstPred.And(predicate);
             return await GetCollection<T>().CountDocumentsAsync(combinedPred);
         }
-    }
+    }*/
 }

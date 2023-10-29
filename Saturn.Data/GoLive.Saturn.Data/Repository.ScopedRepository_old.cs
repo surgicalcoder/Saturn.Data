@@ -1,4 +1,4 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -34,7 +34,10 @@ namespace GoLive.Saturn.Data
         {
             Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
             var combinedPred = firstPred.And(predicate);
-            var result = await GetCollection<T>().FindAsync(combinedPred, new FindOptions<T> { Limit = 1 });
+            SortDefinitionBuilder<T> sdb = new SortDefinitionBuilder<T>();
+
+            
+            var result = await GetCollection<T>().FindAsync(combinedPred, new FindOptions<T> { Limit = 1, Sort = sdb.Combine() });
 
             return await result.FirstOrDefaultAsync();
         }
@@ -299,4 +302,4 @@ namespace GoLive.Saturn.Data
         
         
     }
-}
+}*/

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -27,7 +28,7 @@ using MongoDB.Driver.Linq;
 
 namespace GoLive.Saturn.Data
 {
-    public partial class Repository : IRepository
+    public partial class Repository
     {
         #region Props
         private static RepositoryOptions options { get; set; }
@@ -50,7 +51,7 @@ namespace GoLive.Saturn.Data
 
             var settings = MongoClientSettings.FromUrl(mongoUrl);
 
-            if (options != null && options.DebugMode)
+            if (options is { DebugMode: true })
             {
                 settings.ClusterConfigurator = setupCallbacks;
             }
@@ -73,7 +74,7 @@ namespace GoLive.Saturn.Data
 
             var settings = MongoClientSettings.FromUrl(mongoUrl);
             
-            if (options != null && options.DebugMode)
+            if (options is { DebugMode: true })
             {
                 settings.ClusterConfigurator = setupCallbacks;
             }
@@ -124,6 +125,19 @@ namespace GoLive.Saturn.Data
             if (val) { }
         }
 
+        private ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
+
+        private IMongoCollection<T> GetCollection<T>() where T : Entity
+        {
+            return mongoDatabase.GetCollection<T>(GetCollectionNameForType<T>());
+        }
+        
+        private string GetCollectionNameForType<T>()
+        {
+            return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
+        }
+
+        /*
         public async Task Delete<T>(string Id, string overrideCollectionName = "") where T : Entity
         {
             await Delete<T>(f => f.Id == Id);
@@ -158,7 +172,7 @@ namespace GoLive.Saturn.Data
             var list = entity.Select(r => r.Id).ToList();
 
             await GetCollection<T>(overrideCollectionName).DeleteManyAsync(arg => list.Contains(arg.Id));
-        }
+        }*/
 
         private void RegisterConventions()
         {
@@ -223,6 +237,8 @@ namespace GoLive.Saturn.Data
                     map.AutoMap();
 
                     map.MapProperty(f => f.Version).SetElementName("_v");
+                    map.UnmapProperty(f=>f.EnableChangeTracking);
+                    map.UnmapProperty(f=>f.Changes);
 
                     map.MapProperty(e => e.Properties).SetSerializer(new DictionaryInterfaceImplementerSerializer<Dictionary<string, dynamic>>(DictionaryRepresentation.ArrayOfDocuments)).SetElementName("_p");
 
@@ -241,22 +257,24 @@ namespace GoLive.Saturn.Data
 
         private void PopulateDatabase()
         {
-            if (options?.InitDuration == null)
+            if (options?.InitCheckDuration == null)
             {
                 return;
             }
-            if (InitRun && InitLastChecked > DateTime.Now.Add(options.InitDuration))
+            if (InitRun && InitLastChecked > DateTime.Now.Add(options.InitCheckDuration))
             {
                 return;
             }
 
             InitRun = true;
             InitLastChecked = DateTime.Now;
-            options?.InitCallback?.Invoke(this);
+            options?.InitCheckCallback?.Invoke(this);
         }
 
-        internal string GetCollectionNameForType<T>(string collectionNameOverride)
+        /*internal string GetCollectionNameForType<T>(string collectionNameOverride)
         {
+            Func<T, string> cov = delegate(T arg) { return arg.ToString() };
+            
             if (options?.CollectionNameOverride != null)
             {
                 return options?.CollectionNameOverride?.Invoke(collectionNameOverride);
@@ -283,8 +301,9 @@ namespace GoLive.Saturn.Data
             }
 
             return collectionNameOverride.Replace(".", "");
-        }
+        }*/
 
+        /*
         #region Get
         
         public async Task<T> ById<T>(string id, string collectionName) where T : Entity
@@ -372,7 +391,6 @@ namespace GoLive.Saturn.Data
         public async Task<List<T>> Many<T>(Dictionary<string, object> WhereClause, string overrideCollectionName = "") where T : Entity
         {
             var where = new BsonDocument(WhereClause);
-
             var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>(overrideCollectionName)).FindAsync(where, null)).ToListAsync();
             
             return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
@@ -535,6 +553,7 @@ namespace GoLive.Saturn.Data
         }
 
         #endregion
+        */
 
 
     }
