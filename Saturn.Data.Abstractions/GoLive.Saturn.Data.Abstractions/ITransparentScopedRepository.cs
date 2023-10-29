@@ -8,25 +8,25 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface ITransparentScopedRepository : IReadonlyRepository
 {
-    Task Insert<T>(T entity) where T : Entity;
-    Task InsertMany<T>(IEnumerable<T> entities) where T : Entity;
+    Task Insert<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task InsertMany<TItem, TParent>(IEnumerable<TItem> entities) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task Save<T>(T entity) where T : Entity;
-    Task SaveMany<T>(T entity) where T : Entity;
+    Task Save<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task SaveMany<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task Update<T>(T entity) where T : Entity;
-    Task UpdateMany<T>(List<T> entities) where T : Entity;
+    Task Update<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task UpdateMany<TItem, TParent>(List<TItem> entities) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
 
-    Task Upsert<T>(T entity) where T : Entity;
-    Task UpsertMany<T>(List<T> entity) where T : Entity;
+    Task Upsert<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task UpsertMany<TItem, TParent>(List<TItem> entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task Delete<T>(T entity) where T : Entity;
-    Task Delete<T>(Expression<Func<T, bool>> filter) where T : Entity;
-    Task Delete<T>(string id) where T : Entity;
+    Task Delete<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task Delete<TItem, TParent>(Expression<Func<TItem, bool>> filter) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task Delete<TItem, TParent>(string id) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task DeleteMany<T>(IEnumerable<T> entities) where T : Entity;
-    Task DeleteMany<T>(List<string> IDs) where T : Entity;
+    Task DeleteMany<TItem, TParent>(IEnumerable<TItem> entities) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task DeleteMany<TItem, TParent>(List<string> IDs) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task JsonUpdate<T>(string id, int version, string json) where T : Entity;
+    Task JsonUpdate<TItem, TParent>(string id, int version, string json) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
     void InitDatabase();
 }

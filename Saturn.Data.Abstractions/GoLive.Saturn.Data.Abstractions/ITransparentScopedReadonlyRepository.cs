@@ -9,25 +9,25 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface ITransparentScopedReadonlyRepository : IDisposable
 {
-    Task<T> ById<T>(string id) where T : Entity;
-    Task<List<T>> ById<T>(List<string> IDs) where T : Entity;
+    Task<TItem> ById<TItem, TParent>(string id) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<List<TItem>> ById<TItem, TParent>(List<string> IDs) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
 
-    Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> item) where T : Entity, new();
-    Task<T> ByRef<T>(Ref<T> item) where T : Entity, new();
-    Task<Ref<T>> PopulateRef<T>(Ref<T> item) where T : Entity, new();
+    Task<List<Ref<TItem>>> ByRef<TItem, TParent>(List<Ref<TItem>> item) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<TItem> ByRef<TItem, TParent>(Ref<TItem> item) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<Ref<TItem>> PopulateRef<TItem, TParent>(Ref<TItem> item) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task<IQueryable<T>> All<T>() where T : Entity;
+    Task<IQueryable<TItem>> All<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<T> Random<T>() where T : Entity;
-    Task<List<T>> Random<T>(int count) where T : Entity;
+    Task<TItem> One<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<TItem> Random<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<List<TItem>> Random<TItem, TParent>(int count) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null ) where T : Entity;
+    Task<IQueryable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<IQueryable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
+    Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null ) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
-    Task<long> CountMany<T>(Expression<Func<T, bool>> predicate) where T : Entity;
+    Task<long> CountMany<TItem, TParent>(Expression<Func<TItem, bool>> predicate) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
 
-    Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity;
+    Task Watch<TItem, TParent>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
 }
