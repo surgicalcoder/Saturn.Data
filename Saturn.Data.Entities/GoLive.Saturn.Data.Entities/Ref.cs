@@ -18,15 +18,26 @@ namespace GoLive.Saturn.Data.Entities
         {
             Item = item;
 
-            if (item != null && !String.IsNullOrWhiteSpace(item.Id))
+            if (item != null && !string.IsNullOrWhiteSpace(item.Id))
             {
                 Id = item.Id;
             }
         }
 
         private string _refId;
+        private T item;
 
-        public T Item { get; set; }
+        public T Item
+        {
+            get => item;
+            set
+            {
+                if (SetField(ref item, value))
+                {
+                    OnPropertyChanged(nameof(Id));
+                }
+            }
+        }
 
         public string Id
         {
@@ -40,7 +51,7 @@ namespace GoLive.Saturn.Data.Entities
 
                 return _refId;
             }
-            set { _refId = value; }
+            set => SetField(ref _refId, value);
         }
 
         public override string ToString()

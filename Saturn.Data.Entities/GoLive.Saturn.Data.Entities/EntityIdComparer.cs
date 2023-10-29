@@ -18,5 +18,7 @@ namespace GoLive.Saturn.Data.Entities
         {
             return obj.GetHashCode();
         }
+
+        public static IEqualityComparer<Entity> Default = new EntityIdComparer();
     }
 }

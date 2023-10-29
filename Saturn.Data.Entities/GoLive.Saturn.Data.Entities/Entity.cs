@@ -22,6 +22,10 @@ namespace GoLive.Saturn.Data.Entities
             set => SetField(ref version, value);
         }
 
+        public virtual Dictionary<string, object> Changes { get; set; } = new();
+
+        public virtual bool EnableChangeTracking { get; set; }
+        
         public virtual Dictionary<string, dynamic> Properties { get; set; } = new Dictionary<string, object>();
 
         protected Entity()
