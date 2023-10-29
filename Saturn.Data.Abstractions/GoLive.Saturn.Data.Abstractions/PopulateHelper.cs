@@ -7,7 +7,7 @@ using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions
 {
-    public static class PopulateHelper
+    public static partial class PopulateHelper
     {
         public static async Task Populate<T>(this Ref<T> item, IReadonlyRepository repository) where T : Entity, new()
         {
@@ -18,14 +18,14 @@ namespace GoLive.Saturn.Data.Abstractions
             item.Item = await repository.ByRef(item);
         }
 
-        public static void Populate<T>(this Ref<T> item, List<T> Items) where T : Entity, new()
+        public static void Populate<T>(this Ref<T> item, List<T> items) where T : Entity, new()
         {            
             if (item == null)
             {
                 return;
             }
             
-            item.Item = Items.FirstOrDefault(f => f.Id == item.Id);
+            item.Item = items.FirstOrDefault(f => f.Id == item.Id);
         }
 
         public static async Task Populate<T>(this List<Ref<T>> item, IReadonlyRepository repository) where T : Entity, new()
@@ -40,10 +40,8 @@ namespace GoLive.Saturn.Data.Abstractions
             item.ForEach(f => f.Fetch(items));
 
         }
-
-#pragma warning disable 1998
+        
         public static async Task Populate<T>(this List<Ref<T>> item, List<T> items) where T : Entity, new()
-#pragma warning restore 1998
         {
             if (item == null || item.Count == 0)
             {
@@ -62,8 +60,23 @@ namespace GoLive.Saturn.Data.Abstractions
             
             var compile = item.Compile();
 
-            var IDs = collection.Where(f=> compile.Invoke(f) != null).Select(f => compile.Invoke(f)).Select(r => r.Id).ToList();
-
+            var IDs = collection.Where(f=>
+            {
+                try
+                {
+                    return compile.Invoke(f) != null;
+                }
+                catch (NullReferenceException)
+                {
+                    return false;
+                }
+            }).Select(f => compile.Invoke(f)).Select(r => r.Id).ToList();
+            
+            if (IDs.Count == 0)
+            {
+                return collection;
+            }
+            
             var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
             collection.ForEach(delegate (T obj)

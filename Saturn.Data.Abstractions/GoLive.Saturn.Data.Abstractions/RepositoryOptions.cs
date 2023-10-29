@@ -5,17 +5,10 @@ namespace GoLive.Saturn.Data.Abstractions
 {
     public class RepositoryOptions
     {
-        public RepositoryOptions()
-        {
-            GenericSerializers = new Dictionary<Type, Type>();
-            DiscriminatorConventions = new Dictionary<Type, object>();
-            Serializers = new Dictionary<Type, object>();
-            WrappedEntityPrefix = "w_";
-        }
-
         public string ConnectionString { get; set; }
 
-        public string WrappedEntityPrefix { get; set; }
+        public string WrappedEntityPrefix { get; set; } = "w_";
+        public string WrappedEntityPostfix { get; set; }
 
         public bool DebugMode { get; set; }
 
@@ -25,15 +18,14 @@ namespace GoLive.Saturn.Data.Abstractions
 
         public Action<CommandFailedArgs> CommandFailedCallback { get; set; }
 
-        public TimeSpan InitDuration { get; set; }
+        public TimeSpan InitCheckDuration { get; set; }
 
-        public Action<IRepository> InitCallback { get; set; }
+        public Action<IRepository> InitCheckCallback { get; set; }
+        
+        public Func<Type, string> GetCollectionName { get; set; }
 
-        public Func<string, string> CollectionNameOverride { get; set; }
-
-        public Dictionary<Type, Type> GenericSerializers { get; set; }
-        public Dictionary<Type, Object> DiscriminatorConventions { get; set; }
-        public Dictionary<Type, Object> Serializers { get; set; }
-
+        public Dictionary<Type, Type> GenericSerializers { get; set; } = new();
+        public Dictionary<Type, Object> DiscriminatorConventions { get; set; } = new();
+        public Dictionary<Type, Object> Serializers { get; set; } = new();
     }
 }

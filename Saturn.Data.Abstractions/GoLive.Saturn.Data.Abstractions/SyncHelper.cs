@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions
 {
-
     public static class SyncHelper
     {
         public static async Task<IList<TLocal>> SyncFrom<TLocal, TRemote>(

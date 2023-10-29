@@ -18,7 +18,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="2.3.0" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="PopulateHelper.TransparentScoped.cs">
+      <DependentUpon>PopulateHelper.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>
