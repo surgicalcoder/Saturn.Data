@@ -10,13 +10,13 @@ namespace GoLive.Saturn.Data.Abstractions
     {
         Task Insert<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task Insert<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task InsertMany<T, T2>(IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
+        /*Task InsertMany<T, T2>(IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
         Task InsertMany<T, T2>(T2 scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task InsertMany<T, T2>(string scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
 
         Task Update<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task Update<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task UpdateMany<T, T2>(List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
+        /*Task UpdateMany<T, T2>(List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
         Task UpdateMany<T, T2>(T2 scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task UpdateMany<T, T2>(string scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
         
@@ -36,7 +36,7 @@ namespace GoLive.Saturn.Data.Abstractions
         Task Delete<T, T2>(string scope, string id)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task Delete<T, T2>(string scope, Expression<Func<T, bool>> filter)  where T : ScopedEntity<T2> where T2 : Entity, new();
         
-        Task DeleteMany<T, T2>(IEnumerable<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
+        /*Task DeleteMany<T, T2>(IEnumerable<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
         Task DeleteMany<T, T2>(T2 scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task DeleteMany<T, T2>(T2 scope, List<string> IDs)  where T : ScopedEntity<T2> where T2 : Entity, new();
         Task DeleteMany<T, T2>(string scope, IEnumerable<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
