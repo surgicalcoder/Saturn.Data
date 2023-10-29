@@ -19,11 +19,6 @@ public partial class Repository : IScopedRepository
             await Insert(entity);
         }
 
-        public async Task InsertMany<T, T2>(IEnumerable<T> entities) where T : ScopedEntity<T2> where T2 : Entity, new()
-        {
-            await InsertMany(entities);
-        }
-
         public async Task InsertMany<T, T2>(T2 scope, IEnumerable<T> entities) where T : ScopedEntity<T2> where T2 : Entity, new()
         {
             foreach (var scopedEntity in entities)
@@ -40,21 +35,15 @@ public partial class Repository : IScopedRepository
             await Update(entity);
         }
 
-        public async Task UpdateMany<T, T2>(List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-        {
-            await UpdateMany(entity);
-        }
-
         public async Task UpdateMany<T, T2>(T2 scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
         {
             entity.ForEach(f=>f.Scope = scope);
             await UpdateMany(entity);
         }
-
-
+        
         public async Task JsonUpdate<T, T2>(string Scope, string Id, int Version, string Json) where T : ScopedEntity<T2> where T2 : Entity, new()
         {
-            var updateOneAsync = await GetCollection<T>(overrideCollectionName).UpdateOneAsync(e => e.Id == Id && e.Scope == Scope && ((e.Version.HasValue && e.Version <= Version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(Json));
+            var updateOneAsync = await GetCollection<T>().UpdateOneAsync(e => e.Id == Id && e.Scope == Scope && ((e.Version.HasValue && e.Version <= Version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(Json));
 
             if (!updateOneAsync.IsAcknowledged)
             {
@@ -66,11 +55,6 @@ public partial class Repository : IScopedRepository
         {
             entity.Scope = scope;
             await Upsert(entity);
-        }
-
-        public async Task UpsertMany<T, T2>(List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-        {
-            await UpsertMany(entity);
         }
 
         public async Task UpsertMany<T, T2>(T2 scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -99,11 +83,6 @@ public partial class Repository : IScopedRepository
             await Delete<T>(f => f.Scope == scope && f.Id == Id);
         }
 
-        public async Task DeleteMany<T, T2>(IEnumerable<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-        {
-            var items = entity.Where(f=>f.Scope != null).ToList();
-            await DeleteMany(items); 
-        }
 
         public async Task DeleteMany<T, T2>(T2 scope, IEnumerable<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
         {
@@ -124,6 +103,14 @@ public partial class Repository : IScopedRepository
             await GetCollection<T>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id));
         }
         
+        async Task IScopedRepository.UpsertMany<T, T2>(List<T> entity)
+        {
+            if (entity.Any(e => string.IsNullOrWhiteSpace(e.Scope)))
+            {
+                throw new FailedToUpsertException();
+            }
+            await UpsertMany(entity);
+        }
         
         public async Task Insert<T, T2>(string scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
         {
