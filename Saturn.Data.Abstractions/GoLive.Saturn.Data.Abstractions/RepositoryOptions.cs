@@ -23,9 +23,11 @@ namespace GoLive.Saturn.Data.Abstractions
         public Action<IRepository> InitCheckCallback { get; set; }
         
         public Func<Type, string> GetCollectionName { get; set; }
+        
+        public Func<string> TransparentScopeProvider { get; set; }
 
         public Dictionary<Type, Type> GenericSerializers { get; set; } = new();
-        public Dictionary<Type, Object> DiscriminatorConventions { get; set; } = new();
-        public Dictionary<Type, Object> Serializers { get; set; } = new();
+        public Dictionary<Type, object> DiscriminatorConventions { get; set; } = new();
+        public Dictionary<Type, object> Serializers { get; set; } = new();
     }
 }
