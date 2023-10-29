@@ -17,13 +17,13 @@ namespace GoLive.Saturn.Data.Abstractions
         Task<IQueryable<T>> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity, new();
         Task<IQueryable<T>> All<T, T2>(string scope) where T : ScopedEntity<T2> where T2 : Entity, new();
 
-        Task<T> One<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task<T> One<T, T2>(string scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<T> One<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<T> One<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
 
-        Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber) where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
-        Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
+        Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new();
 
         Task<long> CountMany<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
         Task<long> CountMany<T, T2>(string scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new();
