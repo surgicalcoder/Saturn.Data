@@ -54,10 +54,13 @@ public partial class Repository : IScopedReadonlyRepository
     public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
-        
-        foreach (var sortOrder in sortOrders)
+
+        if (sortOrders != null)
         {
-            scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e=> sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e=> sortOrder.Field.Invoke(e));
+            foreach (var sortOrder in sortOrders)
+            {
+                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e => sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e => sortOrder.Field.Invoke(e));
+            }
         }
 
         return await Task.Run(() => scopedEntities);
@@ -71,12 +74,15 @@ public partial class Repository : IScopedReadonlyRepository
         }
 
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
-            
-        foreach (var sortOrder in sortOrders)
+
+        if (sortOrders != null)
         {
-            res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(e=> sortOrder.Field.Invoke(e)) : res.OrderByDescending(e=> sortOrder.Field.Invoke(e));
+            foreach (var sortOrder in sortOrders)
+            {
+                res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(e => sortOrder.Field.Invoke(e)) : res.OrderByDescending(e => sortOrder.Field.Invoke(e));
+            }
         }
-        
+
         res = res.Skip((PageNumber - 1) * pageSize).Take(pageSize);
 
         return await Task.Run(() => res);
@@ -132,10 +138,15 @@ public partial class Repository : IScopedReadonlyRepository
     public async Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
-        foreach (var sortOrder in sortOrders)
+
+        if (sortOrders != null)
         {
-            scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e=> sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e=> sortOrder.Field.Invoke(e));
+            foreach (var sortOrder in sortOrders)
+            {
+                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e => sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e => sortOrder.Field.Invoke(e));
+            }
         }
+
         return await Task.Run(() => scopedEntities);
     }
 
@@ -148,7 +159,10 @@ public partial class Repository : IScopedReadonlyRepository
 
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
 
-        res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(e => sortOrder.Field.Invoke(e)) : current.OrderByDescending(e => sortOrder.Field.Invoke(e)));
+        if (sortOrders != null)
+        {
+            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(e => sortOrder.Field.Invoke(e)) : current.OrderByDescending(e => sortOrder.Field.Invoke(e)));
+        }
 
         res = res.Skip((pageNumber - 1) * pageSize).Take(pageSize);
 

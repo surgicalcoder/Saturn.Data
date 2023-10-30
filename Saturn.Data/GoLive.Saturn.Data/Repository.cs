@@ -135,7 +135,7 @@ public partial class Repository
         return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
     }
 
-    protected virtual void RegisterConventions()
+    private void RegisterConventions()
     {
         var pack = new ConventionPack
         {

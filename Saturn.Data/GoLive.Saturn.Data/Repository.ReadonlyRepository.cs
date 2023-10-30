@@ -100,29 +100,58 @@ public partial class Repository : IReadonlyRepository
 
     public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
     {
-        return await Task.Run(() => Queryable.Where(GetCollection<T>().AsQueryable(), predicate));
+        var items = GetCollection<T>().AsQueryable().Where(predicate);
+
+        if (sortOrders != null)
+        {
+            foreach (var sortOrder in sortOrders)
+            {
+                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(e => sortOrder.Field.Invoke(e)) : items.OrderByDescending(e => sortOrder.Field.Invoke(e));
+            }
+        }
+
+        return await Task.Run(() => items);
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
     {
-        var where = new BsonDocument(whereClause);
-        var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>()).FindAsync(where, null)).ToListAsync();
+        if (sortOrders != null && sortOrders.Any())
+        {
+            throw new NotImplementedException("SortOrder not implemented yet");
+        }
+        
+        var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>()).FindAsync(null)).ToListAsync();
         
         return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity 
     {
         if (pageSize == 0 || pageNumber == 0)
         {
             return await Many<T>(predicate).ConfigureAwait(false);
         }
 
-        return await Task.Run(() => Queryable.Take(GetCollection<T>().AsQueryable().Where(predicate).Skip((pageNumber - 1) * pageSize), pageSize)).ConfigureAwait(false);
+        var items = GetCollection<T>().AsQueryable().Where(predicate);
+        
+        if (sortOrders != null)
+        {
+            foreach (var sortOrder in sortOrders)
+            {
+                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(e => sortOrder.Field.Invoke(e)) : items.OrderByDescending(e => sortOrder.Field.Invoke(e));
+            }
+        }
+
+        return await Task.Run(() => items.Skip((pageNumber - 1) * pageSize).Take(pageSize));
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
     {
+        if (sortOrders != null && sortOrders.Any())
+        {
+            throw new NotImplementedException("SortOrders not implemented");
+        }
+        
         if (pageSize == 0 || pageNumber == 0)
         {
             return await Many<T>(whereClause).ConfigureAwait(false);
