@@ -51,9 +51,12 @@ public class SourceStringBuilder
         for (var i = 0; i < IndentLevel; i++) _stringBuilder.Append(SingleIndent);
     }
 
-    public void AppendLine()
+    public void AppendLine(int count = 1)
     {
-        _stringBuilder.Append("\n");
+        for (var i = 0; i < count; i++)
+        {
+            _stringBuilder.Append("\n");
+        }
     }
 
     public void AppendLine(string text)

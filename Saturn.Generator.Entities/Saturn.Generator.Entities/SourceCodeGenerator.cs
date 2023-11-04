@@ -18,14 +18,11 @@ public static class SourceCodeGenerator
 
         source.AppendLine($"namespace {classToGen.Namespace};");
 
-
         source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged {{");
         source.AppendIndent();
             
         source.AppendLine($"public {classToGen.Name}()");
         source.AppendOpenCurlyBracketLine();
-
-            
             
         foreach (var coll in classToGen.Members.Where(f=>f.IsCollection))
         {
@@ -87,8 +84,7 @@ public static class SourceCodeGenerator
         source.AppendLine("}");
 
         source.DecreaseIndent();
-        source.AppendLine();
-        source.AppendLine();
+        source.AppendLine(2);
             
             
         foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any()).SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
@@ -113,16 +109,29 @@ public static class SourceCodeGenerator
                 }
             }
                 
-            source.AppendLine();
-                
-            source.AppendLine();
+            source.AppendLine(2);
 
             outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
             outputViewGenerateMethod(source, classToGen, item.Key);
-            
-            foreach (var limitedViewToGenerate in item.Select(r=>r.LimitedView).Where(e=>e.TwoWay))
+
+            if (item.Any(e => e.LimitedView.TwoWay))
             {
-                source.AppendLine(" // TODO Need to output a two way for " + limitedViewToGenerate.Name);
+                source.AppendLine($"public void UpdateParent({classToGen.Name} parent)");
+                source.AppendOpenCurlyBracketLine();
+
+                foreach (var v1 in item)
+                {
+                    if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
+                    {
+                        source.AppendLine($"parent.{v1.classDef.Name.FirstCharToUpper()} = this.{v1.classDef.Name.FirstCharToUpper()};");
+                    }
+                    else
+                    {
+                        // TODO need to do this at one point, maybe with some interfaces
+                    }
+                }
+                
+                source.AppendCloseCurlyBracketLine();
             }
 
             source.AppendCloseCurlyBracketLine();
@@ -147,25 +156,6 @@ public static class SourceCodeGenerator
         source.AppendLine();
         source.AppendCloseCurlyBracketLine();
     }
-
-    /*private static void outputViewUpdateFromMethod(SourceStringBuilder source, ClassToGenerate classToGen, IEnumerable<(string GroupingName, MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
-    {
-        source.AppendLine($"public void UpdateFrom({classToGen.Name} source)");
-        source.AppendOpenCurlyBracketLine();
-        foreach (var v1 in item)
-        {
-            if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
-            {
-                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
-            }
-            else
-            {
-                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
-            }
-        }
-        source.AppendLine();
-        source.AppendCloseCurlyBracketLine();
-    }*/
     
     private static void outputViewGenerateMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey)
     {
@@ -177,45 +167,37 @@ public static class SourceCodeGenerator
         source.AppendCloseCurlyBracketLine();
     }
 
-    /*private static void outputViewGenerateMethod(SourceStringBuilder source, ClassToGenerate classToGen, IEnumerable<(string GroupingName, MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
-    {
-        source.AppendLine($"public static {classToGen.Name}_{item.} Generate({classToGen.Name} source)");
-        source.AppendOpenCurlyBracketLine();
-        source.AppendLine($"var retr = new {classToGen.Name.FirstCharToUpper()}_{item.Key}();");
-        source.AppendLine("retr.UpdateFrom(source);");
-        source.AppendLine("return retr;");
-        source.AppendCloseCurlyBracketLine();
-    }*/
-
     private static void outputAttributes(SourceStringBuilder source, MemberToGenerate classDef)
     {
-        if (classDef.AdditionalAttributes.Count > 0)
+        if (classDef.AdditionalAttributes.Count <= 0)
         {
-            foreach (var attr in classDef.AdditionalAttributes)
+            return;
+        }
+
+        foreach (var attr in classDef.AdditionalAttributes)
+        {
+            var builder = new StringBuilder();
+            builder.Append($"[{attr.Name}(");
+
+            if (attr.ConstructorParameters.Count > 0)
             {
-                var builder = new StringBuilder();
-                builder.Append($"[{attr.Name}(");
-
-                if (attr.ConstructorParameters.Count > 0)
+                foreach (var attrConstructorParameter in attr.ConstructorParameters)
                 {
-                    foreach (var attrConstructorParameter in attr.ConstructorParameters)
-                    {
-                        builder.Append($"{attrConstructorParameter},");
-                    }
+                    builder.Append($"{attrConstructorParameter},");
                 }
-
-                if (attr.NamedParameters.Count > 0)
-                {
-                    foreach (var attrNamedParameter in attr.NamedParameters)
-                    {
-                        builder.Append($"{attrNamedParameter.Key}={attrNamedParameter.Value},");
-                    }
-                }
-
-                builder.AppendLine(")]");
-                
-                source.AppendLine(builder.ToString().Replace(",)]", ")]")); // TODO need to fix
             }
+
+            if (attr.NamedParameters.Count > 0)
+            {
+                foreach (var attrNamedParameter in attr.NamedParameters)
+                {
+                    builder.Append($"{attrNamedParameter.Key}={attrNamedParameter.Value},");
+                }
+            }
+
+            builder.AppendLine(")]");
+                
+            source.AppendLine(builder.ToString().Replace(",)]", ")]")); // TODO need to fix
         }
     }
 
