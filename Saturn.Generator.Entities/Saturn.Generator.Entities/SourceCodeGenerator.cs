@@ -114,26 +114,31 @@ public static class SourceCodeGenerator
             outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
             outputViewGenerateMethod(source, classToGen, item.Key);
 
-            if (item.Any(e => e.LimitedView.TwoWay))
+            outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )));
+
+            source.AppendCloseCurlyBracketLine();
+        }
+    }
+
+    private static void outputViewTwoWayMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
+    {
+        if (item.Any(e => e.LimitedView.TwoWay))
+        {
+            source.AppendLine($"public void UpdateParent({classToGen.Name} parent)");
+            source.AppendOpenCurlyBracketLine();
+
+            foreach (var v1 in item)
             {
-                source.AppendLine($"public void UpdateParent({classToGen.Name} parent)");
-                source.AppendOpenCurlyBracketLine();
-
-                foreach (var v1 in item)
+                if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
-                    if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
-                    {
-                        source.AppendLine($"parent.{v1.classDef.Name.FirstCharToUpper()} = this.{v1.classDef.Name.FirstCharToUpper()};");
-                    }
-                    else
-                    {
-                        // TODO need to do this at one point, maybe with some interfaces
-                    }
+                    source.AppendLine($"parent.{StringExtensions.FirstCharToUpper(v1.classDef.Name)} = this.{StringExtensions.FirstCharToUpper(v1.classDef.Name)};");
                 }
-                
-                source.AppendCloseCurlyBracketLine();
+                else
+                {
+                    // TODO need to do this at one point, maybe with some interfaces
+                }
             }
-
+                
             source.AppendCloseCurlyBracketLine();
         }
     }
