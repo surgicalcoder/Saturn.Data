@@ -1,0 +1,86 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <PackOnBuild>true</PackOnBuild>
+        <PackFolder>analyzers\cs</PackFolder>
+        <IsRoslynComponent>true</IsRoslynComponent>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <DevelopmentDependency>true</DevelopmentDependency>
+        <AssemblyName>GoLive.Saturn.Generator.Entities</AssemblyName>
+        <RootNamespace>GoLive.Saturn.Generator.Entities</RootNamespace>
+
+        <PackageId>GoLive.Saturn.Generator.Entities</PackageId>
+        <Authors>SurgicalCoder</Authors>
+        <Company>N/A</Company>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>Source Code Generator for GoLive.Saturn.Data entities to enrich data objects</Description>
+        <Copyright>Copyright 2023 - SurgicalCoder</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+        <PackOnBuild>true</PackOnBuild>
+        <PackFolder>analyzers\cs</PackFolder>
+        <IsRoslynComponent>true</IsRoslynComponent>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <DevelopmentDependency>true</DevelopmentDependency>
+        <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Remove="Resources\AdditionalFiles.cs" />
+        <EmbeddedResource Include="Resources\AdditionalFiles.cs" />
+    </ItemGroup>
+    <PropertyGroup>
+        <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+    </PropertyGroup>
+    <Target Name="GetDependencyTargetPaths" AfterTargets="ResolvePackageDependenciesForBuild">
+        <ItemGroup>
+            <TargetPathWithTargetPlatformMoniker Include="@(ResolvedCompileFileDefinitions)" IncludeRuntimeDependency="false" />
+        </ItemGroup>
+    </Target>
+    <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.7.0" />
+        <PackageReference Include="ObservableCollections" Version="1.1.3" />
+        <PackageReference Include="GoLive.Generator.StronglyTypedEmbeddedResources" Version="1.0.1">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <Target Name="AddPackDependencies"
+            Inputs="@(RuntimeCopyLocalItems)"
+            Outputs="%(RuntimeCopyLocalItems.NuGetPackageId)"
+            DependsOnTargets="ResolvePackageAssets"
+            BeforeTargets="GenerateNuspec"
+            AfterTargets="ResolvePackageAssets">
+        <ItemGroup>
+            <NuGetPackageId Include="@(RuntimeCopyLocalItems -> '%(NuGetPackageId)')" />
+        </ItemGroup>
+        <PropertyGroup>
+            <NuGetPackageId>@(NuGetPackageId -&gt; Distinct())</NuGetPackageId>
+        </PropertyGroup>
+        <ItemGroup>
+            <PackageReferenceDependency Include="@(PackageReference -&gt; WithMetadataValue('Identity', '$(NuGetPackageId)'))" />
+        </ItemGroup>
+        <PropertyGroup>
+            <NuGetPackagePack>@(PackageReferenceDependency -> '%(Pack)')</NuGetPackagePack>
+        </PropertyGroup>
+        <ItemGroup Condition="'$(NuGetPackagePack)' == 'true'">
+            <_PackageFiles Include="@(RuntimeCopyLocalItems)" PackagePath="analyzers/dotnet/cs/%(Filename)%(Extension)" />
+            <RuntimeCopyLocalItems Update="@(RuntimeCopyLocalItems)" CopyLocal="true" Private="true" />
+            <ResolvedFileToPublish Include="@(RuntimeCopyLocalItems)" CopyToPublishDirectory="PreserveNewest" RelativePath="%(Filename)%(Extension)" />
+        </ItemGroup>
+    </Target>
+
+</Project>

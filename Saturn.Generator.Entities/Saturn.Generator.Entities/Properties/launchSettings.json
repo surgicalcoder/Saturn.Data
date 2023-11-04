@@ -1,0 +1,9 @@
+﻿{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Saturn.Generator.Entities": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../Saturn.Generator.Entities.Playground/Saturn.Generator.Entities.Playground.csproj"
+    }
+  }
+}
