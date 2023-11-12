@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GoLive.Saturn.Generator.Entities;
@@ -12,7 +13,7 @@ public static class Scanner
 
     public static bool CanBeEntity(SyntaxNode node)
     {
-        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 };
+        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 } cds && cds.Modifiers.Any(e=>e.IsKind(SyntaxKind.PartialKeyword)) ;
     }
 
     public static bool IsEntity(INamedTypeSymbol classDeclaration)

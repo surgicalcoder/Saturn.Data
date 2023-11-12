@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Generator.Entities/Saturn.Generator.Entities.sln'
-     BUILD_VER : '1.0'
+     BUILD_VER : '1.1'
     name: build, pack & publish
     runs-on: ubuntu-latest
     steps:
