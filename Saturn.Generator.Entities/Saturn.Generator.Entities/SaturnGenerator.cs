@@ -16,7 +16,7 @@ public class SaturnGenerator : IIncrementalGenerator
 
         var classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(static (s, _) => Scanner.CanBeEntity(s),
                 static (ctx, _) => GetEntityDeclarations(ctx))
-            .Where(static c => c is not null)
+            .Where(static c => c != default)
             .Select(static (c, _) => Scanner.ConvertToMapping(c));
 
         context.RegisterSourceOutput(classDeclarations.Collect(), static (spc, source) => Execute(spc, source));
@@ -45,11 +45,13 @@ public class SaturnGenerator : IIncrementalGenerator
         }
     }
 
-    private static INamedTypeSymbol GetEntityDeclarations(GeneratorSyntaxContext context)
+    private static (INamedTypeSymbol symbol, ClassDeclarationSyntax syntax) GetEntityDeclarations(GeneratorSyntaxContext context)
     {
         var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
         var symbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax);
 
-        return symbol is not null && Scanner.IsEntity(symbol) ? symbol : null;
+        return symbol is not null && Scanner.IsEntity(symbol) ? (symbol, classDeclarationSyntax) : default;
     }
+    
+    
 }

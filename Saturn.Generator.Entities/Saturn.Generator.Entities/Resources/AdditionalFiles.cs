@@ -44,3 +44,18 @@ public class AddToLimitedViewAttribute : Attribute
     public string UseLimitedView { get; set; }
     public bool TwoWay { get; set; }
 }
+
+
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
+public class AddParentItemToLimitedViewAttribute : Attribute
+{
+    public AddParentItemToLimitedViewAttribute(string ViewName, string ParentField)
+    {
+        this.ViewName = ViewName;
+        this.ParentField = ParentField;
+    }
+    internal string ViewName { get; set; }
+    internal string ParentField { get; set; }
+    public string UseLimitedView { get; set; }
+    public bool TwoWay { get; set; }
+}

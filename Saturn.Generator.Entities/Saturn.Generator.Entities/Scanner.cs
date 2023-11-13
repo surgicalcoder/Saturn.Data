@@ -13,7 +13,7 @@ public static class Scanner
 
     public static bool CanBeEntity(SyntaxNode node)
     {
-        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 } cds && cds.Modifiers.Any(e=>e.IsKind(SyntaxKind.PartialKeyword)) ;
+        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 } cds && cds.Modifiers.Any(e=>e.IsKind(SyntaxKind.PartialKeyword));
     }
 
     public static bool IsEntity(INamedTypeSymbol classDeclaration)
@@ -40,16 +40,69 @@ public static class Scanner
         return false;
     }
 
-    public static ClassToGenerate ConvertToMapping(INamedTypeSymbol classSymbol)
+    public static ClassToGenerate ConvertToMapping((INamedTypeSymbol symbol, ClassDeclarationSyntax syntax) input)
     {
         ClassToGenerate retr = new();
 
-        retr.Filename = classSymbol.Locations.FirstOrDefault(e => !e.SourceTree.FilePath.EndsWith(".generated.cs")).SourceTree.FilePath;
-        retr.Name = classSymbol.Name;
-        retr.Namespace = classSymbol.ContainingNamespace.ToDisplayString();
-        retr.Members = ConvertToMembers(classSymbol).ToList();
+        retr.Filename = input.symbol.Locations.FirstOrDefault(e => !e.SourceTree.FilePath.EndsWith(".generated.cs")).SourceTree.FilePath;
+        retr.Name = input.symbol.Name;
+        retr.Namespace = input.symbol.ContainingNamespace.ToDisplayString();
+        retr.Members = ConvertToMembers(input.symbol).ToList();
+        retr.ParentItemToGenerate = GetParentItemsToGenerate(input.symbol, input.syntax).ToList();
 
         return retr;
+    }
+
+    private static IEnumerable<LimitedViewParentItemToGenerate> GetParentItemsToGenerate(INamedTypeSymbol classSymbol, ClassDeclarationSyntax inputSyntax)
+    {
+        var attrs = classSymbol.GetAttributes();
+
+        if (attrs.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute"))
+        {
+            foreach (var attributeData in attrs.Where(f => f.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute"))
+            {
+                LimitedViewParentItemToGenerate retr = new();
+
+                retr.ViewName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).FirstOrDefault().Value as string;
+                retr.PropertyName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Skip(1).FirstOrDefault().Value as string;
+                retr.Property = GetMember(classSymbol, retr.PropertyName) as IPropertySymbol;
+                
+                if (attributeData.NamedArguments.Any())
+                {
+                    if (attributeData.NamedArguments.Any(f => f.Key == "UseLimitedView"))
+                    {
+                        retr.OverrideReturnTypeToUseLimitedView = attributeData.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
+                    }
+
+                    if (attributeData.NamedArguments.Any(r => r.Key == "TwoWay"))
+                    {
+                        retr.TwoWay = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
+                    }
+                }
+                
+                yield return retr;
+            }
+        }
+    }
+    
+    
+    private static ISymbol GetMember(INamedTypeSymbol classDeclaration, string Name)
+    {
+        var currentDeclared = classDeclaration;
+
+        while (currentDeclared.BaseType != null)
+        {
+            var currentBaseType = currentDeclared.BaseType;
+
+            if (currentBaseType.GetMembers(Name) is { Length: > 0 } mem)
+            {
+                return mem.FirstOrDefault();
+            }
+
+            currentDeclared = currentBaseType;
+        }
+
+        return null;
     }
 
     private static IEnumerable<MemberToGenerate> ConvertToMembers(INamedTypeSymbol classSymbol)
@@ -118,6 +171,8 @@ public static class Scanner
                     }).ToList();
             }
 
+            
+
             if (attr.Any(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
             {
                 foreach (var at in attr.Where(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
@@ -158,4 +213,5 @@ public static class Scanner
             yield return memberToGenerate;
         }
     }
+    
 }

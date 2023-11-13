@@ -108,6 +108,16 @@ public static class SourceCodeGenerator
                     source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
                 }
             }
+
+            if (classToGen.ParentItemToGenerate is { Count: > 0 } && classToGen.ParentItemToGenerate.Any(r=>r.ViewName == item.Key))
+            {
+                source.AppendLine(2);
+
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == item.Key))
+                {
+                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.PropertyName} {{get;set;}}");
+                }
+            }
                 
             source.AppendLine(2);
 
@@ -158,6 +168,17 @@ public static class SourceCodeGenerator
                 source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
             }
         }
+        
+        if (classToGen.ParentItemToGenerate is { Count: > 0 } && classToGen.ParentItemToGenerate.Any(r=>r.ViewName == itemKey))
+        {
+            source.AppendLine(2);
+
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == itemKey))
+            {
+                source.AppendLine($"this.{toGenerate.PropertyName} = source.{toGenerate.PropertyName};");
+            }
+        }
+        
         source.AppendLine();
         source.AppendCloseCurlyBracketLine();
     }
