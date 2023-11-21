@@ -13,8 +13,44 @@ namespace GoLive.Saturn.Data.Entities
         public virtual string Id
         {
             get => id;
-            set => SetField(ref id, value);
+            set
+            {
+                if ((id.Length != 16) && (id.Length != 24))
+                {
+                    throw new InvalidCastException("Invalid ID length");
+                }
+
+                if (id.Length == 16)
+                {
+                    id = base64ToHex(id);
+                }
+                SetField(ref id, value);
+            }
         }
+
+        public virtual string _shortId
+        {
+            get
+            {
+                var resultantArray = new byte[12];
+                resultantArray[0] = Convert.ToByte(Id[..2], 16);
+                resultantArray[1] =  Convert.ToByte(Id[2..4], 16);
+                resultantArray[2] =  Convert.ToByte(Id[4..6], 16);
+                resultantArray[3] =  Convert.ToByte(Id[6..8], 16);
+                resultantArray[4] =  Convert.ToByte(Id[8..10], 16);
+                resultantArray[5] =  Convert.ToByte(Id[10..12], 16);
+                resultantArray[6] =  Convert.ToByte(Id[12..14], 16);
+                resultantArray[7] =  Convert.ToByte(Id[14..16], 16);
+                resultantArray[8] =  Convert.ToByte(Id[16..18], 16);
+                resultantArray[9] =  Convert.ToByte(Id[18..20], 16);
+                resultantArray[10] = Convert.ToByte(Id[20..22], 16);
+                resultantArray[11] = Convert.ToByte(Id[22..24], 16);
+
+                return Convert.ToBase64String(resultantArray);
+            }
+        }
+        
+        private string base64ToHex(string strInput) => BitConverter.ToString(Convert.FromBase64String(strInput)).Replace("-", "").ToLower();
 
         public virtual long? Version
         {
