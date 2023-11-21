@@ -109,11 +109,16 @@ public static class SourceCodeGenerator
                 }
             }
 
-            if (classToGen.ParentItemToGenerate is { Count: > 0 } && classToGen.ParentItemToGenerate.Any(r=>r.ViewName == item.Key))
+            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r=>r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r=>r.ViewName == "*") ))
             {
                 source.AppendLine(2);
 
                 foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == item.Key))
+                {
+                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.PropertyName} {{get;set;}}");
+                }
+                
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
                 {
                     source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.PropertyName} {{get;set;}}");
                 }
@@ -169,11 +174,16 @@ public static class SourceCodeGenerator
             }
         }
         
-        if (classToGen.ParentItemToGenerate is { Count: > 0 } && classToGen.ParentItemToGenerate.Any(r=>r.ViewName == itemKey))
+        if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r=>r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r=>r.ViewName == "*") ))
         {
             source.AppendLine(2);
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == itemKey))
+            {
+                source.AppendLine($"this.{toGenerate.PropertyName} = source.{toGenerate.PropertyName};");
+            }
+            
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
             {
                 source.AppendLine($"this.{toGenerate.PropertyName} = source.{toGenerate.PropertyName};");
             }
