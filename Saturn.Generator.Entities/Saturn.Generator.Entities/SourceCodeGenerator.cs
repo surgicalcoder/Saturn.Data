@@ -18,7 +18,18 @@ public static class SourceCodeGenerator
 
         source.AppendLine($"namespace {classToGen.Namespace};");
 
-        source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged {{");
+        source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged");
+        var updatableFromChildren = classToGen.Members.SelectMany(e => e.LimitedViews.Where(f => f.TwoWay).Select(f => f.Name)).Distinct().ToList();
+
+        if (updatableFromChildren.Any())
+        {
+            foreach (var s in updatableFromChildren)
+            {
+                source.AppendLine($", IUpdatableFrom<{classToGen.Name}_{s}>");
+            }
+        }
+        
+        source.AppendLine("{");
         source.AppendIndent();
             
         source.AppendLine($"public {classToGen.Name}()");
@@ -81,6 +92,18 @@ public static class SourceCodeGenerator
             }
                 
         }
+        
+
+        if (updatableFromChildren.Any())
+        {
+            foreach (var s in updatableFromChildren)
+            {
+                source.AppendLine($"public void UpdateFrom({classToGen.Name}_{s} input) => input.UpdateParent(this);");
+            }
+        }
+        
+        
+        
         source.AppendLine("}");
 
         source.DecreaseIndent();
@@ -91,7 +114,7 @@ public static class SourceCodeGenerator
                      .GroupBy(e => e.LimitedView.Name))
         {
             
-            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}> ");
+            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
             source.AppendOpenCurlyBracketLine();
 
             foreach (var v1 in item)
@@ -130,7 +153,9 @@ public static class SourceCodeGenerator
             outputViewGenerateMethod(source, classToGen, item.Key);
 
             outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )));
-
+            
+            source.AppendLine($"public static ICreatableFrom<{classToGen.Name}> Create({classToGen.Name} input) => Generate(input);");
+            
             source.AppendCloseCurlyBracketLine();
         }
     }

@@ -10,6 +10,7 @@ public partial class MainItem : Entity
     [AddToLimitedView("View2", true)]
     private string name;
     [AddToLimitedView("View2", TwoWay = true)]
+    [AddToLimitedView("View3", true)]
     private string description;
     private ObservableList<string> strings;
     private ObservableList<string> anotherString;

@@ -60,3 +60,8 @@ public class AddParentItemToLimitedViewAttribute : Attribute
     public string UseLimitedView { get; set; }
     public bool TwoWay { get; set; }
 }
+
+public interface ICreatableFrom<T>
+{
+    static abstract ICreatableFrom<T> Create(T input);
+}
