@@ -115,12 +115,12 @@ public static class SourceCodeGenerator
 
                 foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == item.Key))
                 {
-                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.PropertyName} {{get;set;}}");
+                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
                 
                 foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
                 {
-                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.PropertyName} {{get;set;}}");
+                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
             }
                 
@@ -180,12 +180,12 @@ public static class SourceCodeGenerator
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == itemKey))
             {
-                source.AppendLine($"this.{toGenerate.PropertyName} = source.{toGenerate.PropertyName};");
+                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
             }
             
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
             {
-                source.AppendLine($"this.{toGenerate.PropertyName} = source.{toGenerate.PropertyName};");
+                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
             }
         }
         

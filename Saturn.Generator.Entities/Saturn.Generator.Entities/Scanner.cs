@@ -72,12 +72,22 @@ public static class Scanner
                     if (attributeData.NamedArguments.Any(f => f.Key == "UseLimitedView"))
                     {
                         retr.OverrideReturnTypeToUseLimitedView = attributeData.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
+                    }                    
+                    
+                    if (attributeData.NamedArguments.Any(f => f.Key == "ChildField"))
+                    {
+                        retr.ChildPropertyName = attributeData.NamedArguments.FirstOrDefault(r => r.Key == "ChildField").Value.Value.ToString();
                     }
 
                     if (attributeData.NamedArguments.Any(r => r.Key == "TwoWay"))
                     {
                         retr.TwoWay = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
                     }
+                }
+
+                if (string.IsNullOrWhiteSpace(retr.ChildPropertyName))
+                {
+                    retr.ChildPropertyName = retr.PropertyName;
                 }
                 
                 yield return retr;

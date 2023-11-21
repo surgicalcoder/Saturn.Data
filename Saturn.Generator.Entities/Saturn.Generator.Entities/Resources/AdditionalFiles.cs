@@ -56,6 +56,7 @@ public class AddParentItemToLimitedViewAttribute : Attribute
     }
     internal string ViewName { get; set; }
     internal string ParentField { get; set; }
+    public string ChildField { get; set; }
     public string UseLimitedView { get; set; }
     public bool TwoWay { get; set; }
 }
