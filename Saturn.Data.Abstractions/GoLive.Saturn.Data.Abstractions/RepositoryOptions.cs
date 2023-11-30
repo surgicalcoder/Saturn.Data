@@ -26,6 +26,8 @@ namespace GoLive.Saturn.Data.Abstractions
         
         public Func<Type, string> TransparentScopeProvider { get; set; }
 
+        public Func<Type, bool> ObjectSerializerConfiguration { get; set; } = type => true;
+
         public Dictionary<Type, Type> GenericSerializers { get; set; } = new();
         public Dictionary<Type, object> DiscriminatorConventions { get; set; } = new();
         public Dictionary<Type, object> Serializers { get; set; } = new();
