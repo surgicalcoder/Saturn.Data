@@ -21,8 +21,8 @@ namespace GoLive.Saturn.Data.Abstractions
         public TimeSpan InitCheckDuration { get; set; }
 
         public Action<IRepository> InitCheckCallback { get; set; }
-        
-        public Func<Type, string> GetCollectionName { get; set; }
+
+        public Func<Type, string> GetCollectionName { get; set; } = type => type.Name;
         
         public Func<Type, string> TransparentScopeProvider { get; set; }
 
