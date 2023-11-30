@@ -27,7 +27,7 @@ namespace GoLive.Saturn.Data.Entities
         private string _refId;
         private T item;
 
-        public T Item
+        public virtual T Item
         {
             get => item;
             set
@@ -39,7 +39,7 @@ namespace GoLive.Saturn.Data.Entities
             }
         }
 
-        public string Id
+        public virtual string Id
         {
             get
             {
@@ -70,7 +70,7 @@ namespace GoLive.Saturn.Data.Entities
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected virtual bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, value)) return false;
 

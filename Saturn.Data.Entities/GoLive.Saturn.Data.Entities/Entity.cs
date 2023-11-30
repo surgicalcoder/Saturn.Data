@@ -15,15 +15,19 @@ namespace GoLive.Saturn.Data.Entities
             get => id;
             set
             {
-                if ((id.Length != 16) && (id.Length != 24))
+                if (value != null)
                 {
-                    throw new InvalidCastException("Invalid ID length");
+                    if ((value.Length != 16) && (value.Length != 24))
+                    {
+                        throw new InvalidCastException("Invalid ID length");
+                    }
+
+                    if (value.Length == 16)
+                    {
+                        value = base64ToHex(value);
+                    }
                 }
 
-                if (id.Length == 16)
-                {
-                    id = base64ToHex(id);
-                }
                 SetField(ref id, value);
             }
         }
