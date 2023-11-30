@@ -151,6 +151,9 @@ public partial class Repository
             
         try
         {
+            var objectSerializer = new ObjectSerializer(options.ObjectSerializerConfiguration);
+            BsonSerializer.RegisterSerializer(objectSerializer);
+            
             BsonSerializer.RegisterSerializer(typeof(Timestamp), new TimestampSerializer());
 
             BsonSerializer.RegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
