@@ -36,6 +36,10 @@ namespace GoLive.Saturn.Data.Entities
         {
             get
             {
+                if (string.IsNullOrWhiteSpace(Id))
+                {
+                    return null;
+                }
                 var resultantArray = new byte[12];
                 resultantArray[0] = Convert.ToByte(Id[..2], 16);
                 resultantArray[1] =  Convert.ToByte(Id[2..4], 16);
