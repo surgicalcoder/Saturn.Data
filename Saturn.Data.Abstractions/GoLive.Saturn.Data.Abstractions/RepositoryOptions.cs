@@ -1,10 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions
 {
     public class RepositoryOptions
     {
+        public RepositoryOptions()
+        {
+            GetCollectionName = delegate(Type type)
+            {
+                if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(WrappedEntity<>))
+                {
+                    return $"{WrappedEntityPrefix}{type.GenericTypeArguments[0].Name}{WrappedEntityPostfix}";
+                }
+                return type.Name;
+            };
+        }
         public string ConnectionString { get; set; }
 
         public string WrappedEntityPrefix { get; set; } = "w_";
@@ -22,7 +34,7 @@ namespace GoLive.Saturn.Data.Abstractions
 
         public Action<IRepository> InitCheckCallback { get; set; }
 
-        public Func<Type, string> GetCollectionName { get; set; } = type => type.Name;
+        public Func<Type, string> GetCollectionName { get; set; }
         
         public Func<Type, string> TransparentScopeProvider { get; set; }
 
