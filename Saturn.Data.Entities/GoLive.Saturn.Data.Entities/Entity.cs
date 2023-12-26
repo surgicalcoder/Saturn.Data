@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace GoLive.Saturn.Data.Entities;
 
-public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged
+public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniquelyIdentifiable
 {
     public static bool TryParseId(string input, out string output)
     {
