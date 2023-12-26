@@ -7,6 +7,44 @@ namespace GoLive.Saturn.Data.Entities
 {
     public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged
     {
+        public static bool TryParseId(string input, out string output)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                output = null;
+                return true;
+            }
+            
+            switch (input.Length)
+            {
+                case 16:
+                    output = BitConverter.ToString(Convert.FromBase64String(input)).Replace("-", "").ToLower();
+                    return true;
+                case 24 when !IsHex(input):
+                    output = null;
+                    return false;
+                case 24:
+                    output = input;
+                    return true;
+                default:
+                    output = null;
+                    return false;
+            }
+        }
+
+        private static bool IsHex(IEnumerable<char> chars)
+        {
+            bool isHex; 
+            foreach(var c in chars)
+            {
+                isHex = c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+
+                if(!isHex)
+                    return false;
+            }
+            return true;
+        }
+        
         private string id;
         private long? version;
 
@@ -17,14 +55,15 @@ namespace GoLive.Saturn.Data.Entities
             {
                 if (value != null)
                 {
-                    if ((value.Length != 16) && (value.Length != 24))
-                    {
-                        throw new InvalidCastException("Invalid ID length");
-                    }
+                    var success = TryParseId(value, out string actualValue);
 
-                    if (value.Length == 16)
+                    if (success)
                     {
-                        value = base64ToHex(value);
+                        value = actualValue;
+                    }
+                    else
+                    {
+                        throw new InvalidCastException("Invalid ID");
                     }
                 }
 
@@ -58,7 +97,6 @@ namespace GoLive.Saturn.Data.Entities
             }
         }
         
-        private string base64ToHex(string strInput) => BitConverter.ToString(Convert.FromBase64String(strInput)).Replace("-", "").ToLower();
 
         public virtual long? Version
         {
