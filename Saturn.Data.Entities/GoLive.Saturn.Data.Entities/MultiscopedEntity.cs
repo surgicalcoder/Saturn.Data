@@ -1,52 +1,51 @@
 using System.Collections.Generic;
 
-namespace GoLive.Saturn.Data.Entities
-{
-    public abstract class MultiscopedEntity<T> : ScopedEntity<T> where T : Entity, new() {
-        private List<string> scopes;
+namespace GoLive.Saturn.Data.Entities;
 
-        protected MultiscopedEntity()
-        {
-            Scopes = new();
-        }
+public abstract class MultiscopedEntity<T> : ScopedEntity<T> where T : Entity, new() {
+    private List<string> scopes;
 
-        public override Ref<T> Scope
+    protected MultiscopedEntity()
+    {
+        Scopes = new();
+    }
+
+    public override Ref<T> Scope
+    {
+        get => base.Scope;
+        set
         {
-            get => base.Scope;
-            set
+            if (value != null)
             {
-                if (value != null)
+                if (string.IsNullOrWhiteSpace(value.Id))
                 {
-                    if (string.IsNullOrWhiteSpace(value.Id))
-                    {
-                        Scopes.RemoveAll(f => f == base.Scope.Id);
-                        base.Scope = null;
-                    }
-                    else
-                    {
-                        if (!Scopes.Contains(value.Id))
-                        {
-                            Scopes.Add(value.Id);
-                        }
-
-                        base.Scope = value;
-                    }
+                    Scopes.RemoveAll(f => f == base.Scope.Id);
+                    base.Scope = null;
                 }
                 else
                 {
-                    if (base.Scope != null && !string.IsNullOrWhiteSpace(base.Scope.Id))
+                    if (!Scopes.Contains(value.Id))
                     {
-                        Scopes.RemoveAll(f => f == base.Scope.Id);
+                        Scopes.Add(value.Id);
                     }
-                    base.Scope = null;
+
+                    base.Scope = value;
                 }
             }
+            else
+            {
+                if (base.Scope != null && !string.IsNullOrWhiteSpace(base.Scope.Id))
+                {
+                    Scopes.RemoveAll(f => f == base.Scope.Id);
+                }
+                base.Scope = null;
+            }
         }
+    }
 
-        public virtual List<string> Scopes
-        {
-            get => scopes;
-            set => scopes = value;
-        }
+    public virtual List<string> Scopes
+    {
+        get => scopes;
+        set => scopes = value;
     }
 }

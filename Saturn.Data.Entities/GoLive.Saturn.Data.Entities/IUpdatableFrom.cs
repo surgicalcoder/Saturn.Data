@@ -1,7 +1,6 @@
-namespace GoLive.Saturn.Data.Entities
+namespace GoLive.Saturn.Data.Entities;
+
+public interface IUpdatableFrom<T>
 {
-    public interface IUpdatableFrom<T>
-    {
-        void UpdateFrom(T input);
-    }
+    void UpdateFrom(T input);
 }
