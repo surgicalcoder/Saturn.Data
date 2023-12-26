@@ -83,6 +83,11 @@ public static class Scanner
                     {
                         retr.TwoWay = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
                     }
+                    
+                    if (attributeData.NamedArguments.Any(r => r.Key == "InheritFromIUniquelyIdentifiable"))
+                    {
+                        retr.InheritFromIUniquelyIdentifiable = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "InheritFromIUniquelyIdentifiable").Value.Value;
+                    }
                 }
 
                 if (string.IsNullOrWhiteSpace(retr.ChildPropertyName))

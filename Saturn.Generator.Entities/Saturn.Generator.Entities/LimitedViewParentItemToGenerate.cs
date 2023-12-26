@@ -10,4 +10,5 @@ public class LimitedViewParentItemToGenerate
     public IPropertySymbol Property { get; set; }
     public string OverrideReturnTypeToUseLimitedView { get; set; }
     public bool TwoWay { get; set; }
+    public bool InheritFromIUniquelyIdentifiable { get; set; }
 }

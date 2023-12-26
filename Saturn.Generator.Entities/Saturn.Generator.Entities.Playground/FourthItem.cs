@@ -3,7 +3,7 @@ using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Generator.Entities.Playground;
 
-[AddParentItemToLimitedView("*", "_shortId", ChildField = "Id")]
+[AddParentItemToLimitedView("*", "_shortId", ChildField = "Id", InheritFromIUniquelyIdentifiable = true)]
 public partial class FourthItem : MultiscopedEntity<MainItem>
 {
     [AddToLimitedView("View1")]
@@ -16,4 +16,7 @@ public partial class FourthItem : MultiscopedEntity<MainItem>
     [AddRefToScope]
     [System.Text.Json.Serialization.JsonIgnoreAttribute(Condition = 0)]
     private Ref<MainItem> mainItem;
+
+    [AddToLimitedView("AdminEditable", true)]
+    private List<Ref<FifthItem>> roles;
 }

@@ -19,8 +19,8 @@ public static class SourceCodeGenerator
         source.AppendLine($"namespace {classToGen.Namespace};");
 
         source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged");
+        
         var updatableFromChildren = classToGen.Members.SelectMany(e => e.LimitedViews.Where(f => f.TwoWay).Select(f => f.Name)).Distinct().ToList();
-
         if (updatableFromChildren.Any())
         {
             foreach (var s in updatableFromChildren)
@@ -115,6 +115,28 @@ public static class SourceCodeGenerator
         {
             
             source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
+
+            if (classToGen.ParentItemToGenerate is { Count: > 0 }  && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*"))  )
+            {
+                bool addedUniquelyIdentifiable = false;
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == item.Key && r.InheritFromIUniquelyIdentifiable ))
+                {
+                    source.AppendLine(", IUniquelyIdentifiable");
+                    addedUniquelyIdentifiable = true;
+                    break;
+                }
+
+                if (!addedUniquelyIdentifiable)
+                {
+                    foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*" && r.InheritFromIUniquelyIdentifiable))
+                    {
+                        source.AppendLine(", IUniquelyIdentifiable");
+                        addedUniquelyIdentifiable = true;
+                        break;
+                    }
+                }
+            }
+            
             source.AppendOpenCurlyBracketLine();
 
             foreach (var v1 in item)

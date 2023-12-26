@@ -59,6 +59,7 @@ public class AddParentItemToLimitedViewAttribute : Attribute
     public string ChildField { get; set; }
     public string UseLimitedView { get; set; }
     public bool TwoWay { get; set; }
+    public bool InheritFromIUniquelyIdentifiable { get; set; }
 }
 
 public interface ICreatableFrom<T>
