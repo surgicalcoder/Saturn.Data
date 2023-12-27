@@ -26,6 +26,7 @@ public static class SourceCodeGenerator
             foreach (var s in updatableFromChildren)
             {
                 source.AppendLine($", IUpdatableFrom<{classToGen.Name}_{s}>");
+                source.AppendLine($", ICreatableFrom<{classToGen.Name}_{s}>");
             }
         }
         
@@ -99,6 +100,12 @@ public static class SourceCodeGenerator
             foreach (var s in updatableFromChildren)
             {
                 source.AppendLine($"public void UpdateFrom({classToGen.Name}_{s} input) => input.UpdateParent(this);");
+                source.AppendLine($"public static ICreatableFrom<{classToGen.Name}_{s}> Create({classToGen.Name}_{s} input )");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine($"var item = new {classToGen.Name}();");
+                source.AppendLine($"item.UpdateFrom(input);");
+                source.AppendLine("return item;");
+                source.AppendCloseCurlyBracketLine();
             }
         }
         
