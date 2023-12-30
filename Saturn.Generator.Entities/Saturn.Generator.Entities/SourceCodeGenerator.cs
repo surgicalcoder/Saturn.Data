@@ -104,6 +104,11 @@ public static class SourceCodeGenerator
                 source.AppendOpenCurlyBracketLine();
                 source.AppendLine($"var item = new {classToGen.Name}();");
                 source.AppendLine($"item.UpdateFrom(input);");
+                source.AppendLine("");
+                source.AppendLine("if (input is IUniquelyIdentifiable inputWithId)");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("item.Id = inputWithId.Id;");
+                source.AppendCloseCurlyBracketLine();
                 source.AppendLine("return item;");
                 source.AppendCloseCurlyBracketLine();
             }
