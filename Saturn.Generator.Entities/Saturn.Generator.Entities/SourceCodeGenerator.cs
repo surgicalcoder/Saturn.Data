@@ -45,7 +45,7 @@ public static class SourceCodeGenerator
         }
         source.AppendCloseCurlyBracketLine();
             
-        List<ITypeSymbol> typeAccessorsToCreate = new();
+        /*List<ITypeSymbol> typeAccessorsToCreate = new();
 
         foreach (var s in classToGen.Members.Where(f => !f.IsCollection).Select(f => f.Type).Distinct())
         {
@@ -80,7 +80,7 @@ public static class SourceCodeGenerator
             var collTargetName = s.Name.FirstCharToUpper();
             source.AppendLine($"TypeAccessor {collTargetName}TypeAccessor = TypeAccessor.Create(typeof({s}));");
             source.AppendLine();
-        }
+        }*/
 
         foreach (var member in classToGen.Members.Where(f=>!f.UseOnlyForLimited))
         {
