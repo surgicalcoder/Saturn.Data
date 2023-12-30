@@ -40,7 +40,8 @@ public static class SourceCodeGenerator
         {
             var collTargetName = coll.Name.FirstCharToUpper();
             source.AppendLine($"{collTargetName} = new();");
-            source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.Name}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
+            
+            source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
         }
         source.AppendCloseCurlyBracketLine();
             

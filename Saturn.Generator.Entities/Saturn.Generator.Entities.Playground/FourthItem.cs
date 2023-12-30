@@ -17,6 +17,8 @@ public partial class FourthItem : MultiscopedEntity<MainItem>
     [System.Text.Json.Serialization.JsonIgnoreAttribute(Condition = 0)]
     private Ref<MainItem> mainItem;
 
+    private ObservableCollections.ObservableList<Ref<MainItem>> mainItems;
+
     [AddToLimitedView("AdminEditable", true)]
     private List<Ref<FifthItem>> roles;
 }
