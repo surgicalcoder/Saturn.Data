@@ -1,4 +1,5 @@
 using System;
+using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Generator.Saturn.Resources;
 
@@ -65,4 +66,41 @@ public class AddParentItemToLimitedViewAttribute : Attribute
 public interface ICreatableFrom<T>
 {
     static abstract ICreatableFrom<T> Create(T input);
+}
+
+
+public static class PopulationExtensions
+{
+    public static async Task Populate<TItem, TShowItem>(this List<Ref<TItem>> item, List<TShowItem> items) 
+        where TItem : Entity, IUpdatableFrom<TShowItem>, new() 
+        where TShowItem : ICreatableFrom<TItem>, IUniquelyIdentifiable
+    {
+        if (item == null || item.Count == 0)
+        {
+            return;
+        }
+        
+        foreach (var f in item)
+        {
+            f.Item ??= new TItem();
+            f.Item.UpdateFrom(items.FirstOrDefault(e => e.Id == f.Id));
+            f.Item.Id = f.Id;
+        }
+    }    
+    
+    public static async Task Populate<TItem, TShowItem>(this List<TItem> item, List<TShowItem> items) 
+        where TItem : Entity, IUpdatableFrom<TShowItem>, new() 
+        where TShowItem : ICreatableFrom<TItem>, IUniquelyIdentifiable
+    {
+        if (item == null || item.Count == 0)
+        {
+            return;
+        }
+        
+        foreach (var f in item)
+        {
+            f.UpdateFrom(items.FirstOrDefault(e => e.Id == f.Id));
+            f.Id = f.Id;
+        }
+    }
 }
