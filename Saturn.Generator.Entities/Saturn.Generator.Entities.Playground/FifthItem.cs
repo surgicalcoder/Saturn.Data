@@ -8,4 +8,6 @@ public partial class FifthItem : Entity
     [AddToLimitedView("PublicView")]
     private string username;
     private string password;
+    [AddToLimitedView("PublicView", true)]
+    public string PropertyTest { get; set; }
 }

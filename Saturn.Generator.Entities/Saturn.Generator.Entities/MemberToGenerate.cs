@@ -19,7 +19,9 @@ public class MemberToGenerate
     public bool ReadOnly { get; set; }
     public bool WriteOnly { get; set; }
     public bool IsScoped { get; set; }
-
+    public bool UseOnlyForLimited { get; set; }
+    
+    
     public List<LimitedViewToGenerate> LimitedViews { get; set; } = new();
 
     public List<MemberAttribute> AdditionalAttributes { get; set; } = new();

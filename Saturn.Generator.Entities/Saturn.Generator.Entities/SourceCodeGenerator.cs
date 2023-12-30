@@ -82,7 +82,7 @@ public static class SourceCodeGenerator
             source.AppendLine();
         }
 
-        foreach (var member in classToGen.Members)
+        foreach (var member in classToGen.Members.Where(f=>!f.UseOnlyForLimited))
         {
             if (member.IsCollection)
             {

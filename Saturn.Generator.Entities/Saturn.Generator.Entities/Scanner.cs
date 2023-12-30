@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -129,6 +130,21 @@ public static class Scanner
                     DeclaredAccessibility: Accessibility.Private, IsAbstract: false, AssociatedSymbol: null
                 } fieldSymbol /*and not {MethodKind: MethodKind.Constructor}*/)
             {
+
+                if (member is IPropertySymbol { IsAbstract: false } propertySymbol)
+                {
+                    var propertyMember = new MemberToGenerate
+                    {
+                        Name = propertySymbol.Name,
+                        Type = propertySymbol.Type,
+                        UseOnlyForLimited = true
+                    };
+                    
+                    getAddToLimitedViewsFromAttributes(member.GetAttributes(), propertyMember);
+                    
+                    yield return propertyMember;
+                }
+                
                 continue;
             }
 
@@ -159,32 +175,7 @@ public static class Scanner
                 memberToGenerate.WriteOnly = true;
             }
 
-            if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute"))
-            {
-                memberToGenerate.LimitedViews = attr.Where(f => f.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute")
-                    .Select(e =>
-                    {
-                        var retr = new LimitedViewToGenerate();
-                        
-                        retr.Name = e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
-                        retr.TwoWay = (bool)e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_Boolean }, Value: not null }).Value;
-
-                        if (e.NamedArguments.Any())
-                        {
-                            if (e.NamedArguments.Any(f => f.Key == "UseLimitedView"))
-                            {
-                                retr.OverrideReturnTypeToUseLimitedView = e.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
-                            }
-
-                            if (e.NamedArguments.Any(r => r.Key == "TwoWay"))
-                            {
-                                retr.TwoWay = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
-                            }
-                        }
-
-                        return retr;
-                    }).ToList();
-            }
+            getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
 
             
 
@@ -228,5 +219,34 @@ public static class Scanner
             yield return memberToGenerate;
         }
     }
-    
+
+    private static void getAddToLimitedViewsFromAttributes(ImmutableArray<AttributeData> attr, MemberToGenerate memberToGenerate)
+    {
+        if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute"))
+        {
+            memberToGenerate.LimitedViews = attr.Where(f => f.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute")
+                .Select(e =>
+                {
+                    var retr = new LimitedViewToGenerate();
+                        
+                    retr.Name = e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
+                    retr.TwoWay = (bool)e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_Boolean }, Value: not null }).Value;
+
+                    if (e.NamedArguments.Any())
+                    {
+                        if (e.NamedArguments.Any(f => f.Key == "UseLimitedView"))
+                        {
+                            retr.OverrideReturnTypeToUseLimitedView = e.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
+                        }
+
+                        if (e.NamedArguments.Any(r => r.Key == "TwoWay"))
+                        {
+                            retr.TwoWay = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
+                        }
+                    }
+
+                    return retr;
+                }).ToList();
+        }
+    }
 }
