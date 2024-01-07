@@ -74,7 +74,7 @@ public interface ICreatableFrom<T>
 
 public static class PopulationExtensions
 {
-    public static async Task Populate<TItem, TShowItem>(this List<Ref<TItem>> item, List<TShowItem> items) 
+    public static async Task Populate<TItem, TShowItem>(this IList<Ref<TItem>> item, IList<TShowItem> items) 
         where TItem : Entity, IUpdatableFrom<TShowItem>, new() 
         where TShowItem : ICreatableFrom<TItem>, IUniquelyIdentifiable
     {
@@ -91,7 +91,7 @@ public static class PopulationExtensions
         }
     }    
     
-    public static async Task Populate<TItem, TShowItem>(this List<TItem> item, List<TShowItem> items) 
+    public static async Task Populate<TItem, TShowItem>(this IList<TItem> item, IList<TShowItem> items) 
         where TItem : Entity, IUpdatableFrom<TShowItem>, new() 
         where TShowItem : ICreatableFrom<TItem>, IUniquelyIdentifiable
     {
