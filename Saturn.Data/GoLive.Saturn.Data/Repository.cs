@@ -141,8 +141,9 @@ public partial class Repository
             new IgnoreEmptyArraysConvention(),
             new IgnoreExtraElementsConvention(true),
             new NamedIdMemberConvention("Id"),
-            new StringObjectIdIdGeneratorConvention(),
-            new IgnoreEmptyStringsConvention()
+            //new StringObjectIdIdGeneratorConvention(),
+            new IgnoreEmptyStringsConvention(),
+            new StringIdStoredAsObjectIdConvention()
         };
 
         ConventionRegistry.Register("Custom Conventions", pack, t => true);
