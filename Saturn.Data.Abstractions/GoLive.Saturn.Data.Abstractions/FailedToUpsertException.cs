@@ -1,8 +1,7 @@
 ﻿using System;
 
-namespace GoLive.Saturn.Data.Abstractions
+namespace GoLive.Saturn.Data.Abstractions;
+
+public class FailedToUpsertException : ApplicationException
 {
-    public class FailedToUpsertException : ApplicationException
-    {
-    }
 }
