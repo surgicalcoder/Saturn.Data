@@ -59,7 +59,6 @@ public partial class Repository
         mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
 
         RegisterConventions();
-        InitDatabase();
     }
 
     public Repository(RepositoryOptions repositoryOptions)
@@ -82,7 +81,6 @@ public partial class Repository
         mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
 
         RegisterConventions();
-        InitDatabase();
     }
 
     protected virtual void setupCallbacks(ClusterBuilder cb)
@@ -214,24 +212,8 @@ public partial class Repository
         }
     }
 
-    public void InitDatabase()
+    public async Task InitDatabase()
     {
-        PopulateDatabase();
-    }
-
-    protected virtual void PopulateDatabase()
-    {
-        if (options?.InitCheckDuration == null)
-        {
-            return;
-        }
-        if (InitRun && InitLastChecked > DateTime.Now.Add(options.InitCheckDuration))
-        {
-            return;
-        }
-
-        InitRun = true;
-        InitLastChecked = DateTime.Now;
-        options?.InitCheckCallback?.Invoke(this);
+        await options?.InitCallback?.Invoke(this);
     }
 }
