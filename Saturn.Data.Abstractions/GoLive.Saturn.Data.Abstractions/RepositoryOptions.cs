@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions
@@ -17,6 +18,7 @@ namespace GoLive.Saturn.Data.Abstractions
                 return type.Name;
             };
         }
+        
         public string ConnectionString { get; set; }
 
         public string WrappedEntityPrefix { get; set; } = "w_";
@@ -30,9 +32,7 @@ namespace GoLive.Saturn.Data.Abstractions
 
         public Action<CommandFailedArgs> CommandFailedCallback { get; set; }
 
-        public TimeSpan InitCheckDuration { get; set; }
-
-        public Action<IRepository> InitCheckCallback { get; set; }
+        public Func<IRepository, Task> InitCallback { get; set; }
 
         public Func<Type, string> GetCollectionName { get; set; }
         
