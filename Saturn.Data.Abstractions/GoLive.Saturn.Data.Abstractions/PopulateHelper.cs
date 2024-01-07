@@ -18,7 +18,7 @@ namespace GoLive.Saturn.Data.Abstractions
             item.Item = await repository.ByRef(item);
         }
 
-        public static void Populate<T>(this Ref<T> item, List<T> items) where T : Entity, new()
+        public static void Populate<T>(this Ref<T> item, IList<T> items) where T : Entity, new()
         {            
             if (item == null)
             {
@@ -28,7 +28,7 @@ namespace GoLive.Saturn.Data.Abstractions
             item.Item = items.FirstOrDefault(f => f.Id == item.Id);
         }
 
-        public static async Task Populate<T>(this List<Ref<T>> item, IReadonlyRepository repository) where T : Entity, new()
+        public static async Task Populate<T>(this IList<Ref<T>> item, IReadonlyRepository repository) where T : Entity, new()
         {
             if (item == null || item.Count == 0)
             {
@@ -37,40 +37,46 @@ namespace GoLive.Saturn.Data.Abstractions
             
             var IDs = item.Select(f => f.Id);
             var items = (await repository.Many<T>(f => IDs.Contains(f.Id))).ToList();
-            item.ForEach(f => f.Fetch(items));
-
+            
+            for (var i = 0; i < item.Count; i++)
+            {
+                item[i].Fetch(items);
+            }
         }
         
-        public static async Task Populate<T>(this List<Ref<T>> item, List<T> items) where T : Entity, new()
+        public static async Task Populate<T>(this IList<Ref<T>> item, IList<T> items) where T : Entity, new()
         {
             if (item == null || item.Count == 0)
             {
                 return;
             }
             
-            item.ForEach(f => f.Fetch(items));
+            for (var i = 0; i < item.Count; i++)
+            {
+                item[i].Fetch(items);
+            }
         }
 
-        public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, IReadonlyRepository repository) where T2 : Entity, new()
+        public static async Task<IList<T>> Populate<T, T2>(this IList<T> collection, Expression<Func<T, Ref<T2>>> item, IReadonlyRepository repository) where T2 : Entity, new()
         {
             if (collection == null || collection.Count == 0)
             {
                 return default;
             }
             
-            var compile = item.Compile();
+            var compiledFunc = item.Compile();
 
             var IDs = collection.Where(f=>
             {
                 try
                 {
-                    return compile.Invoke(f) != null;
+                    return compiledFunc.Invoke(f) != null;
                 }
                 catch (NullReferenceException)
                 {
                     return false;
                 }
-            }).Select(f => compile.Invoke(f)).Select(r => r.Id).ToList();
+            }).Select(f => compiledFunc.Invoke(f)).Select(r => r.Id).ToList();
             
             if (IDs.Count == 0)
             {
@@ -79,21 +85,21 @@ namespace GoLive.Saturn.Data.Abstractions
             
             var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
-            collection.ForEach(delegate (T obj)
+            for (var i = 0; i < collection.Count; i++)
             {
-                var re = compile.Invoke(obj);
+                var result = compiledFunc.Invoke(collection[i]);
 
-                if (re != null)
+                if (result != null)
                 {
-                    re.Fetch(items);
+                    result.Fetch(items);
                 }
-            });
+            }
 
             return collection;
         }
 
 #pragma warning disable 1998
-        public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, List<T2> items) where T2 : Entity, new()
+        public static async Task<IList<T>> Populate<T, T2>(this IList<T> collection, Expression<Func<T, Ref<T2>>> item, IList<T2> items) where T2 : Entity, new()
 #pragma warning restore 1998
         {
             if (collection == null || collection.Count == 0)
@@ -101,22 +107,22 @@ namespace GoLive.Saturn.Data.Abstractions
                 return default;
             }
             
-            var compile = item.Compile();
+            var compiledFunc = item.Compile();
 
-            collection.ForEach(delegate (T obj)
+            for (var i = 0; i < collection.Count; i++)
             {
-                var re = compile.Invoke(obj);
+                var result = compiledFunc.Invoke(collection[i]);
 
-                if (re != null)
+                if (result != null)
                 {
-                    re.Fetch(items);
+                    result.Fetch(items);
                 }
-            });
+            }
 
             return collection;
         }
 
-        public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, IReadonlyRepository repository) where T2 : Entity, new()
+        public static async Task<IList<T>> PopulateMultiple<T, T2>(this IList<T> collection, Expression<Func<T, IList<Ref<T2>>>> item, IReadonlyRepository repository) where T2 : Entity, new()
         {
             if (collection == null || collection.Count == 0)
             {
@@ -129,19 +135,19 @@ namespace GoLive.Saturn.Data.Abstractions
 
             var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
-            collection.ForEach(delegate (T obj)
+            for (var i = 0; i < collection.Count; i++)
             {
-                compile.Invoke(obj).ForEach(delegate (Ref<T2> r2)
+                foreach (var r2 in compile.Invoke(collection[i]))
                 {
                     r2.Fetch(items);
-                });
-            });
+                }
+            }
 
             return collection;
         }
 
 #pragma warning disable 1998
-        public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, List<T2> items) where T2 : Entity, new()
+        public static async Task<IList<T>> PopulateMultiple<T, T2>(this IList<T> collection, Expression<Func<T, IList<Ref<T2>>>> item, IList<T2> items) where T2 : Entity, new()
 #pragma warning restore 1998
         {
             if (collection == null || collection.Count == 0)
@@ -150,17 +156,16 @@ namespace GoLive.Saturn.Data.Abstractions
             }
             
             var compile = item.Compile();
-
-            collection.ForEach(delegate (T obj)
+            
+            for (var i = 0; i < collection.Count; i++)
             {
-                compile.Invoke(obj).ForEach(delegate (Ref<T2> r2)
+                foreach (var r2 in compile.Invoke(collection[i]))
                 {
                     r2.Fetch(items);
-                });
-            });
+                }
+            }
 
             return collection;
         }
-
     }
 }
