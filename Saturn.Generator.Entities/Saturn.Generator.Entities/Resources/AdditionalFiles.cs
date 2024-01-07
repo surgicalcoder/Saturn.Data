@@ -106,4 +106,17 @@ public static class PopulationExtensions
             f.Id = f.Id;
         }
     }
+    
+    
+    public static async Task Populate<TMainItem, TShowItem>(this Ref<TMainItem> item, IList<TShowItem> items)
+        where TMainItem : Entity, IUpdatableFrom<TShowItem>, ICreatableFrom<TShowItem>,new()
+        where TShowItem : ICreatableFrom<TMainItem>, IUniquelyIdentifiable
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.Id))
+        {
+            return;
+        }
+        
+        item.Item = TMainItem.Create(items.FirstOrDefault(e => e.Id == item.Id)) as TMainItem;
+    }
 }
