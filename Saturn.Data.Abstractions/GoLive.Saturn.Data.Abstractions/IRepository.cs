@@ -28,6 +28,6 @@ namespace GoLive.Saturn.Data.Abstractions
         Task DeleteMany<T>(List<string> IDs) where T : Entity;
         
         Task JsonUpdate<T>(string id, int version, string json) where T : Entity;
-        void InitDatabase();
+        Task InitDatabase();
     }
 }

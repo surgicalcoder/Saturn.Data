@@ -28,5 +28,4 @@ public interface ITransparentScopedRepository : IReadonlyRepository
     Task DeleteMany<TItem, TParent>(List<string> IDs) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
         
     Task JsonUpdate<TItem, TParent>(string id, int version, string json) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new();
-    void InitDatabase();
 }
