@@ -21,9 +21,9 @@ namespace GoLive.Saturn.InternalTests
             var parent2 = new ParentScope() {Name = "Parent 2"};
             var parent3 = new ParentScope() {Name = "Parent 3"};
 
-            await repository.Add(parent1);
-            await repository.Add(parent2);
-            await repository.Add(parent3);
+            await repository.Insert(parent1);
+            await repository.Insert(parent2);
+            await repository.Insert(parent3);
 
 
             var childItem1 = new ChildScope() {Name = "Child Item 1", Scope = parent1};
@@ -33,7 +33,7 @@ namespace GoLive.Saturn.InternalTests
             var childItem5 = new ChildScope() {Name = "Child Item 5", Scope = parent3};
             var childItem6 = new ChildScope() {Name = "Child Item 6", Scope = parent3};
             var list1 = new List<ChildScope>(){childItem1, childItem2, childItem3, childItem4, childItem5, childItem6 };
-            await repository.AddMany(list1);
+            await repository.InsertMany(list1);
 
             var item = (await scoped.ById<ChildScope, ParentScope>(parent1, childItem1.Id));
             var itm = (await scoped.ById<ChildScope, ParentScope>(parent1, childItem3.Id));

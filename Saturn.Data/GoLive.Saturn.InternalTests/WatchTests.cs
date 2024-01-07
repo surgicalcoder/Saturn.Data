@@ -25,7 +25,7 @@ namespace GoLive.Saturn.InternalTests
                     }).Wait();
             }).Start();
             Thread.Sleep(1000);
-            await repository.Add(new TestEntity() { Name = "Test123" });
+            await repository.Insert(new TestEntity() { Name = "Test123" });
 
         }
     }
