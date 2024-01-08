@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -163,7 +164,14 @@ public static class SourceCodeGenerator
                 }
                 else
                 {
-                    source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                    if (classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                    {
+                        source.AppendLine($"public {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                    }
+                    else
+                    {
+                        source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                    }
                 }
             }
 

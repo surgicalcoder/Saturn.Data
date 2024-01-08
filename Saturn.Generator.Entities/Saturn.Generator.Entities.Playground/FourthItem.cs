@@ -21,4 +21,7 @@ public partial class FourthItem : MultiscopedEntity<MainItem>
 
     [AddToLimitedView("AdminEditable", true)]
     private List<Ref<FifthItem>> roles;
+
+
+    [AddToLimitedView("View1", UseLimitedView = "View1")][AddRefToScope] private Ref<MainItem> mainItemView1;
 }
