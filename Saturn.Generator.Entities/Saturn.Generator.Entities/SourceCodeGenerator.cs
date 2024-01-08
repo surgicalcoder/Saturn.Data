@@ -128,7 +128,7 @@ public static class SourceCodeGenerator
                      .GroupBy(e => e.LimitedView.Name))
         {
             
-            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
+            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>, IUpdatableFrom<{classToGen.Name}_{item.Key}>");
 
             if (classToGen.ParentItemToGenerate is { Count: > 0 }  && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*"))  )
             {
@@ -193,6 +193,7 @@ public static class SourceCodeGenerator
             source.AppendLine(2);
 
             outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
+            outputViewUpdateFromSelfMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
             outputViewGenerateMethod(source, classToGen, item.Key);
 
             outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )));
@@ -214,12 +215,28 @@ public static class SourceCodeGenerator
             {
                 if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
-                    source.AppendLine($"parent.{StringExtensions.FirstCharToUpper(v1.classDef.Name)} = this.{StringExtensions.FirstCharToUpper(v1.classDef.Name)};");
+                    source.AppendLine($"parent.{v1.classDef.Name.FirstCharToUpper()} = this.{v1.classDef.Name.FirstCharToUpper()};");
                 }
                 else
                 {
+                    source.AppendLine($"parent.{v1.classDef.Name.FirstCharToUpper()} =  this.{v1.classDef.Name.FirstCharToUpper()}.Id;");
                     // TODO need to do this at one point, maybe with some interfaces
                 }
+            }
+                
+            source.AppendCloseCurlyBracketLine();
+        }
+    }
+    private static void outputViewUpdateFromSelfMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
+    {
+        if (item.Any(e => e.LimitedView.TwoWay))
+        {
+            source.AppendLine($"public void UpdateFrom({classToGen.Name}_{itemKey} self)");
+            source.AppendOpenCurlyBracketLine();
+
+            foreach (var v1 in item)
+            {
+                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = self.{v1.classDef.Name.FirstCharToUpper()};");
             }
                 
             source.AppendCloseCurlyBracketLine();
@@ -247,8 +264,6 @@ public static class SourceCodeGenerator
                 {
                     source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
                 }
-                
-                
             }
         }
         
