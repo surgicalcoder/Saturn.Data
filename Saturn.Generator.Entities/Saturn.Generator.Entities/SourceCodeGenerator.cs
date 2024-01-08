@@ -238,7 +238,17 @@ public static class SourceCodeGenerator
             }
             else
             {
-                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
+                
+                if (v1.classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                {
+                    source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
+                }
+                else
+                {
+                    source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
+                }
+                
+                
             }
         }
         
