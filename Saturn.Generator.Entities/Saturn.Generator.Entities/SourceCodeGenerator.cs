@@ -128,8 +128,13 @@ public static class SourceCodeGenerator
                      .GroupBy(e => e.LimitedView.Name))
         {
             
-            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>, IUpdatableFrom<{classToGen.Name}_{item.Key}>");
+            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
 
+            if (item.Any(e => e.LimitedView.TwoWay))
+            {
+                source.AppendLine($", IUpdatableFrom<{classToGen.Name}_{item.Key}>");
+            }
+            
             if (classToGen.ParentItemToGenerate is { Count: > 0 }  && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*"))  )
             {
                 bool addedUniquelyIdentifiable = false;
