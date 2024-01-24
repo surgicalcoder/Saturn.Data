@@ -108,7 +108,7 @@ public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniq
 
     public virtual bool EnableChangeTracking { get; set; }
         
-    public virtual Dictionary<string, dynamic> Properties { get; set; } = new Dictionary<string, object>();
+    public virtual Dictionary<string, object> Properties { get; set; } = new();
 
     protected Entity()
     { }
