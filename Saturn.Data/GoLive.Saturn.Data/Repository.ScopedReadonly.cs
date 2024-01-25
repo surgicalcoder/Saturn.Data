@@ -59,7 +59,7 @@ public partial class Repository : IScopedReadonlyRepository
         {
             foreach (var sortOrder in sortOrders)
             {
-                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e => sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e => sortOrder.Field.Invoke(e));
+                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(sortOrder.Field) : scopedEntities.OrderByDescending(sortOrder.Field);
             }
         }
 
@@ -79,7 +79,7 @@ public partial class Repository : IScopedReadonlyRepository
         {
             foreach (var sortOrder in sortOrders)
             {
-                res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(e => sortOrder.Field.Invoke(e)) : res.OrderByDescending(e => sortOrder.Field.Invoke(e));
+                res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(sortOrder.Field) : res.OrderByDescending(sortOrder.Field);
             }
         }
 
@@ -143,7 +143,7 @@ public partial class Repository : IScopedReadonlyRepository
         {
             foreach (var sortOrder in sortOrders)
             {
-                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(e => sortOrder.Field.Invoke(e)) : scopedEntities.OrderByDescending(e => sortOrder.Field.Invoke(e));
+                scopedEntities = sortOrder.Direction == SortDirection.Ascending ? scopedEntities.OrderBy(sortOrder.Field) : scopedEntities.OrderByDescending(sortOrder.Field);
             }
         }
 
@@ -161,7 +161,7 @@ public partial class Repository : IScopedReadonlyRepository
 
         if (sortOrders != null)
         {
-            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(e => sortOrder.Field.Invoke(e)) : current.OrderByDescending(e => sortOrder.Field.Invoke(e)));
+            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
         res = res.Skip((pageNumber - 1) * pageSize).Take(pageSize);

@@ -75,11 +75,11 @@ public partial class Repository : IReadonlyRepository
         {
             if (sortOrder.Direction == SortDirection.Ascending)
             {
-                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Ascending(entity => sortOrder.Field.Invoke(entity)) : sortDefinition.Ascending(entity => sortOrder.Field.Invoke(entity));
+                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Ascending(sortOrder.Field) : sortDefinition.Ascending(sortOrder.Field);
             }
             else
             {
-                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Descending(entity => sortOrder.Field.Invoke(entity)) : sortDefinition.Descending(entity => sortOrder.Field.Invoke(entity));
+                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Descending(sortOrder.Field) : sortDefinition.Descending(sortOrder.Field);
             }
         }
 
@@ -106,7 +106,7 @@ public partial class Repository : IReadonlyRepository
         {
             foreach (var sortOrder in sortOrders)
             {
-                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(e => sortOrder.Field.Invoke(e)) : items.OrderByDescending(e => sortOrder.Field.Invoke(e));
+                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(sortOrder.Field) : items.OrderByDescending(sortOrder.Field);
             }
         }
 
@@ -138,7 +138,7 @@ public partial class Repository : IReadonlyRepository
         {
             foreach (var sortOrder in sortOrders)
             {
-                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(e => sortOrder.Field.Invoke(e)) : items.OrderByDescending(e => sortOrder.Field.Invoke(e));
+                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(sortOrder.Field) : items.OrderByDescending(sortOrder.Field);
             }
         }
 
