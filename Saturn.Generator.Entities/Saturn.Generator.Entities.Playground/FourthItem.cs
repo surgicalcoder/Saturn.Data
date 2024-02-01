@@ -11,7 +11,7 @@ public partial class FourthItem : MultiscopedEntity<MainItem>
     private string blarg;
 
     [AddToLimitedView("View1", UseLimitedView = "PublicView")]
-    private FifthItem fifth;
+    private Ref<FifthItem> fifth;
     
     [AddRefToScope]
     [System.Text.Json.Serialization.JsonIgnoreAttribute(Condition = 0)]

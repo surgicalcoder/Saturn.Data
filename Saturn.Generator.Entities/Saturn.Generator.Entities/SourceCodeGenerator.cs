@@ -162,20 +162,22 @@ public static class SourceCodeGenerator
             {
                 var classDef = v1.classDef;
                 outputAttributes(source, classDef);
+
+                var initString = string.IsNullOrWhiteSpace(v1.LimitedView.Initializer) ? string.Empty : $" = {v1.LimitedView.Initializer};";
                 
                 if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
-                    source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                    source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
                 }
                 else
                 {
                     if (classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
                     {
-                        source.AppendLine($"public {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                        source.AppendLine($"public {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
                     }
                     else
                     {
-                        source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}}");
+                        source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
                     }
                 }
             }

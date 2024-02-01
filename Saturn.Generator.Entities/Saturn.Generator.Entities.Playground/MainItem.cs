@@ -4,6 +4,7 @@ using ObservableCollections;
 
 namespace Saturn.Generator.Entities.Playground;
 
+[AddParentItemToLimitedView("*", "_shortId", ChildField = "Id", InheritFromIUniquelyIdentifiable = true)] // TODO need to fix error when not inheriting from InheritFromIUniquelyIdentifiable
 public partial class MainItem : Entity
 {
     [AddToLimitedView("View1")]

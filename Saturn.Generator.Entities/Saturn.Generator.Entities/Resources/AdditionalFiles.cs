@@ -47,6 +47,7 @@ public class AddToLimitedViewAttribute : Attribute
     public string ViewName { get; set; }
     public string UseLimitedView { get; set; }
     public bool TwoWay { get; set; }
+    public string Initializer { get; set; }
 }
 
 

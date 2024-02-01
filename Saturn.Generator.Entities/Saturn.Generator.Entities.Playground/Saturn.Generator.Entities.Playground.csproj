@@ -13,8 +13,8 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="FastMember-surgicalcoder" Version="1.3.0" />
-        <PackageReference Include="GoLive.Saturn.Data" Version="3.2.0" />
-        <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.2.1" />
+        <PackageReference Include="GoLive.Saturn.Data" Version="3.3.0" />
+        <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.0" />
         <PackageReference Include="ObservableCollections" Version="1.1.3" />
     </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -242,6 +242,11 @@ public static class Scanner
                         if (e.NamedArguments.Any(r => r.Key == "TwoWay"))
                         {
                             retr.TwoWay = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
+                        }
+
+                        if (e.NamedArguments.Any(r => r.Key == "Initializer"))
+                        {
+                            retr.Initializer = (string)e.NamedArguments.FirstOrDefault(r => r.Key == "Initializer").Value.Value;
                         }
                     }
 
