@@ -365,11 +365,16 @@ public static class SourceCodeGenerator
         {{
             if (value != null && !string.IsNullOrWhiteSpace(value.Id))
             {{
-                if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id) && Scopes.Contains({itemName}.Id))
+                if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id) && Scopes.Contains({itemName}.Id) && {itemName}.Id != value.Id )
                 {{
                     Scopes.Remove({itemName}.Id);
                 }}
-                Scopes.Add(value.Id);
+
+                if (!Scopes.Contains(value.Id))
+                {{
+                    Scopes.Add(value.Id);
+                }}
+
                 SetField(ref {itemName}, value.Id);
             }}
             else
