@@ -1,13 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
@@ -21,7 +15,6 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
-using MongoDB.Driver.Linq;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
@@ -147,24 +140,21 @@ public partial class Repository
         };
 
         ConventionRegistry.Register("Custom Conventions", pack, t => true);
-            
-        try
-        {
-            var objectSerializer = new ObjectSerializer(options.ObjectSerializerConfiguration);
-            BsonSerializer.RegisterSerializer(objectSerializer);
-            
-            BsonSerializer.RegisterSerializer(typeof(Timestamp), new TimestampSerializer());
+        
+        var objectSerializer = new ObjectSerializer(options.ObjectSerializerConfiguration);
+        _ = BsonSerializer.TryRegisterSerializer(objectSerializer);
 
-            BsonSerializer.RegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
-            BsonSerializer.RegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
+        _ = BsonSerializer.TryRegisterSerializer(typeof(Timestamp), new TimestampSerializer());
+        _ = 
+        _ = BsonSerializer.TryRegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
+        _ = BsonSerializer.TryRegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
 
-            BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
-            BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
+        BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
+        BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
 
-            BsonSerializer.RegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
-            BsonSerializer.RegisterSerializer(typeof(HashedString), new HashedStringSerializer());
-        }
-        catch (ArgumentException bsex) when (bsex.Message == "There is already a serializer registered for type Timestamp") { }
+        _ = BsonSerializer.TryRegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
+        _ = BsonSerializer.TryRegisterSerializer(typeof(HashedString), new HashedStringSerializer());
+
 
         if (options?.DiscriminatorConventions != null)
         {
@@ -174,14 +164,12 @@ public partial class Repository
             }
 
         }
-
         if (options?.GenericSerializers != null)
         {
             foreach (var serializer in options?.GenericSerializers)
             {
                 BsonSerializer.RegisterGenericSerializerDefinition(serializer.Key, serializer.Value);
             }
-
         }
 
         if (options?.Serializers != null)
@@ -191,8 +179,7 @@ public partial class Repository
                 BsonSerializer.RegisterSerializer(serializer.Key, serializer.Value as IBsonSerializer);
             }
         }
-
-
+        
         if (!BsonClassMap.IsClassMapRegistered(typeof(Entity)))
         {
             BsonClassMap.RegisterClassMap<Entity>(delegate (BsonClassMap<Entity> map)
@@ -211,10 +198,5 @@ public partial class Repository
                     .SetDefaultValue(()=> ObjectId.GenerateNewId().ToString());
             });
         }
-    }
-
-    public async Task InitDatabase()
-    {
-        await options?.InitCallback?.Invoke(this);
     }
 }

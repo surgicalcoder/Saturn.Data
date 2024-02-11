@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="3.3.0" />
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="3.4.0" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.0" />
     <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="3.0.0" />
     <PackageReference Include="MongoDB.Bson" Version="2.23.1" />
