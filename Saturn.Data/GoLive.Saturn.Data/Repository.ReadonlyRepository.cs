@@ -69,7 +69,7 @@ public partial class Repository : IReadonlyRepository
         return await result.FirstOrDefaultAsync().ConfigureAwait(false);
     }
 
-    private static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
+    protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
     {
         foreach (var sortOrder in sortOrders)
         {
