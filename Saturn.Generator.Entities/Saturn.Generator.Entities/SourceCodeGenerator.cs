@@ -376,6 +376,10 @@ public static class SourceCodeGenerator
                 }}
 
                 SetField(ref {itemName}, value.Id);
+                if (value.Item != null)
+                {{
+                    SetField(ref {itemName}, value.Item);
+                }}
             }}
             else
             {{
