@@ -181,15 +181,20 @@ public static class Scanner
             {
                 var runAfterSetMember = immutableArray[0];
 
-                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod && runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
+                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 }runAfterSetMethod)
                 {
-                    memberToGenerate.hasRunAfterSetMethodSimple = true;
+                    if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
+                    {
+                        memberToGenerate.hasRunAfterSetMethodSimple = true;
+                    }
+
+                    if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" && runAfterSetMethod.Parameters[0].Type.OriginalDefinition == ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition )
+                    {
+                        memberToGenerate.runAfterSetMethodIsRefItem = true;
+                    }
                 }
 
-                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod2 && fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" && runAfterSetMethod2.Parameters[0].Type.OriginalDefinition == getFirstGenericParameter(fieldSymbol) )
-                {
-                    memberToGenerate.runAfterSetMethodIsRefItem = true;
-                }
+                
 
             }
 
