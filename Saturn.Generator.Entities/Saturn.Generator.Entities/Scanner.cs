@@ -175,6 +175,24 @@ public static class Scanner
                 memberToGenerate.WriteOnly = true;
             }
 
+            var immutableArray = classSymbol.GetMembers($"{fieldSymbol.Name}_runAfterSet");
+
+            if (immutableArray.Length > 0)
+            {
+                var runAfterSetMember = immutableArray[0];
+
+                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod && runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
+                {
+                    memberToGenerate.hasRunAfterSetMethodSimple = true;
+                }
+
+                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod2 && fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" && runAfterSetMethod2.Parameters[0].Type.OriginalDefinition == getFirstGenericParameter(fieldSymbol) )
+                {
+                    memberToGenerate.runAfterSetMethodIsRefItem = true;
+                }
+
+            }
+
             getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
 
             
@@ -218,6 +236,11 @@ public static class Scanner
 
             yield return memberToGenerate;
         }
+    }
+
+    private static IParameterSymbol getFirstGenericParameter(IFieldSymbol fieldSymbol)
+    {
+        return fieldSymbol.Type.GetMembers().Where(m => m.Kind == SymbolKind.Property).OfType<IPropertySymbol>().Where(propertySymbol => propertySymbol.GetMethod.IsGenericMethod).Select(propertySymbol => propertySymbol.Parameters).Where(parameters => parameters.Length == 1).Select(parameters => parameters[0].OriginalDefinition).FirstOrDefault();
     }
 
     private static void getAddToLimitedViewsFromAttributes(ImmutableArray<AttributeData> attr, MemberToGenerate memberToGenerate)

@@ -58,3 +58,17 @@ ref1.Test2 = ref2;
 ref1.Test3 = ref3;
 ref1.Scope = scope;
 await repo.Insert(ref1);
+
+/*
+public class t2
+{
+    private string blarg;
+    public string Blarg
+    {
+        get => blarg;
+        set
+        {
+            SetField(ref blarg, value);
+        }
+    }
+}*/

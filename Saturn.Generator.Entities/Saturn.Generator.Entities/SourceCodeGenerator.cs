@@ -380,6 +380,7 @@ public static class SourceCodeGenerator
                 {{
                     SetField(ref {itemName}, value.Item);
                 }}
+{getSimpleValue(item)}
             }}
             else
             {{
@@ -390,11 +391,26 @@ public static class SourceCodeGenerator
                 }}
             }}
         }}");
+
+
         } else if (!item.ReadOnly)
         {
-            source.AppendLine($"set => SetField(ref {itemName}, value);");
+            if (item.hasRunAfterSetMethodSimple)
+            {
+                source.Append($@"set
+        {{
+            SetField(ref {itemName}, value);
+            {itemName}_runAfterSet(value);
+        }}");
+            }
+            else
+            {
+                source.AppendLine($"set => SetField(ref {itemName}, value);");
+            }
         }
             
         source.AppendCloseCurlyBracketLine();
+        
+        string getSimpleValue(MemberToGenerate item) => item.hasRunAfterSetMethodSimple || item.runAfterSetMethodIsRefItem ? $@"{item.Name}_runAfterSet(value);" : string.Empty;
     }
 }
