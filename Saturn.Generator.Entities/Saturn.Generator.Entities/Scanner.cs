@@ -185,12 +185,12 @@ public static class Scanner
                 {
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
                     {
-                        memberToGenerate.hasRunAfterSetMethodSimple = true;
+                        memberToGenerate.HasRunAfterSetMethodSimple = true;
                     }
 
                     if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" && runAfterSetMethod.Parameters[0].Type.OriginalDefinition == ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition )
                     {
-                        memberToGenerate.runAfterSetMethodIsRefItem = true;
+                        memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                     }
                 }
 

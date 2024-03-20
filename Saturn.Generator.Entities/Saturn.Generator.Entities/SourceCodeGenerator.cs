@@ -395,7 +395,7 @@ public static class SourceCodeGenerator
 
         } else if (!item.ReadOnly)
         {
-            if (item.hasRunAfterSetMethodSimple)
+            if (item.HasRunAfterSetMethodSimple)
             {
                 source.Append($@"set
         {{
@@ -411,6 +411,6 @@ public static class SourceCodeGenerator
             
         source.AppendCloseCurlyBracketLine();
         
-        string getSimpleValue(MemberToGenerate item) => item.hasRunAfterSetMethodSimple || item.runAfterSetMethodIsRefItem ? $@"{item.Name}_runAfterSet(value);" : string.Empty;
+        string getSimpleValue(MemberToGenerate item) => item.HasRunAfterSetMethodSimple || item.HasRunAfterSetMethodIsRefItem ? $@"{item.Name}_runAfterSet(value);" : string.Empty;
     }
 }

@@ -20,8 +20,8 @@ public class MemberToGenerate
     public bool WriteOnly { get; set; }
     public bool IsScoped { get; set; }
     public bool UseOnlyForLimited { get; set; }
-    public bool hasRunAfterSetMethodSimple { get; set; }
-    public bool runAfterSetMethodIsRefItem { get; set; }
+    public bool HasRunAfterSetMethodSimple { get; set; }
+    public bool HasRunAfterSetMethodIsRefItem { get; set; }
     
     
     public List<LimitedViewToGenerate> LimitedViews { get; set; } = new();
