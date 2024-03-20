@@ -181,7 +181,7 @@ public static class Scanner
             {
                 var runAfterSetMember = immutableArray[0];
 
-                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 }runAfterSetMethod)
+                if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod)
                 {
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
                     {
@@ -192,6 +192,14 @@ public static class Scanner
                     {
                         memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                     }
+                    
+                    
+                    if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition.SpecialType == SpecialType.System_String)
+                    {
+                        memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
+                    }
+                    
+                    
                 }
 
                 

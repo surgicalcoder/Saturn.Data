@@ -11,7 +11,7 @@ public partial class RunAfterTest : MultiscopedEntity<MainItem>
     [AddRefToScope] 
     private Ref<MainItem> mainItemView1;
 
-    private void mainItemView1_runAfterSet(Ref<MainItem> incoming)
+    /*private void mainItemView1_runAfterSet(Ref<MainItem> incoming)
     {
         
     }
@@ -19,5 +19,19 @@ public partial class RunAfterTest : MultiscopedEntity<MainItem>
     private void mainItemView1_runAfterSet(MainItem incoming)
     {
         
+    }  */  
+    
+    private void mainItemView1_runAfterSet(string incoming)
+    {
+        
     }
+
+    private Func<string, MainItem> fetchMainItem;
+
+    /*void test()
+    {
+        fetchMainItem = s => 
+    }*/
+
+    public MainItem Test { get; set; }
 }

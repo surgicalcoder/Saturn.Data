@@ -380,7 +380,9 @@ public static class SourceCodeGenerator
                 {{
                     SetField(ref {itemName}, value.Item);
                 }}
-{getSimpleValue(item)}
+
+                {getSimpleValue(item)}
+
             }}
             else
             {{
@@ -411,6 +413,20 @@ public static class SourceCodeGenerator
             
         source.AppendCloseCurlyBracketLine();
         
-        string getSimpleValue(MemberToGenerate item) => item.HasRunAfterSetMethodSimple || item.HasRunAfterSetMethodIsRefItem ? $@"{item.Name}_runAfterSet(value);" : string.Empty;
+        string getSimpleValue(MemberToGenerate item)
+        {
+            if (item.HasRunAfterSetMethodSimple || item.HasRunAfterSetMethodIsRefItem)
+            {
+                return $@"{item.Name}_runAfterSet(value);";
+            }
+            else if (item.HasRunAfterSetMethodIsString)
+            {
+                return $@"{item.Name}_runAfterSet(value.Id);";
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
     }
 }
