@@ -183,14 +183,14 @@ public static class Scanner
 
                 if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod)
                 {
-                    if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == fieldSymbol.Type.OriginalDefinition)
+                    if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, fieldSymbol.Type.OriginalDefinition))
                     {
                         memberToGenerate.HasRunAfterSetMethodSimple = true;
                     }
 
                     if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" )
                     {
-                        if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition)
+                        if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition , ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition))
                         {
                             memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                         }
