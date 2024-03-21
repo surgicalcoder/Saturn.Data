@@ -24,6 +24,8 @@ public class MemberToGenerate
     public bool HasRunAfterSetMethodSimple { get; set; }
     public bool HasRunAfterSetMethodIsRefItem { get; set; }
     public bool HasRunAfterSetMethodIsString { get; set; }
+
+    public string RefType { get; set; }
     
     
     public List<LimitedViewToGenerate> LimitedViews { get; set; } = new();

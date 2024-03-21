@@ -412,6 +412,12 @@ public static class SourceCodeGenerator
         }
             
         source.AppendCloseCurlyBracketLine();
+
+        if (item.HasRunAfterSetMethodIsString || item.HasRunAfterSetMethodIsRefItem || item.HasRunAfterSetMethodSimple && !string.IsNullOrWhiteSpace(item.RefType))
+        {
+            source.AppendLine($"[System.ComponentModel.EditorBrowsable(EditorBrowsableState.Never)] public static Func<string, {item.RefType}> _{itemName}_runAfterSet_fetch;");
+            source.AppendLine("");
+        }
         
         string getSimpleValue(MemberToGenerate item)
         {
@@ -419,14 +425,8 @@ public static class SourceCodeGenerator
             {
                 return $@"{item.Name}_runAfterSet(value);";
             }
-            else if (item.HasRunAfterSetMethodIsString)
-            {
-                return $@"{item.Name}_runAfterSet(value.Id);";
-            }
-            else
-            {
-                return string.Empty;
-            }
+
+            return item.HasRunAfterSetMethodIsString ? $@"{item.Name}_runAfterSet(value.Id);" : string.Empty;
         }
     }
 }

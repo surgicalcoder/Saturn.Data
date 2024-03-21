@@ -21,12 +21,12 @@ public partial class RunAfterTest : MultiscopedEntity<MainItem>
         
     }  */  
     
-    private void mainItemView1_runAfterSet(string incoming)
+    /*private void mainItemView1_runAfterSet(string incoming)
     {
         
-    }
+    }*/
 
-    private Func<string, MainItem> fetchMainItem;
+    /*private Func<string, MainItem> fetchMainItem;*/
 
     /*void test()
     {

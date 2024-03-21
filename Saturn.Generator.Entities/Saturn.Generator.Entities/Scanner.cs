@@ -64,7 +64,7 @@ public static class Scanner
             {
                 LimitedViewParentItemToGenerate retr = new();
 
-                retr.ViewName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).FirstOrDefault().Value as string;
+                retr.ViewName = attributeData.ConstructorArguments.FirstOrDefault(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
                 retr.PropertyName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Skip(1).FirstOrDefault().Value as string;
                 retr.Property = GetMember(classSymbol, retr.PropertyName) as IPropertySymbol;
                 
@@ -188,22 +188,21 @@ public static class Scanner
                         memberToGenerate.HasRunAfterSetMethodSimple = true;
                     }
 
-                    if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" && runAfterSetMethod.Parameters[0].Type.OriginalDefinition == ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition )
+                    if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" )
                     {
-                        memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
+                        if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition == ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition)
+                        {
+                            memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
+                        }
+
+                        memberToGenerate.RefType = ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition.ToString();
                     }
-                    
                     
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition.SpecialType == SpecialType.System_String)
                     {
                         memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                     }
-                    
-                    
                 }
-
-                
-
             }
 
             getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
