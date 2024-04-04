@@ -32,18 +32,37 @@ public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniq
         }
     }
 
-    private static bool IsHex(IEnumerable<char> chars)
+    public static string GetIdAsHex(string input)
     {
-        bool isHex; 
-        foreach(var c in chars)
+        Span<byte> resultantArray = stackalloc byte[12];
+        ReadOnlySpan<char> inputSpan = input.AsSpan();
+        for (int i = 0; i < 12; i++)
         {
-            isHex = c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+            ReadOnlySpan<char> slice = inputSpan.Slice(i * 2, 2);
+            if (byte.TryParse(slice, System.Globalization.NumberStyles.HexNumber, null, out byte value))
+            {
+                resultantArray[i] = value;
+            }
+            else
+            {
+                throw new FormatException($"Unable to parse '{slice.ToString()}' as a hexadecimal number.");
+            }
+        }
+        return Convert.ToBase64String(resultantArray);
+    }
 
-            if(!isHex)
+    private static bool IsHex(ReadOnlySpan<char> chars)
+    {
+        for (int i = 0; i < chars.Length; i++)
+        {
+            char c = chars[i];
+            bool isHex = c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+            if (!isHex)
                 return false;
         }
         return true;
     }
+
         
     private string id;
     private long? version;
@@ -71,32 +90,8 @@ public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniq
         }
     }
 
-    public virtual string _shortId
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(Id))
-            {
-                return null;
-            }
-            var resultantArray = new byte[12];
-            resultantArray[0] = Convert.ToByte(Id[..2], 16);
-            resultantArray[1] =  Convert.ToByte(Id[2..4], 16);
-            resultantArray[2] =  Convert.ToByte(Id[4..6], 16);
-            resultantArray[3] =  Convert.ToByte(Id[6..8], 16);
-            resultantArray[4] =  Convert.ToByte(Id[8..10], 16);
-            resultantArray[5] =  Convert.ToByte(Id[10..12], 16);
-            resultantArray[6] =  Convert.ToByte(Id[12..14], 16);
-            resultantArray[7] =  Convert.ToByte(Id[14..16], 16);
-            resultantArray[8] =  Convert.ToByte(Id[16..18], 16);
-            resultantArray[9] =  Convert.ToByte(Id[18..20], 16);
-            resultantArray[10] = Convert.ToByte(Id[20..22], 16);
-            resultantArray[11] = Convert.ToByte(Id[22..24], 16);
+    public virtual string _shortId => string.IsNullOrWhiteSpace(Id) ? null : GetIdAsHex(Id);
 
-            return Convert.ToBase64String(resultantArray);
-        }
-    }
-        
 
     public virtual long? Version
     {
