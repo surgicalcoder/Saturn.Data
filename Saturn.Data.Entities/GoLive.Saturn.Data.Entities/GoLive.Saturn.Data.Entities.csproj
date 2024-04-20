@@ -26,4 +26,8 @@
     </Compile>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="GoLive.Saturn.Crypto" Version="1.0.15" />
+  </ItemGroup>
+
 </Project>

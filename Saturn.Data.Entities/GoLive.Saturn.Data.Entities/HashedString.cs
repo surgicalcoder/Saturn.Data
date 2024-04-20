@@ -1,4 +1,6 @@
-﻿namespace GoLive.Saturn.Data.Entities;
+﻿using System;
+
+namespace GoLive.Saturn.Data.Entities;
 
 public sealed class HashedString : IUpdatableFrom<HashedString>
 {
@@ -31,5 +33,15 @@ public sealed class HashedString : IUpdatableFrom<HashedString>
         Decoded = input.Decoded;
         Hash = null;
         Salt = null;
+    }
+
+    public bool CompareHash(string Input)
+    {
+        if (string.IsNullOrWhiteSpace(Salt) || string.IsNullOrWhiteSpace(Hash))
+        {
+            throw new InvalidOperationException("Hash or Salt not populated");
+        }
+
+        return Hash == Crypto.Hash.CalculateSHA512($"{Input}{Salt}");
     }
 }
