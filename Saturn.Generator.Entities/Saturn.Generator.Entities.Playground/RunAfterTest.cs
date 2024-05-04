@@ -7,10 +7,17 @@ namespace Saturn.Generator.Entities.Playground;
 [AddParentItemToLimitedView("*", "_shortId", ChildField = "Id", InheritFromIUniquelyIdentifiable = true)]
 public partial class RunAfterTest : MultiscopedEntity<MainItem>
 {
+    /// <summary>
+    /// This is an example XML Doc
+    /// </summary>
     [AddToLimitedView("View1", true, UseLimitedView = "View1")]
     [AddRefToScope] 
     private Ref<MainItem> mainItemView1;
 
+    /// <summary>
+    /// This is a xml comment test
+    /// </summary>
+    private string test3;
     /*private void mainItemView1_runAfterSet(Ref<MainItem> incoming)
     {
         

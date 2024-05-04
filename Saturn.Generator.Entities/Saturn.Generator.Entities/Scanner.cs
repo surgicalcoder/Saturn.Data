@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Xml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -154,6 +155,11 @@ public static class Scanner
                 Type = fieldSymbol.Type
             };
 
+            if (fieldSymbol.GetDocumentationCommentXml() is { } xmlComment && !string.IsNullOrWhiteSpace(xmlComment))
+            {
+                memberToGenerate.XmlDocumentation = transformDocumentationComment(xmlComment);
+            }
+
             var attr = fieldSymbol.GetAttributes();
 
             if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute"))
@@ -288,5 +294,40 @@ public static class Scanner
                     return retr;
                 }).ToList();
         }
+    }
+    public static string transformDocumentationComment(string xmlComment)
+    {
+        if (string.IsNullOrWhiteSpace(xmlComment))
+            return string.Empty;
+
+        XmlDocument xmlDoc = new XmlDocument();
+        xmlDoc.LoadXml("<root>" + xmlComment + "</root>");
+
+        // Extract summary, remarks, example, etc. from the XML
+        var summaryNode = xmlDoc.SelectSingleNode("root/summary");
+        var remarksNode = xmlDoc.SelectSingleNode("root/remarks");
+        var exampleNode = xmlDoc.SelectSingleNode("root/example");
+
+        // Construct formatted comment
+        string formattedComment = "";
+
+        if (summaryNode != null)
+        {
+            formattedComment += $"/// <summary>\n/// {summaryNode.InnerText.Trim()}\n/// </summary>\n";
+        }
+
+        if (remarksNode != null)
+        {
+            formattedComment += $"/// <remarks>\n/// {remarksNode.InnerText.Trim()}\n/// </remarks>\n";
+        }
+
+        if (exampleNode != null)
+        {
+            formattedComment += $"/// <example>\n/// {exampleNode.InnerText.Trim()}\n/// </example>\n";
+        }
+
+        // Add other XML nodes as needed
+
+        return formattedComment;
     }
 }

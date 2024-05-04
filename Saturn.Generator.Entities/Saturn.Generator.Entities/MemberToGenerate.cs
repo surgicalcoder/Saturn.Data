@@ -31,4 +31,5 @@ public class MemberToGenerate
     public List<LimitedViewToGenerate> LimitedViews { get; set; } = new();
 
     public List<MemberAttribute> AdditionalAttributes { get; set; } = new();
+    public string XmlDocumentation { get; set; }
 }

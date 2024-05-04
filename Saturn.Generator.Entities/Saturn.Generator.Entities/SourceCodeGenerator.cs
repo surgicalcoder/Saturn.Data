@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -168,6 +169,7 @@ public static class SourceCodeGenerator
                 if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
                     source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
+                    
                 }
                 else
                 {
@@ -188,12 +190,12 @@ public static class SourceCodeGenerator
 
                 foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == item.Key))
                 {
-                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.ChildPropertyName} {{get;set;}}");
+                    source.AppendLine($"public {getLimitedViewName(toGenerate.Property.Type, toGenerate.OverrideReturnTypeToUseLimitedView)} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
                 
                 foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
                 {
-                    source.AppendLine($"public {toGenerate.Property.Type.ToDisplayString()} {toGenerate.ChildPropertyName} {{get;set;}}");
+                    source.AppendLine($"public {getLimitedViewName(toGenerate.Property.Type, toGenerate.OverrideReturnTypeToUseLimitedView)} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
             }
                 
@@ -209,6 +211,20 @@ public static class SourceCodeGenerator
             
             source.AppendCloseCurlyBracketLine();
         }
+    }
+    
+    private static string getLimitedViewName(ITypeSymbol input, string limitedView)
+    {
+        if (string.IsNullOrWhiteSpace(limitedView))
+        {
+            return input.ToDisplayString();
+        }
+        if (input is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
+        {
+            return $"{nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{limitedView}";
+        }
+
+        return $"{input.ToDisplayString()}_{limitedView}";
     }
 
     private static void outputViewTwoWayMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
@@ -262,7 +278,6 @@ public static class SourceCodeGenerator
             }
             else
             {
-                
                 if (v1.classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
                 {
                     source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
@@ -280,12 +295,40 @@ public static class SourceCodeGenerator
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == itemKey))
             {
-                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
+                if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
+                {
+                    source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
+                }
+                else
+                {
+                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                    {
+                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
+                    }
+                    else
+                    {
+                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {toGenerate.Property.Type}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
+                    }
+                }
             }
             
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
             {
-                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
+                if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
+                {
+                    source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
+                }
+                else
+                {
+                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                    {
+                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
+                    }
+                    else
+                    {
+                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {toGenerate.Property.Type}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
+                    }
+                }
             }
         }
         
@@ -350,6 +393,13 @@ public static class SourceCodeGenerator
     private static void GenerateNormalMember(SourceStringBuilder source, MemberToGenerate item)
     {
         var itemName = item.Name;
+
+        if (!string.IsNullOrEmpty(item.XmlDocumentation))
+        {
+            source.AppendLine(item.XmlDocumentation);
+            source.AppendLine();
+        }
+        
         outputAttributes(source, item);
         source.AppendLine($"public {item.Type} {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
