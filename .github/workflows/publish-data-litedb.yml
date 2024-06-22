@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
       SOLUTION: 'Saturn.Data.LiteDb/Saturn.Data.LiteDb.sln'
-      BUILD_VER : '2.0'
+      BUILD_VER : '3.0'
     name: build, pack & publish
     runs-on: ubuntu-latest
     steps:
