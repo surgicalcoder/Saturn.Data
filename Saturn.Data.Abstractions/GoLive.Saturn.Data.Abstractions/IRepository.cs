@@ -15,6 +15,9 @@ public interface IRepository : IReadonlyRepository
     Task SaveMany<T>(List<T> entities) where T : Entity;
         
     Task Update<T>(T entity) where T : Entity;
+    
+    Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity);
+    
     Task UpdateMany<T>(List<T> entities) where T : Entity;
 
     Task Upsert<T>(T entity) where T : Entity;
