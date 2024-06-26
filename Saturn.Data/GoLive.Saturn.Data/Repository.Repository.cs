@@ -151,4 +151,16 @@ public partial class Repository : IRepository
             throw new FailedToUpdateException();
         }
     }
+
+    public async Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity) where T : Entity
+    {
+        var pred = conditionPredicate.And(e => e.Id == entity.Id);
+        var updateResult = await GetCollection<T>().ReplaceOneAsync(pred, entity, new ReplaceOptions { IsUpsert = false });
+
+        if (!updateResult.IsAcknowledged || updateResult.MatchedCount == 0 || updateResult.ModifiedCount == 0)
+        {
+            throw new FailedToUpdateException();
+        }
+    }
+    
 }
