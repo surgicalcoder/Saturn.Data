@@ -42,5 +42,6 @@ public class RepositoryOptions
 
     public Dictionary<Type, Type> GenericSerializers { get; set; } = new();
     public Dictionary<Type, object> DiscriminatorConventions { get; set; } = new();
+    public Dictionary<string, Type> Discriminators { get; set; } = new();
     public Dictionary<Type, object> Serializers { get; set; } = new();
 }
