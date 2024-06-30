@@ -134,7 +134,6 @@ public partial class Repository
             new IgnoreEmptyArraysConvention(),
             new IgnoreExtraElementsConvention(true),
             new NamedIdMemberConvention("Id"),
-            //new StringObjectIdIdGeneratorConvention(),
             new IgnoreEmptyStringsConvention(),
             new StringIdStoredAsObjectIdConvention()
         };
@@ -155,6 +154,13 @@ public partial class Repository
         _ = BsonSerializer.TryRegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(HashedString), new HashedStringSerializer());
 
+        if (options?.Discriminators is { Count: > 0 })
+        {
+            foreach (var (key, value) in options.Discriminators)
+            {
+                BsonSerializer.RegisterDiscriminator(value, new BsonString(key));
+            }
+        }
 
         if (options?.DiscriminatorConventions != null)
         {
