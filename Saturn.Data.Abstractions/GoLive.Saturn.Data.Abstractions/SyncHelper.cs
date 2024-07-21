@@ -7,9 +7,9 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public static class SyncHelper
 {
-    public static async Task<IList<TLocal>> SyncFrom<TLocal, TRemote>(
-        this IList<TLocal> Local,
-        IList<TRemote> Remote,
+    public static async Task<List<TLocal>> SyncFrom<TLocal, TRemote>(
+        this List<TLocal> Local,
+        List<TRemote> Remote,
         Func<TLocal, TRemote, bool> Identifier,
         Func<TLocal, TRemote, TLocal> PerformAssignments,
         Func<List<TLocal>, Task> ItemsToDeleteFunc,

@@ -28,7 +28,7 @@ public static partial class PopulateHelper
         item.Item = items.FirstOrDefault(f => f.Id == item.Id);
     }
 
-    public static void Populate<T>(this List<Ref<T>> item, IReadonlyRepository repository) where T : Entity, new()
+    public static async Task Populate<T>(this List<Ref<T>> item, IReadonlyRepository repository) where T : Entity, new()
     {
         if (item == null || item.Count == 0)
         {
@@ -36,7 +36,7 @@ public static partial class PopulateHelper
         }
             
         var IDs = item.Select(f => f.Id);
-        var items = repository.Many<T>(f => IDs.Contains(f.Id)).ToList();
+        var items = (await repository.Many<T>(f => IDs.Contains(f.Id))).ToList();
             
         for (var i = 0; i < item.Count; i++)
         {
@@ -44,7 +44,7 @@ public static partial class PopulateHelper
         }
     }
         
-    public static void Populate<T>(this List<Ref<T>> item, List<T> items) where T : Entity, new()
+    public static async Task Populate<T>(this List<Ref<T>> item, List<T> items) where T : Entity, new()
     {
         if (item == null || item.Count == 0)
         {
@@ -57,7 +57,7 @@ public static partial class PopulateHelper
         }
     }
 
-    public static List<T> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, IReadonlyRepository repository) where T2 : Entity, new()
+    public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, IReadonlyRepository repository) where T2 : Entity, new()
     {
         if (collection == null || collection.Count == 0)
         {
@@ -83,7 +83,7 @@ public static partial class PopulateHelper
             return collection;
         }
             
-        var items = repository.Many<T2>(f => IDs.Contains(f.Id)).ToList();
+        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
         for (var i = 0; i < collection.Count; i++)
         {
@@ -97,8 +97,10 @@ public static partial class PopulateHelper
 
         return collection;
     }
-    
+
+#pragma warning disable 1998
     public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, List<T2> items) where T2 : Entity, new()
+#pragma warning restore 1998
     {
         if (collection == null || collection.Count == 0)
         {
@@ -131,7 +133,7 @@ public static partial class PopulateHelper
 
         var IDs = collection.SelectMany(f => compile.Invoke(f)).Select(r => r.Id).ToList();
 
-        var items = repository.Many<T2>(f => IDs.Contains(f.Id)).ToList();
+        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
         for (var i = 0; i < collection.Count; i++)
         {
@@ -143,8 +145,10 @@ public static partial class PopulateHelper
 
         return collection;
     }
-    
+
+#pragma warning disable 1998
     public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, List<T2> items) where T2 : Entity, new()
+#pragma warning restore 1998
     {
         if (collection == null || collection.Count == 0)
         {
