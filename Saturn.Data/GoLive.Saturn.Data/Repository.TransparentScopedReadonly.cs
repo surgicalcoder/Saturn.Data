@@ -82,11 +82,11 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return item;
     }
 
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task<IQueryable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return Many<TItem, TParent>(scope, predicate, sortOrders);
+        return await Many<TItem, TParent>(scope, predicate, sortOrders);
     }
 
     public async Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -98,11 +98,11 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return result.Select(f => BsonSerializer.Deserialize<TItem>(f)).ToList();
     }
 
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task<IQueryable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders);
+        return await Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders);
     }
 
     public async Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -114,7 +114,7 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         whereClause.Add("Scope", scope);
         var where = new BsonDocument(whereClause);
-        var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(where, new FindOptions<BsonDocument>()
+        var result = await(await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(where, new FindOptions<BsonDocument>()
         {
             Skip = (pageNumber - 1) * pageSize,
             Limit = pageSize,

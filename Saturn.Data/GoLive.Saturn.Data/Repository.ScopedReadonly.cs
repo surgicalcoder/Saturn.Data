@@ -51,7 +51,7 @@ public partial class Repository : IScopedReadonlyRepository
         return await result.FirstOrDefaultAsync();
     }
 
-    public IQueryable<T> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
 
@@ -63,14 +63,14 @@ public partial class Repository : IScopedReadonlyRepository
             }
         }
 
-        return scopedEntities;
+        return await Task.Run(() => scopedEntities);
     }
 
-    public IQueryable<T> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         if (pageSize == 0 || PageNumber == 0)
         {
-            return Many(scope, predicate);
+            return await Many(scope, predicate).ConfigureAwait(false);
         }
 
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
@@ -85,7 +85,7 @@ public partial class Repository : IScopedReadonlyRepository
 
         res = res.Skip((PageNumber - 1) * pageSize).Take(pageSize);
 
-        return res;
+        return await Task.Run(() => res);
     }
 
     public async Task<long> CountMany<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -135,7 +135,7 @@ public partial class Repository : IScopedReadonlyRepository
         return await result.FirstOrDefaultAsync();
     }
 
-    public IQueryable<T> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
 
@@ -147,14 +147,14 @@ public partial class Repository : IScopedReadonlyRepository
             }
         }
 
-        return scopedEntities;
+        return await Task.Run(() => scopedEntities);
     }
 
-    public IQueryable<T> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IQueryable<T>> Many<T, T2>(string scope, Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         if (pageSize == 0 || pageNumber == 0)
         {
-            return Many<T, T2>(scope, predicate);
+            return await Many<T, T2>(scope, predicate).ConfigureAwait(false);
         }
 
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
@@ -166,7 +166,7 @@ public partial class Repository : IScopedReadonlyRepository
 
         res = res.Skip((pageNumber - 1) * pageSize).Take(pageSize);
 
-        return res;
+        return await Task.Run(() => res);
     }
 
     public async Task<long> CountMany<T, T2>(string scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new()
