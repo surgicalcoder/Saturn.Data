@@ -27,7 +27,7 @@ public static partial class PopulateHelper
         }
             
         var IDs = item.Select(f => f.Id);
-        var items = (await repository.Many<T>(f => IDs.Contains(f.Id))).ToList();
+        var items = repository.Many<T>(f => IDs.Contains(f.Id)).ToList();
         item.ForEach(f => f.Fetch(items));
 
     }
@@ -58,7 +58,7 @@ public static partial class PopulateHelper
             return collection;
         }
             
-        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
+        var items = repository.Many<T2>(f => IDs.Contains(f.Id)).ToList();
 
         collection.ForEach(delegate (T obj)
         {
@@ -84,7 +84,7 @@ public static partial class PopulateHelper
 
         var IDs = collection.SelectMany(f => compile.Invoke(f)).Select(r => r.Id).ToList();
 
-        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
+        var items = repository.Many<T2>(f => IDs.Contains(f.Id)).ToList();
 
         collection.ForEach(delegate (T obj)
         {
