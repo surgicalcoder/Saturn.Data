@@ -7,7 +7,7 @@ using MongoDB.Bson.Serialization.Serializers;
 
 namespace GoLive.Saturn.Data.EntitySerializers
 {
-    public class RefSerializer<T> : SerializerBase<Ref<T>> where T : Entity, new()
+    public class RefSerializer<T> : SerializerBase<Ref<T>>, IBsonDocumentSerializer where T : Entity, new()
     {
         public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ref<T> value)
         {
@@ -65,6 +65,23 @@ namespace GoLive.Saturn.Data.EntitySerializers
             {
                 return default;
             }
+        }
+
+        public bool TryGetMemberSerializationInfo(string memberName, out BsonSerializationInfo serializationInfo)
+        {
+            if (memberName == "Id")
+            {
+                var serializer = BsonSerializer.LookupSerializer<ObjectId>();
+                serializationInfo = new BsonSerializationInfo(
+                    memberName,
+                    serializer,
+                    serializer.ValueType
+                );
+                return true;
+            }
+
+            serializationInfo = null;
+            return false;
         }
     }
 }
