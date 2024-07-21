@@ -48,9 +48,9 @@ public partial class Repository : IReadonlyRepository
         return item;
     }
 
-    public async Task<IQueryable<T>> All<T>() where T : Entity
+    public IQueryable<T> All<T>() where T : Entity
     {
-        return await Task.Run(() => GetCollection<T>().AsQueryable()).ConfigureAwait(false);
+        return GetCollection<T>().AsQueryable();
     }
 
     public async Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
@@ -98,7 +98,7 @@ public partial class Repository : IReadonlyRepository
         return item;
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public IQueryable<T> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
     {
         var items = GetCollection<T>().AsQueryable().Where(predicate);
 
@@ -110,7 +110,7 @@ public partial class Repository : IReadonlyRepository
             }
         }
 
-        return await Task.Run(() => items);
+        return items;
     }
 
     public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
@@ -125,11 +125,11 @@ public partial class Repository : IReadonlyRepository
         return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity 
+    public IQueryable<T> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity 
     {
         if (pageSize == 0 || pageNumber == 0)
         {
-            return await Many<T>(predicate).ConfigureAwait(false);
+            return Many<T>(predicate);
         }
 
         var items = GetCollection<T>().AsQueryable().Where(predicate);
@@ -142,7 +142,7 @@ public partial class Repository : IReadonlyRepository
             }
         }
 
-        return await Task.Run(() => items.Skip((pageNumber - 1) * pageSize).Take(pageSize));
+        return items.Skip((pageNumber - 1) * pageSize).Take(pageSize);
     }
 
     public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO

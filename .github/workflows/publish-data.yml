@@ -1,20 +1,26 @@
 name: Saturn.Data
-on: workflow_dispatch
-jobs: 
+on:
+  workflow_dispatch:
+
+jobs:
   publish:
-      name: build, pack & publish
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v2
-        - name: Setup dotnet
-          uses: actions/setup-dotnet@v1
-          with:
-            dotnet-version: 6.x
-        - name: Publish
-          id: publish_nuget
-          uses: rohith/publish-nuget@v2
-          with:
-            PROJECT_FILE_PATH: Saturn.Data/GoLive.Saturn.Data.sln
-            VERSION_FILE_PATH: Saturn.Data/Directory.Build.props
-            VERSION_REGEX: ^\s*<Version>(.*)<\/Version>\s*$
-            NUGET_KEY: ${{secrets.NUGET_KEY}}
+    env:
+     SOLUTION: 'Saturn.Data/GoLive.Saturn.Data/GoLive.Saturn.Data.csproj'
+     BUILD_VER : '3.5'
+    name: build, pack & publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v1
+      - name: Get Build Version
+        run: |
+          echo "BUILD_VERSION=${{ format('{0}.{1}', env.BUILD_VER, github.run_number ) }}" >> $GITHUB_ENV
+      - name: Build
+        run: dotnet pack $SOLUTION --configuration Release -p:Version=$BUILD_VERSION -p:PackageVersion=$BUILD_VERSION -p:GeneratePackageOnBuild=false
+      - name: Publish
+        run: nuget push **\*.nupkg -Source 'https://api.nuget.org/v3/index.json' -ApiKey ${{secrets.NUGET_KEY}}

@@ -22,14 +22,14 @@ public partial class Repository : ISecondScopedRepository
     return result;
   }
 
-  public async Task<IQueryable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope) 
+  public IQueryable<TItem> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope) 
     where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() 
     where TSecondScope : Entity, new() 
     where TPrimaryScope : Entity, new()
   {
     var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope);
 
-    return await Task.Run(() => scopedEntities);
+    return scopedEntities;
   }
 
   public async Task<TItem> One<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) 
@@ -53,7 +53,7 @@ public partial class Repository : ISecondScopedRepository
     return await result.FirstOrDefaultAsync();
   }
   
-  public async Task<IQueryable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) 
+  public IQueryable<TItem> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) 
     where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() 
     where TSecondScope : Entity, new() 
     where TPrimaryScope : Entity, new()
@@ -70,7 +70,7 @@ public partial class Repository : ISecondScopedRepository
       res = res.Skip((PageNumber - 1) * pageSize).Take(pageSize);
     }
 
-    return await Task.Run(() => res);
+    return res;
   }
 
   public async Task<long> CountMany<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate) 
