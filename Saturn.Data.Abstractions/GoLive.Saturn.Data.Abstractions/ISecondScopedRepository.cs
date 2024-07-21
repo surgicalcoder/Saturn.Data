@@ -15,7 +15,7 @@ public interface ISecondScopedRepository
         where TPrimaryScope : Entity, new();
   
 
-    Task<IQueryable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
+    IQueryable<TItem> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();
@@ -26,7 +26,7 @@ public interface ISecondScopedRepository
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();
 
-    Task<IQueryable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, 
+    IQueryable<TItem> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, 
         int pageSize = 20, int pageNumber = 1, IEnumerable<SortOrder<TItem>> sortOrders = null)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 

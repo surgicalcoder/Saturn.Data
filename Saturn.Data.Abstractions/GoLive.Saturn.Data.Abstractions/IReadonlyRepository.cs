@@ -16,15 +16,15 @@ public interface IReadonlyRepository : IDisposable
     Task<T> ByRef<T>(Ref<T> item) where T : Entity, new();
     Task<Ref<T>> PopulateRef<T>(Ref<T> item) where T : Entity, new();
         
-    Task<IQueryable<T>> All<T>() where T : Entity;
+    IQueryable<T> All<T>() where T : Entity;
         
     Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
     Task<T> Random<T>() where T : Entity;
     Task<List<T>> Random<T>(int count) where T : Entity;
         
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
+    IQueryable<T> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
     Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
+    IQueryable<T> Many<T>(Expression<Func<T, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
     Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null ) where T : Entity;
         
     Task<long> CountMany<T>(Expression<Func<T, bool>> predicate) where T : Entity;
