@@ -116,6 +116,12 @@ public static class SourceCodeGenerator
                 source.AppendCloseCurlyBracketLine();
             }
         }
+
+        foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any()).SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
+                     .GroupBy(e => e.LimitedView.Name))
+        {
+            source.AppendLine($"public {classToGen.Name}_{item.Key} To_{item.Key} => {classToGen.Name}_{item.Key}.Generate(this);");
+        }
         
         
         
