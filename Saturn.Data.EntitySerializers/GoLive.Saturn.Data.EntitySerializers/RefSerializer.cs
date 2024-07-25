@@ -69,15 +69,10 @@ namespace GoLive.Saturn.Data.EntitySerializers
 
         public bool TryGetMemberSerializationInfo(string memberName, out BsonSerializationInfo serializationInfo)
         {
-            
             if (memberName == "Id")
             {
                 var serializer = BsonSerializer.LookupSerializer<ObjectId>();
-                serializationInfo = BsonSerializationInfo.CreateWithPath(
-                    new []{""},
-                    serializer,
-                    serializer.ValueType
-                );
+                serializationInfo = new BsonSerializationInfo("_____", serializer, serializer.ValueType);
                 return true;
             }
 

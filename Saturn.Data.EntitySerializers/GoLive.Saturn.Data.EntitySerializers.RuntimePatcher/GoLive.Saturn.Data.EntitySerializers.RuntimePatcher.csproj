@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <PackageId>GoLive.Saturn.Data.EntitySerializers.RuntimePatcher</PackageId>
+        <Authors>SurgicalCoder</Authors>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
+        <Copyright>Copyright 2020-2024 - SurgicalCoder</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+        <PackOnBuild>true</PackOnBuild>
+        <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="HarmonyX" Version="2.13.0" />
+    </ItemGroup>
+
+</Project>

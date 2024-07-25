@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GoLive.Saturn.Data.EntitySe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoLive.Saturn.Data.EntitySerializers.Json", "GoLive.Saturn.Data.EntitySerializers.Json\GoLive.Saturn.Data.EntitySerializers.Json.csproj", "{6A058ED2-6C01-4F79-8C71-6B226807A195}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoLive.Saturn.Data.EntitySerializers.RuntimePatcher", "GoLive.Saturn.Data.EntitySerializers.RuntimePatcher\GoLive.Saturn.Data.EntitySerializers.RuntimePatcher.csproj", "{32AE4F53-74AF-4B25-8AF2-7C20EDA4E5A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{6A058ED2-6C01-4F79-8C71-6B226807A195}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6A058ED2-6C01-4F79-8C71-6B226807A195}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6A058ED2-6C01-4F79-8C71-6B226807A195}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32AE4F53-74AF-4B25-8AF2-7C20EDA4E5A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32AE4F53-74AF-4B25-8AF2-7C20EDA4E5A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32AE4F53-74AF-4B25-8AF2-7C20EDA4E5A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32AE4F53-74AF-4B25-8AF2-7C20EDA4E5A1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
