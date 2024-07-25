@@ -17,6 +17,14 @@
       <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <NoWarn>1701;1702;1998</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <NoWarn>1701;1702;1998</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.3" />
   </ItemGroup>

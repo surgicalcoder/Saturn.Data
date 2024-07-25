@@ -11,7 +11,7 @@ public static partial class PopulateHelper
 {
     public static async Task Populate<T>(this Ref<T> item, ITransparentScopedRepository repository) where T : Entity, new()
     {
-        if (item == null)
+        if (item == null || repository == null)
         {
             return;
         }
@@ -21,7 +21,7 @@ public static partial class PopulateHelper
 
     public static async Task Populate<T>(this List<Ref<T>> item, ITransparentScopedRepository repository) where T : Entity, new()
     {
-        if (item == null || item.Count == 0)
+        if (item == null || item.Count == 0 || repository == null)
         {
             return;
         }
@@ -31,10 +31,27 @@ public static partial class PopulateHelper
         item.ForEach(f => f.Fetch(items));
 
     }
+    
+    public static async Task Populate<T>(this IList<Ref<T>> item, ITransparentScopedRepository repository) where T : Entity, new()
+    {
+        if (item == null || item.Count == 0 || repository == null)
+        {
+            return;
+        }
+            
+        var IDs = item.Select(f => f.Id);
+        var items = (await repository.Many<T>(f => IDs.Contains(f.Id))).ToList();
+        
+        for (var i = 0; i < item.Count; i++)
+        {
+            item[i].Fetch(items);
+        }
+
+    }
 
     public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, ITransparentScopedRepository repository) where T2 : Entity, new()
     {
-        if (collection == null || collection.Count == 0)
+        if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
             return default;
         }
@@ -72,27 +89,108 @@ public static partial class PopulateHelper
 
         return collection;
     }
-
-    public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, ITransparentScopedRepository repository) where T2 : Entity, new()
+    
+    public static async Task<IList<T>> Populate<T, T2>(this IList<T> collection, Expression<Func<T, Ref<T2>>> item, ITransparentScopedRepository repository) where T2 : Entity, new()
     {
-        if (collection == null || collection.Count == 0)
+        if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
             return default;
         }
             
-        var compile = item.Compile();
+        var compiledFunc = item.Compile();
 
-        var IDs = collection.SelectMany(f => compile.Invoke(f)).Select(r => r.Id).ToList();
+        var IDs = collection.Where(f=>
+        {
+            try
+            {
+                return compiledFunc.Invoke(f) != null;
+            }
+            catch (NullReferenceException)
+            {
+                return false;
+            }
+        }).Select(f => compiledFunc.Invoke(f)).Select(r => r.Id).ToList();
+            
+        if (IDs.Count == 0)
+        {
+            return collection;
+        }
+            
+        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
+
+        for (var i = 0; i < collection.Count; i++)
+        {
+            var result = compiledFunc.Invoke(collection[i]);
+
+            if (result != null)
+            {
+                result.Fetch(items);
+            }
+        }
+
+        return collection;
+    }
+
+    public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, ITransparentScopedRepository repository) where T2 : Entity, new()
+    {
+        if (collection == null || collection.Count == 0 || item == null || repository == null)
+        {
+            return default;
+        }
+            
+        var compiledFunc = item.Compile();
+
+        var IDs = collection.SelectMany(f => compiledFunc.Invoke(f)).Select(r => r.Id).ToList();
 
         var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
 
-        collection.ForEach(delegate (T obj)
+        
+        for (var i = 0; i < collection.Count; i++)
         {
-            compile.Invoke(obj).ForEach(delegate (Ref<T2> r2)
+            var result = compiledFunc.Invoke(collection[i]);
+
+            if (result == null)
             {
-                r2.Fetch(items);
-            });
-        });
+                continue;
+            }
+
+            for (var i1 = 0; i1 < result.Count; i1++)
+            {
+                result[i1].Fetch(items);
+            }
+        }
+
+        return collection;
+    }
+    
+    public static async Task<IList<T>> PopulateMultiple<T, T2>(this IList<T> collection, Expression<Func<T, IList<Ref<T2>>>> item, ITransparentScopedRepository repository) where T2 : Entity, new()
+    {
+        if (collection == null || collection.Count == 0 || item == null || repository == null)
+        {
+            return default;
+        }
+            
+        var compiledFunc = item.Compile();
+
+        var IDs = collection.SelectMany(f => compiledFunc.Invoke(f)).Select(r => r.Id).ToList();
+
+        var items = (await repository.Many<T2>(f => IDs.Contains(f.Id))).ToList();
+
+        
+        for (var i = 0; i < collection.Count; i++)
+        {
+            var result = compiledFunc.Invoke(collection[i]);
+
+            if (result == null)
+            {
+                continue;
+            }
+
+            for (var i1 = 0; i1 < result.Count; i1++)
+            {
+                result[i1].Fetch(items);
+            }
+        }
 
         return collection;
     }
