@@ -162,8 +162,45 @@ public static class SourceCodeGenerator
                     }
                 }
             }
-            
             source.AppendOpenCurlyBracketLine();
+            
+            
+            
+            
+            // Constructors and IQueryable bits
+            
+            source.Append($"public static IQueryable<{classToGen.Name}_{item.Key}> Select(IQueryable<{classToGen.Name}> parentItems) => parentItems.Select(a => new {classToGen.Name}_{item.Key}(");
+
+            string[] constArguments = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Name}").ToArray();
+            string[] constArgumentsWithTypes = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Type} {r.classDef.Name}").ToArray();
+            string[] constArgumentsWithTypesAndLowercaseProperty = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Type} {r.classDef.Name.FirstCharToLower()}").ToArray();
+
+            source.Append(string.Join(", ", constArguments.Select(r=>$"a.{r.FirstCharToUpper()}")));
+            source.AppendLine("));");
+            
+            source.AppendLine($"public {classToGen.Name}_{item.Key}(){{}}");
+
+            if (item.Any(r => string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)))
+            {
+                source.Append($"public {classToGen.Name}_{item.Key} (");
+                source.Append(string.Join(", ", constArgumentsWithTypesAndLowercaseProperty));
+                source.AppendLine(")");
+                source.AppendOpenCurlyBracketLine();
+
+                foreach (var x1 in item)
+                {
+                    if (!string.IsNullOrWhiteSpace(x1.LimitedView.OverrideReturnTypeToUseLimitedView)) { }
+                    else
+                    {
+                        source.AppendLine($"this.{x1.classDef.Name.FirstCharToUpper()} = {x1.classDef.Name.FirstCharToLower()};");
+                    }
+                }
+
+                source.AppendCloseCurlyBracketLine();
+            }
+
+
+
 
             foreach (var v1 in item)
             {
