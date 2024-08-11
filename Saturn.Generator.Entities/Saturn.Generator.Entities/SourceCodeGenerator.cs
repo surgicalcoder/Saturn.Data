@@ -17,6 +17,7 @@ public static class SourceCodeGenerator
         source.AppendLine("using GoLive.Saturn.Data.Entities;");
         source.AppendLine("using System.Collections.Specialized;");
         source.AppendLine("using FastMember;");
+        source.AppendLine("using System.Linq;");
 
         source.AppendLine($"namespace {classToGen.Namespace};");
 
@@ -170,7 +171,7 @@ public static class SourceCodeGenerator
             
             // Constructors and IQueryable bits
             
-            source.Append($"public static IQueryable<{classToGen.Name}_{item.Key}> Select(IQueryable<{classToGen.Name}> parentItems) => parentItems.Select(a => new {classToGen.Name}_{item.Key}(");
+            /*source.Append($"public static IQueryable<{classToGen.Name}_{item.Key}> Select(IQueryable<{classToGen.Name}> parentItems) => parentItems.Select(a => new {classToGen.Name}_{item.Key}(");
 
             string[] constArguments = item.Select(r => $"{r.classDef.Name}").ToArray();
             string[] constArgumentsWithTypesAndLowercaseProperty = item.Select(r => $"{r.classDef.Type} {r.classDef.Name.FirstCharToLower()}").ToArray();
@@ -197,7 +198,7 @@ public static class SourceCodeGenerator
                 }
 
                 source.AppendCloseCurlyBracketLine();
-            }
+            }*/
 
 
 
