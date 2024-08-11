@@ -120,7 +120,7 @@ public static class SourceCodeGenerator
         foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any()).SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
                      .GroupBy(e => e.LimitedView.Name))
         {
-            source.AppendLine($"public {classToGen.Name}_{item.Key} To_{item.Key} => {classToGen.Name}_{item.Key}.Generate(this);");
+            source.AppendLine($"public {classToGen.Name}_{item.Key} To_{item.Key}() => {classToGen.Name}_{item.Key}.Generate(this);");
         }
         
         
@@ -131,7 +131,8 @@ public static class SourceCodeGenerator
         source.AppendLine(2);
             
             
-        foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any()).SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
+        foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any())
+                     .SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
                      .GroupBy(e => e.LimitedView.Name))
         {
             
@@ -171,9 +172,8 @@ public static class SourceCodeGenerator
             
             source.Append($"public static IQueryable<{classToGen.Name}_{item.Key}> Select(IQueryable<{classToGen.Name}> parentItems) => parentItems.Select(a => new {classToGen.Name}_{item.Key}(");
 
-            string[] constArguments = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Name}").ToArray();
-            string[] constArgumentsWithTypes = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Type} {r.classDef.Name}").ToArray();
-            string[] constArgumentsWithTypesAndLowercaseProperty = item.Where(r=>string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)).Select(r => $"{r.classDef.Type} {r.classDef.Name.FirstCharToLower()}").ToArray();
+            string[] constArguments = item.Select(r => $"{r.classDef.Name}").ToArray();
+            string[] constArgumentsWithTypesAndLowercaseProperty = item.Select(r => $"{r.classDef.Type} {r.classDef.Name.FirstCharToLower()}").ToArray();
 
             source.Append(string.Join(", ", constArguments.Select(r=>$"a.{r.FirstCharToUpper()}")));
             source.AppendLine("));");
