@@ -45,6 +45,14 @@ public partial class Repository : IRepository
             throw new FailedToUpdateException();
         }
     }
+    
+    
+    public async Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity) where T : Entity
+    {
+        var coll = GetCollection<T>();
+        var id = await coll.FindOneAsync(conditionPredicate);
+        await coll.UpdateAsync(id.Id, entity);
+    }
 
     public async Task UpdateMany<T>(List<T> entities) where T : Entity
     {

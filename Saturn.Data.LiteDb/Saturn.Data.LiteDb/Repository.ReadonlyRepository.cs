@@ -40,9 +40,9 @@ public partial class Repository : IReadonlyRepository
         return item;
     }
 
-    public async Task<IQueryable<T>> All<T>() where T : Entity
+    public IQueryable<T> All<T>() where T : Entity
     {
-        return await Task.Run(() => GetCollection<T>().AsQueryable()).ConfigureAwait(false);
+        return GetCollection<T>().AsQueryable();
     }
 
     public async Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
@@ -77,7 +77,7 @@ public partial class Repository : IReadonlyRepository
         return await Task.Run(() => items);
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
+    public Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
     {
         throw new NotImplementedException();
     }
@@ -102,7 +102,7 @@ public partial class Repository : IReadonlyRepository
         return await Task.Run(() => items.Skip((pageNumber - 1) * pageSize).Take(pageSize));
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
+    public Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
     {
         throw new NotImplementedException();
     }
@@ -112,7 +112,7 @@ public partial class Repository : IReadonlyRepository
         return await GetCollection<T>().LongCountAsync(predicate);
     }
 
-    public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity
+    public Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity
     {
         throw new NotImplementedException();
     }

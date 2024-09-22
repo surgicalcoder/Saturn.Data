@@ -20,11 +20,11 @@ public partial class Repository : IScopedReadonlyRepository
         return result.ToList();
     }
 
-    public async Task<IQueryable<T>> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public IQueryable<T> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
 
-        return await Task.Run(() => scopedEntities);
+        return scopedEntities;
     }
 
     public async Task<T> One<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -102,11 +102,11 @@ public partial class Repository : IScopedReadonlyRepository
         return result.ToList();
     }
 
-    public async Task<IQueryable<T>> All<T, T2>(string scope) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public IQueryable<T> All<T, T2>(string scope) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
 
-        return await Task.Run(() => scopedEntities);
+        return scopedEntities;
     }
 
     public async Task<T> One<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()

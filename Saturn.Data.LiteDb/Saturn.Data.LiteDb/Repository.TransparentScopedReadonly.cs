@@ -48,11 +48,11 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return item;
     }
 
-    public async Task<IQueryable<TItem>> All<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public IQueryable<TItem> All<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await All<TItem, TParent>(scope);
+        return All<TItem, TParent>(scope);
     }
 
     public async Task<TItem> One<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -83,7 +83,7 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return await Many<TItem, TParent>(scope, predicate, sortOrders);
     }
 
-    public async Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         throw new NotImplementedException();
     }
@@ -95,7 +95,7 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return await Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders);
     }
 
-    public async Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public Task<List<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         throw new NotImplementedException();
     }
@@ -107,7 +107,7 @@ public partial class Repository : ITransparentScopedReadonlyRepository
         return await CountMany<TItem, TParent>(scope, predicate);
     }
 
-    public async Task Watch<TItem, TParent>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public Task Watch<TItem, TParent>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         throw new NotImplementedException();
     }

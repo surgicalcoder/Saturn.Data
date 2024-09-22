@@ -34,7 +34,7 @@ public partial class Repository : IScopedRepository
         await UpdateMany(entity);
     }
     
-    public async Task JsonUpdate<T, T2>(string Scope, string Id, int Version, string Json) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public Task JsonUpdate<T, T2>(string Scope, string Id, int Version, string Json) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         throw new NotImplementedException();
     }
