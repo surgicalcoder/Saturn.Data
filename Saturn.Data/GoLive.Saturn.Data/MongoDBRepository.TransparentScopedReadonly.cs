@@ -11,7 +11,7 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Repository : ITransparentScopedReadonlyRepository
+public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
 {
     public async Task<TItem> ById<TItem, TParent>(string id) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {

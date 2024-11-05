@@ -13,7 +13,7 @@ using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Repository : IReadonlyRepository
+public partial class MongoDBRepository : IReadonlyRepository
 {
     public async Task<T> ById<T>(string id) where T : Entity
     {

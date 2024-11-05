@@ -21,7 +21,7 @@ using MongoDB.Driver.Core.Events;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Repository
+public partial class MongoDBRepository
 {
     #region Props
     protected static RepositoryOptions options { get; set; }
@@ -32,7 +32,7 @@ public partial class Repository
 
     #endregion
 
-    internal Repository(RepositoryOptions repositoryOptions, IMongoClient client)
+    internal MongoDBRepository(RepositoryOptions repositoryOptions, IMongoClient client)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
 
@@ -54,7 +54,7 @@ public partial class Repository
         RegisterConventions();
     }
 
-    public Repository(RepositoryOptions repositoryOptions)
+    public MongoDBRepository(RepositoryOptions repositoryOptions)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
 

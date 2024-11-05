@@ -7,7 +7,7 @@ using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Repository : ITransparentScopedRepository
+public partial class MongoDBRepository : ITransparentScopedRepository
 {
     public async Task Insert<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {

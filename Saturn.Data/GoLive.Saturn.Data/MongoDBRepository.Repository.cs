@@ -10,7 +10,7 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Repository : IRepository
+public partial class MongoDBRepository : IRepository
 {
     public async Task Insert<T>(T entity) where T : Entity
     {
