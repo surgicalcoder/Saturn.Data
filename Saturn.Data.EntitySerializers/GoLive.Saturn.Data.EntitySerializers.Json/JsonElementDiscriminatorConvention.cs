@@ -6,7 +6,7 @@ using MongoDB.Bson.Serialization.Conventions;
 
 namespace GoLive.Saturn.Data.EntitySerializers.Json
 {
-    public class JsonElementtDiscriminatorConvention : IDiscriminatorConvention
+    public class JsonElementDiscriminatorConvention : IDiscriminatorConvention
     {
         public Type GetActualType(IBsonReader bsonReader, Type nominalType)
         {

@@ -15,7 +15,8 @@ namespace GoLive.Saturn.Data.EntitySerializers.Json
                 element.WriteTo(writer);
             }
 
-            return Utf8Json.JsonSerializer.Deserialize<T>(bufferWriter.WrittenMemory.ToArray()); // This is needed because ATM, System.Text.Json does not support ExpandoObjects.
+            var memory = bufferWriter.WrittenMemory;
+            return System.Text.Json.JsonSerializer.Deserialize<T>(memory.Span);
         }
 
         public static T ToObject<T>(this JsonDocument document)

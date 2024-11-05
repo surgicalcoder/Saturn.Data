@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Data.EntitySerializers/GoLive.Saturn.Data.EntitySerializers.sln'
-     BUILD_VER : '3.2'
+     BUILD_VER : '4.0'
     name: build, pack & publish
     runs-on: ubuntu-latest
     steps:
