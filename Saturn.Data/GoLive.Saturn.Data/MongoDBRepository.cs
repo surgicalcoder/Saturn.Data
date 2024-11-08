@@ -15,6 +15,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
+using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
@@ -25,6 +26,7 @@ public partial class MongoDBRepository
 {
     #region Props
     protected static RepositoryOptions options { get; set; }
+    protected static MongoDBRepositoryOptions mongoOptions { get; set; }
     public static bool InitRun { get; set; }
     public static DateTime InitLastChecked { get; set; }
     protected IMongoDatabase mongoDatabase { get; set; }
@@ -32,19 +34,30 @@ public partial class MongoDBRepository
 
     #endregion
 
-    internal MongoDBRepository(RepositoryOptions repositoryOptions, IMongoClient client)
+    internal MongoDBRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDBRepositoryOptions mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
-
+        mongoRepositoryOptions = mongoOptions;
         var connectionString = options.ConnectionString ?? throw new ArgumentNullException("repositoryOptions.ConnectionString");
 
         var mongoUrl = new MongoUrl(connectionString);
 
         var settings = MongoClientSettings.FromUrl(mongoUrl);
 
-        if (options is { DebugMode: true })
+        if (mongoRepositoryOptions?.EnableDiagnostics == true)
         {
-            settings.ClusterConfigurator = setupCallbacks;
+            settings.ClusterConfigurator = cb => cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions()
+            {
+                CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
+                ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+            }));
+        }
+        else
+        {
+            if (options is { DebugMode: true })
+            {
+                settings.ClusterConfigurator = setupCallbacks;
+            }
         }
 
         this.client = client;
@@ -54,21 +67,33 @@ public partial class MongoDBRepository
         RegisterConventions();
     }
 
-    public MongoDBRepository(RepositoryOptions repositoryOptions)
+    public MongoDBRepository(RepositoryOptions repositoryOptions, MongoDBRepositoryOptions mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
+        mongoRepositoryOptions = mongoOptions;
 
         var connectionString = options.ConnectionString ?? throw new ArgumentNullException("repositoryOptions.ConnectionString");
 
         var mongoUrl = new MongoUrl(connectionString);
 
         var settings = MongoClientSettings.FromUrl(mongoUrl);
-            
-        if (options is { DebugMode: true })
-        {
-            settings.ClusterConfigurator = setupCallbacks;
-        }
 
+        if (mongoRepositoryOptions?.EnableDiagnostics == true)
+        {
+            settings.ClusterConfigurator = cb => cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions()
+            {
+                CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
+                ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+            }));
+        }
+        else
+        {
+            if (options is { DebugMode: true })
+            {
+                settings.ClusterConfigurator = setupCallbacks;
+            }
+        }
+        
         client = new MongoClient(settings);
             
         mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
@@ -111,7 +136,10 @@ public partial class MongoDBRepository
 
     public void Dispose(bool val)
     {
-        if (val) { }
+        if (val)
+        {
+            client.Dispose();
+        }
     }
 
     protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
