@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Data/GoLive.Saturn.Data/GoLive.Saturn.Data.csproj'
-     BUILD_VER : '3.5'
+     BUILD_VER : '4.0'
     name: build, pack & publish
     runs-on: ubuntu-latest
     steps:
