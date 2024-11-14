@@ -12,6 +12,10 @@ namespace GoLive.Saturn.Generator.Entities;
 public static class Scanner
 {
     private static readonly SymbolDisplayFormat symbolDisplayFormat = new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+    private const string ATTRIBUTES_DoNotTrackChanges = "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute";
+    private const string ATTRIBUTES_AddRefToScope = "GoLive.Generator.Saturn.Resources.AddRefToScopeAttribute";
+    private const string ATTRIBUTES_WriteOnly = "GoLive.Generator.Saturn.Resources.WriteOnlyAttribute";
+    private const string ATTRIBUTES_ReadOnly = "GoLive.Generator.Saturn.Resources.ReadonlyAttribute";
 
     public static bool CanBeEntity(SyntaxNode node)
     {
@@ -126,6 +130,14 @@ public static class Scanner
     {
         foreach (var member in classSymbol.GetMembers())
         {
+            
+            var memberToGenerate = new MemberToGenerate
+            {
+                Name = member.Name,
+                /*Type = fieldSymbol.Type*/
+            };
+            
+            
             if (member is not IFieldSymbol
                 {
                     DeclaredAccessibility: Accessibility.Private, IsAbstract: false, AssociatedSymbol: null
@@ -134,6 +146,16 @@ public static class Scanner
 
                 if (member is IPropertySymbol { IsAbstract: false } propertySymbol)
                 {
+                    memberToGenerate.Type = propertySymbol.Type;
+
+                    if (propertySymbol.IsPartialDefinition)
+                    {
+                        memberToGenerate.IsPartialProperty = true;
+                    }
+                    else
+                    {
+                        memberToGenerate.UseOnlyForLimited = true;
+                    }
                     var propertyMember = new MemberToGenerate
                     {
                         Name = propertySymbol.Name,
@@ -142,46 +164,41 @@ public static class Scanner
                     };
                     
                     getAddToLimitedViewsFromAttributes(member.GetAttributes(), propertyMember);
-                    
-                    yield return propertyMember;
                 }
-                
-                continue;
+                else
+                {
+                    continue;
+                }
             }
+            
 
-            var memberToGenerate = new MemberToGenerate
-            {
-                Name = fieldSymbol.Name,
-                Type = fieldSymbol.Type
-            };
-
-            if (fieldSymbol.GetDocumentationCommentXml() is { } xmlComment && !string.IsNullOrWhiteSpace(xmlComment))
+            if (member.GetDocumentationCommentXml() is { } xmlComment && !string.IsNullOrWhiteSpace(xmlComment))
             {
                 memberToGenerate.XmlDocumentation = transformDocumentationComment(xmlComment);
             }
 
-            var attr = fieldSymbol.GetAttributes();
+            var attr = member.GetAttributes();
 
-            if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute"))
+            if (AttributeExists(attr, ATTRIBUTES_DoNotTrackChanges))
             {
                 continue;
             }
 
-            if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddRefToScopeAttribute"))
+            if (AttributeExists(attr, ATTRIBUTES_AddRefToScope))
             {
                 memberToGenerate.IsScoped = true;
             }
 
-            if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.ReadonlyAttribute"))
+            if (AttributeExists(attr, ATTRIBUTES_ReadOnly))
             {
                 memberToGenerate.ReadOnly = true;
             }
-            else if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.WriteOnlyAttribute"))
+            else if (AttributeExists(attr, ATTRIBUTES_WriteOnly))
             {
                 memberToGenerate.WriteOnly = true;
             }
 
-            var immutableArray = classSymbol.GetMembers($"{fieldSymbol.Name}_runAfterSet");
+            var immutableArray = classSymbol.GetMembers($"{member.Name}_runAfterSet");
 
             if (immutableArray.Length > 0)
             {
@@ -254,6 +271,13 @@ public static class Scanner
 
             yield return memberToGenerate;
         }
+
+        
+    }
+
+    private static bool AttributeExists(ImmutableArray<AttributeData> attr, string AttributeName)
+    {
+        return attr.Any(e => e.AttributeClass?.ToString() == AttributeName);
     }
 
     private static IParameterSymbol getFirstGenericParameter(IFieldSymbol fieldSymbol)

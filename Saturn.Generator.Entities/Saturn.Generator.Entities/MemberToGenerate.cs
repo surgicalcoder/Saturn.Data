@@ -26,6 +26,8 @@ public class MemberToGenerate
     public bool HasRunAfterSetMethodIsString { get; set; }
 
     public string RefType { get; set; }
+
+    public bool IsPartialProperty { get; set; }
     
     
     public List<LimitedViewToGenerate> LimitedViews { get; set; } = new();
