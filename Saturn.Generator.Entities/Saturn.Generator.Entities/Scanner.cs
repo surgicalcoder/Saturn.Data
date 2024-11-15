@@ -16,10 +16,12 @@ public static class Scanner
     private const string ATTRIBUTES_AddRefToScope = "GoLive.Generator.Saturn.Resources.AddRefToScopeAttribute";
     private const string ATTRIBUTES_WriteOnly = "GoLive.Generator.Saturn.Resources.WriteOnlyAttribute";
     private const string ATTRIBUTES_ReadOnly = "GoLive.Generator.Saturn.Resources.ReadonlyAttribute";
+    private const string ATTRIBUTE_AddToLimitedView = "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute";
+    private const string ATTRIBUTE_AddParentItemToLimitedView = "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute";
 
     public static bool CanBeEntity(SyntaxNode node)
     {
-        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 } cds && cds.Modifiers.Any(e=>e.IsKind(SyntaxKind.PartialKeyword));
+        return node is ClassDeclarationSyntax { BaseList.Types.Count: > 0 } cds && cds.Modifiers.Any(e => e.IsKind(SyntaxKind.PartialKeyword));
     }
 
     public static bool IsEntity(INamedTypeSymbol classDeclaration)
@@ -63,36 +65,37 @@ public static class Scanner
     {
         var attrs = classSymbol.GetAttributes();
 
-        if (attrs.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute"))
+
+
+        if (attrs.Any(e => e.AttributeClass.ToString() == ATTRIBUTE_AddParentItemToLimitedView))
         {
-            foreach (var attributeData in attrs.Where(f => f.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute"))
+            foreach (var attributeData in attrs.Where(f => f.AttributeClass.ToString() == ATTRIBUTE_AddParentItemToLimitedView))
             {
                 LimitedViewParentItemToGenerate retr = new();
 
                 retr.ViewName = attributeData.ConstructorArguments.FirstOrDefault(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
                 retr.PropertyName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Skip(1).FirstOrDefault().Value as string;
                 retr.Property = GetMember(classSymbol, retr.PropertyName) as IPropertySymbol;
-                
+
                 if (attributeData.NamedArguments.Any())
                 {
-                    if (attributeData.NamedArguments.Any(f => f.Key == "UseLimitedView"))
+                    foreach (var namedArg in attributeData.NamedArguments)
                     {
-                        retr.OverrideReturnTypeToUseLimitedView = attributeData.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
-                    }                    
-                    
-                    if (attributeData.NamedArguments.Any(f => f.Key == "ChildField"))
+                        switch (namedArg.Key)
                     {
-                        retr.ChildPropertyName = attributeData.NamedArguments.FirstOrDefault(r => r.Key == "ChildField").Value.Value.ToString();
+                            case "UseLimitedView":
+                                retr.OverrideReturnTypeToUseLimitedView = namedArg.Value.Value.ToString();
+                                break;
+                            case "ChildField":
+                                retr.ChildPropertyName = namedArg.Value.Value.ToString();
+                                break;
+                            case "TwoWay":
+                                retr.TwoWay = (bool)namedArg.Value.Value;
+                                break;
+                            case "InheritFromIUniquelyIdentifiable":
+                                retr.InheritFromIUniquelyIdentifiable = (bool)namedArg.Value.Value;
+                                break;
                     }
-
-                    if (attributeData.NamedArguments.Any(r => r.Key == "TwoWay"))
-                    {
-                        retr.TwoWay = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
-                    }
-                    
-                    if (attributeData.NamedArguments.Any(r => r.Key == "InheritFromIUniquelyIdentifiable"))
-                    {
-                        retr.InheritFromIUniquelyIdentifiable = (bool)attributeData.NamedArguments.FirstOrDefault(r => r.Key == "InheritFromIUniquelyIdentifiable").Value.Value;
                     }
                 }
 
@@ -100,13 +103,13 @@ public static class Scanner
                 {
                     retr.ChildPropertyName = retr.PropertyName;
                 }
-                
+
                 yield return retr;
             }
         }
     }
-    
-    
+
+
     private static ISymbol GetMember(INamedTypeSymbol classDeclaration, string Name)
     {
         var currentDeclared = classDeclaration;
@@ -130,47 +133,47 @@ public static class Scanner
     {
         foreach (var member in classSymbol.GetMembers())
         {
-            
             var memberToGenerate = new MemberToGenerate
             {
                 Name = member.Name,
-                /*Type = fieldSymbol.Type*/
             };
-            
-            
-            if (member is not IFieldSymbol
-                {
-                    DeclaredAccessibility: Accessibility.Private, IsAbstract: false, AssociatedSymbol: null
-                } fieldSymbol /*and not {MethodKind: MethodKind.Constructor}*/)
+
+            IFieldSymbol fieldSymbol = null;
+            IPropertySymbol propertySymbol = null;
+
+            if (member is IFieldSymbol field)
             {
+                fieldSymbol = field;
+                memberToGenerate.Type = fieldSymbol.Type;
+            }
+            else if (member is IPropertySymbol property)
+            {
+                propertySymbol = property;
+                memberToGenerate.Type = propertySymbol.Type;
 
-                if (member is IPropertySymbol { IsAbstract: false } propertySymbol)
+                if (propertySymbol.IsPartialDefinition)
                 {
-                    memberToGenerate.Type = propertySymbol.Type;
-
-                    if (propertySymbol.IsPartialDefinition)
-                    {
-                        memberToGenerate.IsPartialProperty = true;
-                    }
-                    else
-                    {
-                        memberToGenerate.UseOnlyForLimited = true;
-                    }
-                    var propertyMember = new MemberToGenerate
-                    {
-                        Name = propertySymbol.Name,
-                        Type = propertySymbol.Type,
-                        UseOnlyForLimited = true
-                    };
-                    
-                    getAddToLimitedViewsFromAttributes(member.GetAttributes(), propertyMember);
+                    memberToGenerate.IsPartialProperty = true;
+                    memberToGenerate.Name = $"{char.ToLowerInvariant(memberToGenerate.Name[0])}{memberToGenerate.Name.Substring(1)}";
                 }
                 else
                 {
-                    continue;
+                    memberToGenerate.UseOnlyForLimited = true;
                 }
+
+                var propertyMember = new MemberToGenerate
+                {
+                    Name = propertySymbol.Name,
+                    Type = propertySymbol.Type,
+                    UseOnlyForLimited = true
+                };
+
+                getAddToLimitedViewsFromAttributes(member.GetAttributes(), propertyMember);
             }
-            
+            else
+            {
+                continue;
+            }
 
             if (member.GetDocumentationCommentXml() is { } xmlComment && !string.IsNullOrWhiteSpace(xmlComment))
             {
@@ -206,21 +209,21 @@ public static class Scanner
 
                 if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod)
                 {
-                    if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, fieldSymbol.Type.OriginalDefinition))
+                    if (fieldSymbol != null && SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, fieldSymbol.Type.OriginalDefinition))
                     {
                         memberToGenerate.HasRunAfterSetMethodSimple = true;
                     }
 
-                    if (fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>" )
+                    if (fieldSymbol != null && fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
                     {
-                        if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition , ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition))
+                        if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition))
                         {
                             memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                         }
 
                         memberToGenerate.RefType = ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition.ToString();
                     }
-                    
+
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition.SpecialType == SpecialType.System_String)
                     {
                         memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
@@ -229,8 +232,6 @@ public static class Scanner
             }
 
             getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
-
-            
 
             if (attr.Any(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
             {
@@ -244,7 +245,7 @@ public static class Scanner
                     {
                         foreach (var atConstructorArgument in at.ConstructorArguments)
                         {
-                            memAt.ConstructorParameters.AddRange(atConstructorArgument.Values.Select(f=>f.Value?.ToString()));
+                            memAt.ConstructorParameters.AddRange(atConstructorArgument.Values.Select(f => f.Value?.ToString()));
                         }
                     }
 
@@ -253,26 +254,27 @@ public static class Scanner
                         memAt.NamedParameters = at.NamedArguments.Select
                             (r => new KeyValuePair<string, string>(r.Key, r.Value.Value?.ToString())).ToList();
                     }
-                    
+
                     memberToGenerate.AdditionalAttributes.Add(memAt);
                 }
             }
 
-            switch (fieldSymbol.Type)
+            if (fieldSymbol != null)
             {
-                case INamedTypeSymbol s2 when s2.OriginalDefinition.ToString() == "FastMember.TypeAccessor":
-                    continue;
-                case INamedTypeSymbol s1 when s1.OriginalDefinition.ToString() == "ObservableCollections.ObservableList<T>":
-                    memberToGenerate.IsCollection = true;
-                    memberToGenerate.CollectionType = s1.TypeArguments.FirstOrDefault();
+                switch (fieldSymbol.Type)
+                {
+                    case INamedTypeSymbol s2 when s2.OriginalDefinition.ToString() == "FastMember.TypeAccessor":
+                        continue;
+                    case INamedTypeSymbol s1 when s1.OriginalDefinition.ToString() == "ObservableCollections.ObservableList<T>":
+                        memberToGenerate.IsCollection = true;
+                        memberToGenerate.CollectionType = s1.TypeArguments.FirstOrDefault();
 
-                    break;
+                        break;
+                }
             }
 
             yield return memberToGenerate;
         }
-
-        
     }
 
     private static bool AttributeExists(ImmutableArray<AttributeData> attr, string AttributeName)
@@ -287,15 +289,15 @@ public static class Scanner
 
     private static void getAddToLimitedViewsFromAttributes(ImmutableArray<AttributeData> attr, MemberToGenerate memberToGenerate)
     {
-        if (attr.Any(e => e.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute"))
+        if (attr.Any(e => e.AttributeClass.ToString() == ATTRIBUTE_AddToLimitedView))
         {
-            memberToGenerate.LimitedViews = attr.Where(f => f.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute")
+            memberToGenerate.LimitedViews = attr.Where(f => f.AttributeClass.ToString() == ATTRIBUTE_AddToLimitedView)
                 .Select(e =>
                 {
                     var retr = new LimitedViewToGenerate();
-                        
-                    retr.Name = e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
-                    retr.TwoWay = (bool)e.ConstructorArguments.FirstOrDefault(r =>  r is { Type: { SpecialType: SpecialType.System_Boolean }, Value: not null }).Value;
+
+                    retr.Name = e.ConstructorArguments.FirstOrDefault(r => r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
+                    retr.TwoWay = (bool)e.ConstructorArguments.FirstOrDefault(r => r is { Type: { SpecialType: SpecialType.System_Boolean }, Value: not null }).Value;
 
                     if (e.NamedArguments.Any())
                     {
@@ -319,13 +321,14 @@ public static class Scanner
                 }).ToList();
         }
     }
+
     public static string transformDocumentationComment(string xmlComment)
     {
         if (string.IsNullOrWhiteSpace(xmlComment))
             return string.Empty;
 
         XmlDocument xmlDoc = new XmlDocument();
-        xmlDoc.LoadXml("<root>" + xmlComment + "</root>");
+        xmlDoc.LoadXml($"<root>{xmlComment}</root>");
 
         // Extract summary, remarks, example, etc. from the XML
         var summaryNode = xmlDoc.SelectSingleNode("root/summary");

@@ -36,6 +36,11 @@ public static class SourceCodeGenerator
         source.AppendLine("{");
         source.AppendIndent();
             
+        foreach (var memberToGenerate in classToGen.Members.Where(e=>e.IsPartialProperty))
+        {
+            source.AppendLine($"private {memberToGenerate.Type} {memberToGenerate.Name};");
+        }
+        
         source.AppendLine($"public {classToGen.Name}()");
         source.AppendOpenCurlyBracketLine();
             
@@ -445,7 +450,7 @@ public static class SourceCodeGenerator
         }
         
         outputAttributes(source, item);
-        source.AppendLine($"public {item.Type} {itemName.FirstCharToUpper()}");
+        source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} {item.Type} {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
             
         if (!item.WriteOnly)
