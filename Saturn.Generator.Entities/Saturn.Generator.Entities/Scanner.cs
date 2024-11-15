@@ -141,7 +141,7 @@ public static class Scanner
             IFieldSymbol fieldSymbol = null;
             IPropertySymbol propertySymbol = null;
 
-            if (member is IFieldSymbol field)
+            if (member is IFieldSymbol { AssociatedSymbol: null } field and not (IFieldSymbol { DeclaredAccessibility: Accessibility.Private, IsAbstract: false, AssociatedSymbol: not null }))
             {
                 fieldSymbol = field;
                 memberToGenerate.Type = fieldSymbol.Type;
@@ -161,14 +161,14 @@ public static class Scanner
                     memberToGenerate.UseOnlyForLimited = true;
                 }
 
-                var propertyMember = new MemberToGenerate
-                {
-                    Name = propertySymbol.Name,
-                    Type = propertySymbol.Type,
-                    UseOnlyForLimited = true
-                };
+                getAddToLimitedViewsFromAttributes(member.GetAttributes(), memberToGenerate);
 
-                getAddToLimitedViewsFromAttributes(member.GetAttributes(), propertyMember);
+                if (memberToGenerate.UseOnlyForLimited)
+                {
+                    yield return memberToGenerate;
+
+                    continue;
+                }
             }
             else
             {
