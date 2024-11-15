@@ -201,7 +201,7 @@ public static class Scanner
                 memberToGenerate.WriteOnly = true;
             }
 
-            var immutableArray = classSymbol.GetMembers($"{member.Name}_runAfterSet");
+            var immutableArray = classSymbol.GetMembers($"{memberToGenerate.Name}_runAfterSet");
 
             if (immutableArray.Length > 0)
             {
@@ -209,19 +209,19 @@ public static class Scanner
 
                 if (runAfterSetMember is IMethodSymbol { Parameters.Length: 1 } runAfterSetMethod)
                 {
-                    if (fieldSymbol != null && SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, fieldSymbol.Type.OriginalDefinition))
+                    if (memberToGenerate.Type != null && SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, memberToGenerate.Type.OriginalDefinition))
                     {
                         memberToGenerate.HasRunAfterSetMethodSimple = true;
                     }
 
-                    if (fieldSymbol != null && fieldSymbol.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
+                    if (memberToGenerate.Type != null && memberToGenerate.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
                     {
-                        if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition))
+                        if (SymbolEqualityComparer.IncludeNullability.Equals(runAfterSetMethod.Parameters[0].Type.OriginalDefinition, ((INamedTypeSymbol)memberToGenerate.Type).TypeArguments[0].OriginalDefinition))
                         {
                             memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
                         }
 
-                        memberToGenerate.RefType = ((INamedTypeSymbol)fieldSymbol.Type).TypeArguments[0].OriginalDefinition.ToString();
+                        memberToGenerate.RefType = ((INamedTypeSymbol)memberToGenerate.Type).TypeArguments[0].OriginalDefinition.ToString();
                     }
 
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition.SpecialType == SpecialType.System_String)
@@ -259,9 +259,9 @@ public static class Scanner
                 }
             }
 
-            if (fieldSymbol != null)
+            if (memberToGenerate is { Type: not null })
             {
-                switch (fieldSymbol.Type)
+                switch (memberToGenerate.Type)
                 {
                     case INamedTypeSymbol s2 when s2.OriginalDefinition.ToString() == "FastMember.TypeAccessor":
                         continue;

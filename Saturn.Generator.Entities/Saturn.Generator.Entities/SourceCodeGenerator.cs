@@ -512,11 +512,11 @@ public static class SourceCodeGenerator
             
         source.AppendCloseCurlyBracketLine();
 
-        if (item.HasRunAfterSetMethodIsString || item.HasRunAfterSetMethodIsRefItem || item.HasRunAfterSetMethodSimple && !string.IsNullOrWhiteSpace(item.RefType))
+        /*if (item.HasRunAfterSetMethodIsString || item.HasRunAfterSetMethodIsRefItem || item.HasRunAfterSetMethodSimple && !string.IsNullOrWhiteSpace(item.RefType))
         {
             source.AppendLine($"[System.ComponentModel.EditorBrowsable(EditorBrowsableState.Never)] public static Func<string, {item.RefType}> _{itemName}_runAfterSet_fetch;");
             source.AppendLine("");
-        }
+        }*/
         
         string getSimpleValue(MemberToGenerate item)
         {
