@@ -132,7 +132,12 @@ public static class Scanner
     private static IEnumerable<MemberToGenerate> ConvertToMembers(INamedTypeSymbol classSymbol)
     {
         foreach (var member in classSymbol.GetMembers())
-        {
+        { //if (member.IsStatic || member.IsReadOnly || (member.Kind == SymbolKind.Field && ((IFieldSymbol)member).IsConst))
+            if (member.IsStatic || (member.Kind == SymbolKind.Field && ((IFieldSymbol)member).IsReadOnly) || (member.Kind == SymbolKind.Field && ((IFieldSymbol)member).IsConst) || (member.Kind == SymbolKind.Property && ((IPropertySymbol)member).IsReadOnly))
+            {
+                continue;
+            }
+        
             var memberToGenerate = new MemberToGenerate
             {
                 Name = member.Name,
