@@ -57,7 +57,8 @@ public static class Scanner
         retr.Namespace = input.symbol.ContainingNamespace.ToDisplayString();
         retr.Members = ConvertToMembers(input.symbol).ToList();
         retr.ParentItemToGenerate = GetParentItemsToGenerate(input.symbol, input.syntax).ToList();
-
+        retr.HasInitMethod = input.symbol.GetMembers().OfType<IMethodSymbol>().Any(m => m.Name == "_init" && m.DeclaredAccessibility == Accessibility.Private);
+        
         return retr;
     }
 

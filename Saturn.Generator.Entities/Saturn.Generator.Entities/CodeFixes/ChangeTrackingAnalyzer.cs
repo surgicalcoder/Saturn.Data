@@ -31,15 +31,22 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
     {
         var propertyDeclaration = (PropertyDeclarationSyntax)context.Node;
 
-        // Check for exception comment
-        var trivia = propertyDeclaration.GetLeadingTrivia().ToString();
-        if (trivia.Contains("// EXCEPTION: Don't track changes"))
+        // Check for exception comment on the property
+        var propertyTrivia = propertyDeclaration.GetLeadingTrivia().ToString();
+        if (propertyTrivia.Contains("// EXCEPTION: Don't track changes"))
         {
             return;
         }
 
         var classDeclaration = propertyDeclaration.FirstAncestorOrSelf<ClassDeclarationSyntax>();
         if (classDeclaration == null)
+        {
+            return;
+        }
+    
+        // Check for exception comment on the class
+        var classTrivia = classDeclaration.GetLeadingTrivia().ToString();
+        if (classTrivia.Contains("// EXCEPTION: Don't track changes"))
         {
             return;
         }

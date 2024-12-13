@@ -11,8 +11,8 @@ public class RunAfterSetAnalyzer : DiagnosticAnalyzer
 {
     public const string DiagnosticId = "RunAfterSetAnalyzer";
     private const string Title = "Create Method that runs after set";
-    private const string MessageFormat = "Field or partial property '{0}' should have a method that runs after set";
-    private const string Description = "Fields or partial properties in classes inheriting from Entity should have a method that runs after set.";
+    private const string MessageFormat = "Field or partial property '{0}' could have a method that runs after set";
+    private const string Description = "Fields or partial properties in classes inheriting from Entity could have a method that runs after set.";
     private const string Category = "Usage";
 
     private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(

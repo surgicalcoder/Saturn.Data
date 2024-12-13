@@ -13,6 +13,7 @@ public class ClassToGenerate
     public List<MemberToGenerate> Members { get; set; } = new();
     public string Filename { get; set; }
     public string Namespace { get; set; }
+    public bool HasInitMethod { get; set; }
 
     public List<LimitedViewParentItemToGenerate> ParentItemToGenerate { get; set; }
 }

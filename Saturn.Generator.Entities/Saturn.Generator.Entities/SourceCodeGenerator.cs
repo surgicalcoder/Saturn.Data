@@ -41,18 +41,26 @@ public static class SourceCodeGenerator
             source.AppendLine($"private {memberToGenerate.Type} {memberToGenerate.Name};");
         }
         
-        source.AppendLine($"public {classToGen.Name}()");
-        source.AppendOpenCurlyBracketLine();
-            
-        foreach (var coll in classToGen.Members.Where(f=>f.IsCollection))
+        if (classToGen.Members.Any(f => f.IsCollection) || classToGen.HasInitMethod)
         {
-            var collTargetName = coll.Name.FirstCharToUpper();
-            source.AppendLine($"{collTargetName} = new();");
+            source.AppendLine($"public {classToGen.Name}()");
+            source.AppendOpenCurlyBracketLine();
+
+            if (classToGen.HasInitMethod)
+            {
+                source.AppendLine("_init();");
+            }
+        
+            foreach (var coll in classToGen.Members.Where(f=>f.IsCollection))
+            {
+                var collTargetName = coll.Name.FirstCharToUpper();
+                source.AppendLine($"{collTargetName} = new();");
             
-            source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
+                source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
+            }
+            source.AppendCloseCurlyBracketLine();
         }
-        source.AppendCloseCurlyBracketLine();
-            
+        
         /*List<ITypeSymbol> typeAccessorsToCreate = new();
 
         foreach (var s in classToGen.Members.Where(f => !f.IsCollection).Select(f => f.Type).Distinct())
