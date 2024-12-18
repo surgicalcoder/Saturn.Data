@@ -70,7 +70,7 @@ public partial class MongoDBRepository
     public MongoDBRepository(RepositoryOptions repositoryOptions, MongoDBRepositoryOptions mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
-        mongoRepositoryOptions = mongoOptions;
+        mongoOptions = mongoRepositoryOptions;
 
         var connectionString = options.ConnectionString ?? throw new ArgumentNullException("repositoryOptions.ConnectionString");
 
