@@ -145,14 +145,14 @@ public partial class MongoDBRepository
         
         
         
-        if (mongoOptions.CommandSucceededCallback != null)
+        if (mongoOptions?.CommandSucceededCallback != null)
         {
             cb.Subscribe<CommandSucceededEvent>(e =>
             {
                 Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e)));
             });
         }
-        if (mongoOptions.CommandStartedCallback != null)
+        if (mongoOptions?.CommandStartedCallback != null)
         {
             cb.Subscribe<CommandStartedEvent>(e =>
             {
@@ -160,7 +160,7 @@ public partial class MongoDBRepository
             });
         }
 
-        if (mongoOptions.CommandFailedCallback != null)
+        if (mongoOptions?.CommandFailedCallback != null)
         {
             cb.Subscribe<CommandFailedEvent>(e =>
             {
