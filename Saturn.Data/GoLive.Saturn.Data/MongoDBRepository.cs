@@ -156,7 +156,8 @@ public partial class MongoDBRepository
         {
             cb.Subscribe<CommandStartedEvent>(e =>
             {
-                Task.Run(async () => await mongoOptions.CommandStartedCallback.Invoke(MongoCommandStartedEvent.FromMongoEvent(e)));
+                var document = e.Command.ToJson();
+                Task.Run(async () => await mongoOptions.CommandStartedCallback.Invoke(MongoCommandStartedEvent.FromMongoEvent(e, document)));
             });
         }
 

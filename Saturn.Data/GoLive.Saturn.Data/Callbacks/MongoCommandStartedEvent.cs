@@ -14,11 +14,11 @@ public struct MongoCommandStartedEvent
     public string ServiceId { get; private set; }
     public DateTime Timestamp { get; private set; }
 
-    internal static MongoCommandStartedEvent FromMongoEvent(MongoDB.Driver.Core.Events.CommandStartedEvent mongoEvent)
+    internal static MongoCommandStartedEvent FromMongoEvent(MongoDB.Driver.Core.Events.CommandStartedEvent mongoEvent, string Command = "")
     {
         return new MongoCommandStartedEvent
         {
-            Command = mongoEvent.Command?.ToJson(),
+            Command = string.IsNullOrWhiteSpace(Command) ? mongoEvent.Command?.ToJson() : Command,
             CommandName = mongoEvent.CommandName,
             ConnectionId = mongoEvent.ConnectionId?.ToString(),
             DatabaseNamespace = mongoEvent.DatabaseNamespace?.ToString(),
