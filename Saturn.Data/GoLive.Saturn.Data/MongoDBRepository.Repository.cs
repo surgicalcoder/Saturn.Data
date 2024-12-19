@@ -74,6 +74,8 @@ public partial class MongoDBRepository : IRepository
         {
             entity.Id = ObjectId.GenerateNewId().ToString();
         }
+        
+        /*mongoOptions.UpsertCallback?.Invoke(this, typeof(T), [entity]);*/
             
         var updateResult = await GetCollection<T>().ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true });
             
@@ -89,7 +91,9 @@ public partial class MongoDBRepository : IRepository
         {
             return;
         }
-
+        
+        /*mongoOptions.UpsertCallback?.Invoke(this, typeof(T), [entity]);*/
+        
         for (int i = 0; i < entity.Count; i++)
         {
             if (string.IsNullOrEmpty(entity[i].Id))

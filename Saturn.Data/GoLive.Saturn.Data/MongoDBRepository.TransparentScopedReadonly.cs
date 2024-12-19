@@ -72,6 +72,7 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         var item = GetCollection<TItem>().AsQueryable().Where(f=>f.Scope == scope).Take(1).FirstOrDefault();
+       
         return item;
     }
 

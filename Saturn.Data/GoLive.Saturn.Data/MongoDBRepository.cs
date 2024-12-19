@@ -2,7 +2,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
+using GoLive.Saturn.Data.Callbacks;
 using GoLive.Saturn.Data.Conventions;
 using GoLive.Saturn.Data.Entities;
 using GoLive.Saturn.Data.EntitySerializers;
@@ -110,7 +112,6 @@ public partial class MongoDBRepository
                 options?.CommandStartedCallback?.Invoke(new CommandStartedArgs(){Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId});
             });
         }
-
         if (options?.CommandFailedCallback != null)
         {
             cb.Subscribe<CommandFailedEvent>(e =>
@@ -118,12 +119,36 @@ public partial class MongoDBRepository
                 options?.CommandFailedCallback.Invoke(new CommandFailedArgs(){CommandName = e.CommandName, RequestId = e.RequestId, Exception = e.Failure});
             });
         }
-
         if (options?.CommandCompletedCallback != null)
         {
             cb.Subscribe<CommandSucceededEvent>(e =>
             {
                 options?.CommandCompletedCallback.Invoke(new CommandCompletedArgs() {CommandName = e.CommandName, RequestId = e.RequestId, Time = e.Duration});
+            });
+        }
+        
+        
+        
+        if (mongoOptions.CommandSucceededCallback != null)
+        {
+            cb.Subscribe<CommandSucceededEvent>(e =>
+            {
+                Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e)));
+            });
+        }
+        if (mongoOptions.CommandStartedCallback != null)
+        {
+            cb.Subscribe<CommandStartedEvent>(e =>
+            {
+                Task.Run(async () => await mongoOptions.CommandStartedCallback.Invoke(MongoCommandStartedEvent.FromMongoEvent(e)));
+            });
+        }
+
+        if (mongoOptions.CommandFailedCallback != null)
+        {
+            cb.Subscribe<CommandFailedEvent>(e =>
+            {
+                Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e)));
             });
         }
     }
