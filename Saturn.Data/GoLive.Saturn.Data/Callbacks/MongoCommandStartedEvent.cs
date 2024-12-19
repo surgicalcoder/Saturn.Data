@@ -1,4 +1,5 @@
 using System;
+using MongoDB.Bson;
 
 namespace GoLive.Saturn.Data.Callbacks;
 
@@ -17,13 +18,13 @@ public struct MongoCommandStartedEvent
     {
         return new MongoCommandStartedEvent
         {
-            Command = mongoEvent.Command.ToString(),
+            Command = mongoEvent.Command?.ToJson(),
             CommandName = mongoEvent.CommandName,
-            ConnectionId = mongoEvent.ConnectionId.ToString(),
-            DatabaseNamespace = mongoEvent.DatabaseNamespace.ToString(),
+            ConnectionId = mongoEvent.ConnectionId?.ToString(),
+            DatabaseNamespace = mongoEvent.DatabaseNamespace?.ToString(),
             OperationId = mongoEvent.OperationId,
             RequestId = mongoEvent.RequestId,
-            ServiceId = mongoEvent.ServiceId.ToString(),
+            ServiceId = mongoEvent.ServiceId?.ToString(),
             Timestamp = mongoEvent.Timestamp
         };
     }

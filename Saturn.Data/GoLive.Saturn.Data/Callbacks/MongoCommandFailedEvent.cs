@@ -19,13 +19,13 @@ public struct MongoCommandFailedEvent
         return new MongoCommandFailedEvent
         {
             CommandName = mongoEvent.CommandName,
-            ConnectionId = mongoEvent.ConnectionId.ToString(),
-            DatabaseNamespace = mongoEvent.DatabaseNamespace.ToString(),
+            ConnectionId = mongoEvent.ConnectionId?.ToString(),
+            DatabaseNamespace = mongoEvent.DatabaseNamespace?.ToString(),
             Duration = mongoEvent.Duration,
             Failure = mongoEvent.Failure,
             OperationId = mongoEvent.OperationId,
             RequestId = mongoEvent.RequestId,
-            ServiceId = mongoEvent.ServiceId.ToString(),
+            ServiceId = mongoEvent.ServiceId?.ToString(),
             Timestamp = mongoEvent.Timestamp
         };
     }

@@ -22,14 +22,14 @@ public struct MongoCommandSucceededEvent
         return new MongoCommandSucceededEvent
         {
             CommandName = mongoEvent.CommandName,
-            ConnectionId = mongoEvent.ConnectionId.ToString(),
-            DatabaseNamespace = mongoEvent.DatabaseNamespace.ToString(),
+            ConnectionId = mongoEvent.ConnectionId?.ToString(),
+            DatabaseNamespace = mongoEvent.DatabaseNamespace?.ToString(),
             Duration = mongoEvent.Duration,
             OperationId = mongoEvent.OperationId,
             RequestId = mongoEvent.RequestId,
-            ServiceId = mongoEvent.ServiceId.ToString(),
+            ServiceId = mongoEvent.ServiceId?.ToString(),
             Timestamp = mongoEvent.Timestamp,
-            Reply = mongoEvent.Reply.ToString()
+            Reply = mongoEvent.Reply?.ToString()
         };
     }
 }
