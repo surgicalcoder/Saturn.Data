@@ -48,11 +48,19 @@ public partial class MongoDBRepository
 
         if (mongoRepositoryOptions?.EnableDiagnostics == true)
         {
-            settings.ClusterConfigurator = cb => cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions()
+            settings.ClusterConfigurator = cb =>
             {
-                CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
-                ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
-            }));
+                cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions
+                {
+                    CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
+                    ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+                }));
+
+                if (options is { DebugMode: true })
+                {
+                    setupCallbacks(cb);
+                }
+            };
         }
         else
         {
@@ -82,11 +90,19 @@ public partial class MongoDBRepository
 
         if (mongoRepositoryOptions?.EnableDiagnostics == true)
         {
-            settings.ClusterConfigurator = cb => cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions()
+            settings.ClusterConfigurator = cb =>
             {
-                CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
-                ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
-            }));
+                cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions
+                {
+                    CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
+                    ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+                }));
+
+                if (options is { DebugMode: true })
+                {
+                    setupCallbacks(cb);
+                }
+            };
         }
         else
         {
