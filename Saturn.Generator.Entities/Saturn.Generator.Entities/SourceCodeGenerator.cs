@@ -443,7 +443,7 @@ public static class SourceCodeGenerator
         source.AppendLine($"public ObservableCollections.ObservableList<{item.CollectionType}> {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"get => {itemName};");
-        source.AppendLine($"set => SetField(ref {itemName}, value);");
+        source.AppendLine($"set => SetField(ref this.{itemName}, value);");
         source.AppendCloseCurlyBracketLine();
     }
 
@@ -482,10 +482,10 @@ public static class SourceCodeGenerator
                     Scopes.Add(value.Id);
                 }}
 
-                SetField(ref {itemName}, value.Id);
+                SetField(ref this.{itemName}, value.Id);
                 if (value.Item != null)
                 {{
-                    SetField(ref {itemName}, value.Item);
+                    SetField(ref this.{itemName}, value.Item);
                 }}
 
                 {getSimpleValue(item)}
@@ -496,7 +496,7 @@ public static class SourceCodeGenerator
                 if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id) && Scopes.Contains({itemName}.Id))
                 {{
                     Scopes.Remove({itemName}.Id);
-                    SetField(ref {itemName}, string.Empty);
+                    SetField(ref this.{itemName}, string.Empty);
                 }}
             }}
         }}");
@@ -508,13 +508,13 @@ public static class SourceCodeGenerator
             {
                 source.Append($@"set
         {{
-            SetField(ref {itemName}, value);
+            SetField(ref this.{itemName}, value);
             {itemName}_runAfterSet(value);
         }}");
             }
             else
             {
-                source.AppendLine($"set => SetField(ref {itemName}, value);");
+                source.AppendLine($"set => SetField(ref this.{itemName}, value);");
             }
         }
             
