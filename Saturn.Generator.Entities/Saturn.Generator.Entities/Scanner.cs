@@ -251,7 +251,9 @@ public static class Scanner
                     {
                         foreach (var atConstructorArgument in at.ConstructorArguments)
                         {
-                            memAt.ConstructorParameters.AddRange(atConstructorArgument.Values.Select(f => f.Value?.ToString()));
+                            memAt.ConstructorParameters.AddRange(atConstructorArgument.Kind == TypedConstantKind.Array
+                                ? atConstructorArgument.Values.Select(f => f.Value?.ToString())
+                                : [atConstructorArgument.Value?.ToString()]);
                         }
                     }
 
@@ -315,6 +317,17 @@ public static class Scanner
                         if (e.NamedArguments.Any(r => r.Key == "TwoWay"))
                         {
                             retr.TwoWay = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
+                        }
+
+                        if (e.NamedArguments.Any(f => f.Key == "LimitedViewType"))
+                        {
+                            var limitedViewType = e.NamedArguments.FirstOrDefault(r => r.Key == "LimitedViewType").Value.Value.ToString();
+                            if (!string.IsNullOrEmpty(limitedViewType))
+                            {
+                                var typeName = limitedViewType.Split('(').Last().Split(')').First();
+                                var suffix = typeName.Split('_').LastOrDefault();
+                                retr.OverrideReturnTypeToUseLimitedView = suffix;
+                            }
                         }
 
                         if (e.NamedArguments.Any(r => r.Key == "Initializer"))
