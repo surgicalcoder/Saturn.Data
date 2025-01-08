@@ -61,43 +61,6 @@ public static class SourceCodeGenerator
             source.AppendCloseCurlyBracketLine();
         }
         
-        /*List<ITypeSymbol> typeAccessorsToCreate = new();
-
-        foreach (var s in classToGen.Members.Where(f => !f.IsCollection).Select(f => f.Type).Distinct())
-        {
-            if (!typeAccessorsToCreate.Contains(s))
-            {
-                typeAccessorsToCreate.Add(s);
-            }
-        }
-
-        foreach (var s in classToGen.Members.Where(f => f.CollectionType != null).Select(f => f.CollectionType).Distinct())
-        {
-            if (!typeAccessorsToCreate.Contains(s))
-            {
-                typeAccessorsToCreate.Add(s);
-            }
-        }
-
-        bool addedRefAccessor = false;
-            
-        foreach (var s in typeAccessorsToCreate)
-        {
-            if (s.Name == "Ref" && ((INamedTypeSymbol)s).ConstructedFrom.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
-            {
-                if (!addedRefAccessor)
-                {
-                    source.AppendLine($"TypeAccessor RefTypeAccessor = TypeAccessor.Create(typeof(GoLive.Saturn.Data.Entities.Ref<>));");
-                    source.AppendLine();
-                    addedRefAccessor = true;
-                }
-                continue;
-            }
-            var collTargetName = s.Name.FirstCharToUpper();
-            source.AppendLine($"TypeAccessor {collTargetName}TypeAccessor = TypeAccessor.Create(typeof({s}));");
-            source.AppendLine();
-        }*/
-
         foreach (var member in classToGen.Members.Where(f=>!f.UseOnlyForLimited))
         {
             if (member.IsCollection)
@@ -440,7 +403,7 @@ public static class SourceCodeGenerator
     private static void GenerateCollectionMember(SourceStringBuilder source, MemberToGenerate item)
     {
         var itemName = item.Name;
-        source.AppendLine($"public ObservableCollections.ObservableList<{item.CollectionType}> {itemName.FirstCharToUpper()}");
+        source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} ObservableCollections.ObservableList<{item.CollectionType}> {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"get => {itemName};");
         source.AppendLine($"set => SetField(ref this.{itemName}, value);");

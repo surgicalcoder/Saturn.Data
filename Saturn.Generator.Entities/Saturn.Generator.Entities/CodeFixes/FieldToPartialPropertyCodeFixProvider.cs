@@ -48,7 +48,8 @@ public class FieldToPartialPropertyCodeFixProvider : CodeFixProvider
             .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.PartialKeyword))
             .AddAccessorListAccessors(
                 SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-                SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))
+            .WithAttributeLists(fieldDeclaration.AttributeLists);
 
         var root = await document.GetSyntaxRootAsync(cancellationToken);
         var newRoot = root.ReplaceNode(fieldDeclaration, propertyDeclaration);
