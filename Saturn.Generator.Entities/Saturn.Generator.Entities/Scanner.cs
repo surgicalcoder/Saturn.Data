@@ -83,7 +83,7 @@ public static class Scanner
                     foreach (var namedArg in attributeData.NamedArguments)
                     {
                         switch (namedArg.Key)
-                    {
+                        {
                             case "UseLimitedView":
                                 retr.OverrideReturnTypeToUseLimitedView = namedArg.Value.Value.ToString();
                                 break;
@@ -96,7 +96,7 @@ public static class Scanner
                             case "InheritFromIUniquelyIdentifiable":
                                 retr.InheritFromIUniquelyIdentifiable = (bool)namedArg.Value.Value;
                                 break;
-                    }
+                        }
                     }
                 }
 

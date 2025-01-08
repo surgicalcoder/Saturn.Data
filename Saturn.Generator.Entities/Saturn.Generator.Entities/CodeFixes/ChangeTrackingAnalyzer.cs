@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GoLive.Saturn.Generator.Entities.CodeFixes;
@@ -33,19 +34,22 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
 
         // Check for exception comment on the property
         var propertyTrivia = propertyDeclaration.GetLeadingTrivia().ToString();
+
         if (propertyTrivia.Contains("// EXCEPTION: Don't track changes"))
         {
             return;
         }
 
         var classDeclaration = propertyDeclaration.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+
         if (classDeclaration == null)
         {
             return;
         }
-    
+
         // Check for exception comment on the class
         var classTrivia = classDeclaration.GetLeadingTrivia().ToString();
+
         if (classTrivia.Contains("// EXCEPTION: Don't track changes"))
         {
             return;
@@ -53,12 +57,22 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
 
         var semanticModel = context.SemanticModel;
         var classSymbol = semanticModel.GetDeclaredSymbol(classDeclaration);
+
         if (classSymbol == null)
         {
             return;
         }
 
+        // Check if the property has the DoNotTrackChangesAttribute
+        var propertySymbol = semanticModel.GetDeclaredSymbol(propertyDeclaration);
+
+        if (propertySymbol?.GetAttributes().Any(attr => attr.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute") == true)
+        {
+            return;
+        }
+
         var baseType = classSymbol.BaseType;
+
         while (baseType != null)
         {
             if (baseType.ToString() == "GoLive.Saturn.Data.Entities.Entity")
@@ -68,8 +82,10 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
                     var diagnostic = Diagnostic.Create(Rule, propertyDeclaration.GetLocation(), propertyDeclaration.Identifier.Text);
                     context.ReportDiagnostic(diagnostic);
                 }
+
                 break;
             }
+
             baseType = baseType.BaseType;
         }
     }

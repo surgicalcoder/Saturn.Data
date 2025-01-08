@@ -10,4 +10,7 @@ public partial class IgnoreTest : Entity
     [Readonly]
     private string readonlyTest;
     private string everythingElseTest;
+    
+    [DoNotTrackChanges]
+    public string Blar { get; set; }
 }
