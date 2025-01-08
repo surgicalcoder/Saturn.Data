@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using System.Linq;
 
 namespace GoLive.Saturn.Generator.Entities.CodeFixes;
 
@@ -59,7 +60,8 @@ public class RunAfterSetAnalyzer : DiagnosticAnalyzer
         var baseType = classSymbol.BaseType;
         while (baseType != null)
         {
-            if (baseType.ToString() == "GoLive.Saturn.Data.Entities.Entity")
+            if (baseType.ToString() == "GoLive.Saturn.Data.Entities.Entity" || 
+                baseType.AllInterfaces.Any(i => i.ToString() == "GoLive.Saturn.Data.Entities.Entity"))
             {
                 var diagnostic = Diagnostic.Create(Rule, node.GetLocation(), node is PropertyDeclarationSyntax property ? property.Identifier.Text : ((FieldDeclarationSyntax)node).Declaration.Variables.First().Identifier.Text);
                 context.ReportDiagnostic(diagnostic);

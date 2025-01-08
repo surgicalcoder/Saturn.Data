@@ -75,7 +75,8 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
 
         while (baseType != null)
         {
-            if (baseType.ToString() == "GoLive.Saturn.Data.Entities.Entity")
+            if (baseType.ToString() == "GoLive.Saturn.Data.Entities.Entity" || 
+                baseType.AllInterfaces.Any(i => i.ToString() == "GoLive.Saturn.Data.Entities.Entity"))
             {
                 if (!propertyDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
                 {
