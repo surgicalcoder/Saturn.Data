@@ -288,8 +288,11 @@ public static class SourceCodeGenerator
 
     private static void outputViewUpdateFromMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
     {
+        source.AppendLine($"protected virtual void OnUpdateFromStart({classToGen.Name} source) {{ }}");
+        source.AppendLine($"protected virtual void OnUpdateFromEnd({classToGen.Name} source) {{ }}");
         source.AppendLine($"public void UpdateFrom({classToGen.Name} source)");
         source.AppendOpenCurlyBracketLine();
+        source.AppendLine("OnUpdateFromStart(source);");
         foreach (var v1 in item)
         {
             if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
@@ -351,17 +354,21 @@ public static class SourceCodeGenerator
                 }
             }
         }
-        
+        source.AppendLine("OnUpdateFromEnd(source);");
         source.AppendLine();
         source.AppendCloseCurlyBracketLine();
     }
     
     private static void outputViewGenerateMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey)
     {
+        source.AppendLine($"protected virtual void OnGenerateStart({classToGen.Name} source, {classToGen.Name}_{itemKey} result) {{ }}");
+        source.AppendLine($"protected virtual void OnGenerateEnd({classToGen.Name} source, {classToGen.Name}_{itemKey} result) {{ }}");
         source.AppendLine($"public static {classToGen.Name}_{itemKey} Generate({classToGen.Name} source)");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"var retr = new {classToGen.Name.FirstCharToUpper()}_{itemKey}();");
+        source.AppendLine("retr.OnGenerateStart(source, retr);");
         source.AppendLine("retr.UpdateFrom(source);");
+        source.AppendLine("retr.OnGenerateEnd(source, retr);");
         source.AppendLine("return retr;");
         source.AppendCloseCurlyBracketLine();
     }
