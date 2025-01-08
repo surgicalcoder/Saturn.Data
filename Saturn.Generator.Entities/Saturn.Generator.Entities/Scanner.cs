@@ -239,7 +239,7 @@ public static class Scanner
 
             getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
 
-            if (attr.Any(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
+            if ( member is not IPropertySymbol && attr.Any(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
             {
                 foreach (var at in attr.Where(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
                 {
@@ -253,7 +253,7 @@ public static class Scanner
                         {
                             memAt.ConstructorParameters.AddRange(atConstructorArgument.Kind == TypedConstantKind.Array
                                 ? atConstructorArgument.Values.Select(f => f.Value?.ToString())
-                                : [atConstructorArgument.Value?.ToString()]);
+                                : new[] { atConstructorArgument.Value?.ToString() });
                         }
                     }
 
