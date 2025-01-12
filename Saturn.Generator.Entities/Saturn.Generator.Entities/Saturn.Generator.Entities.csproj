@@ -19,7 +19,7 @@
         <Company>N/A</Company>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>Source Code Generator for GoLive.Saturn.Data entities to enrich data objects</Description>
-        <Copyright>Copyright 2023 - SurgicalCoder</Copyright>
+        <Copyright>Copyright 2023-2025 - SurgicalCoder</Copyright>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>

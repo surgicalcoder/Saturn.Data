@@ -6,7 +6,7 @@
       <Authors>SurgicalCoder</Authors>
       <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
       <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
-      <Copyright>Copyright 2020-2022 - SurgicalCoder</Copyright>
+      <Copyright>Copyright 2020-2025 - SurgicalCoder</Copyright>
       <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
       <PackageLicenseExpression>MIT</PackageLicenseExpression>
       <PublishRepositoryUrl>true</PublishRepositoryUrl>
