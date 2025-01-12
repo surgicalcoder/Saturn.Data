@@ -6,10 +6,6 @@ using System.Threading;
 using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data.AsyncEnumerable;
-
-/// <summary>
-///     Provides extension methods for <see cref="IAsyncCursor{TDocument}" />.
-/// </summary>
 public static class AsyncCursorExtensions
 {
     /// <summary>
@@ -20,11 +16,7 @@ public static class AsyncCursorExtensions
     /// <returns>An <see cref="IAsyncEnumerable{T}" /></returns>
     public static IAsyncEnumerable<TDocument> ToAsyncEnumerable<TDocument>(this IAsyncCursor<TDocument> cursor)
     {
-        if (cursor is null)
-        {
-            throw new ArgumentNullException(nameof(cursor));
-        }
-
+        ArgumentNullException.ThrowIfNull(cursor);
         return new AsyncCursorAsyncEnumerableOneTimeAdapter<TDocument>(cursor);
     }
 
@@ -33,33 +25,29 @@ public static class AsyncCursorExtensions
         IAsyncCursor<TDocument>? cursor,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        Debug.Assert(source is null ^ cursor is null);
+        Debug.Assert(source is null ^ cursor is null, "Either source or cursor must be non-null, but not both");
 
-        cursor ??= await source!.ToCursorAsync(cancellationToken).ConfigureAwait(false);
-
-        try
+        using (cursor ??= await source!.ToCursorAsync(cancellationToken).ConfigureAwait(false))
         {
-            while (await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
+            while (!cancellationToken.IsCancellationRequested && 
+                   await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
             {
                 foreach (var document in cursor.Current)
                 {
                     yield return document;
-
-                    cancellationToken.ThrowIfCancellationRequested();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        yield break;
+                    }
                 }
             }
         }
-        finally
-        {
-            cursor.Dispose();
-        }
     }
 
-    private class AsyncCursorAsyncEnumerableOneTimeAdapter<TDocument> : IAsyncEnumerable<TDocument>
+    private sealed class AsyncCursorAsyncEnumerableOneTimeAdapter<TDocument> : IAsyncEnumerable<TDocument>
     {
         private readonly IAsyncCursor<TDocument> _cursor;
-
-        private bool _enumerated;
+        private int _enumerationCount;
 
         public AsyncCursorAsyncEnumerableOneTimeAdapter(IAsyncCursor<TDocument> cursor)
         {
@@ -68,15 +56,12 @@ public static class AsyncCursorExtensions
 
         public IAsyncEnumerator<TDocument> GetAsyncEnumerator(CancellationToken cancellationToken)
         {
-            if (_enumerated)
+            if (Interlocked.Increment(ref _enumerationCount) > 1)
             {
                 throw new InvalidOperationException("An IAsyncCursor can only be enumerated once.");
             }
 
-            _enumerated = true;
-
-            return
-                ToAsyncEnumerable(null, _cursor, default).GetAsyncEnumerator(cancellationToken);
+            return ToAsyncEnumerable(null, _cursor, cancellationToken).GetAsyncEnumerator(cancellationToken); 
         }
     }
 }
