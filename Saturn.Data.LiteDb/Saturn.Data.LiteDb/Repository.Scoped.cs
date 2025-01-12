@@ -1,105 +1,49 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Saturn.Data.LiteDb;
 
 public partial class Repository : IScopedRepository
 {
-    public async Task Insert<T, T2>(T2 scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task JsonUpdate<T, T2>(string scope, string id, int version, string json) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        entity.Scope = scope;
-        await Insert(entity);
-    }
+        var collection = GetCollection<T>();
+        var entity = await collection.FindOneAsync(e => e.Scope == scope && e.Id == id);
 
-    public async Task InsertMany<T, T2>(T2 scope, IEnumerable<T> entities) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        foreach (var scopedEntity in entities)
+        if (entity == null)
         {
-            scopedEntity.Scope = scope;
+            throw new NotSupportedException("Entity not found");
         }
-        
-        await InsertMany(entities);
+
+        entity = JsonSerializer.Deserialize<T>(json);
+
+        entity.Version = version;
+
+        var updateResult = await collection.UpdateAsync(entity);
+
+        if (!updateResult)
+        {
+            throw new FailedToUpdateException();
+        }
     }
 
-    public async Task Update<T, T2>(T2 scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        entity.Scope = scope;
-        await Update(entity);
-    }
-
-    public async Task UpdateMany<T, T2>(T2 scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        entity.ForEach(f=>f.Scope = scope);
-        await UpdateMany(entity);
-    }
-    
-    public Task JsonUpdate<T, T2>(string Scope, string Id, int Version, string Json) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task Upsert<T, T2>(T2 scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        entity.Scope = scope;
-        await Upsert(entity);
-    }
-
-    public async Task UpsertMany<T, T2>(T2 scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        entity.ForEach(f=>f.Scope = scope);
-        await UpsertMany(entity);
-    }
-
-    public async Task Delete<T, T2>(T2 scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        await Delete<T>(f => f.Scope == scope && f.Id == entity.Id);
-    }
-
-    public async Task Delete<T, T2>(T2 scope, Expression<Func<T, bool>> filter) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        await Delete<T>(filter.And(e => e.Scope == scope));
-    }
-    
     public async Task Delete<T, T2>(string scope, Expression<Func<T, bool>> filter) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        await Delete<T>(filter.And(e => e.Scope == scope));
+        await Delete(filter.And(e => e.Scope == scope));
     }
 
-    public async Task Delete<T, T2>(T2 scope, string Id) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        await Delete<T>(f => f.Scope == scope && f.Id == Id);
-    }
-
-
-    public async Task DeleteMany<T, T2>(T2 scope, IEnumerable<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        foreach (var scopedEntity in entity)
-        {
-            scopedEntity.Scope = scope;
-        }
-        await DeleteMany<T>(entity); 
-    }
-
-    public async Task DeleteMany<T, T2>(T2 scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        if (IDs.Count == 0)
-        {
-            return;
-        }
-
-        await GetCollection<T>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id));
-    }
-    
     async Task IScopedRepository.UpsertMany<T, T2>(List<T> entity)
     {
         if (entity.Any(e => string.IsNullOrWhiteSpace(e.Scope)))
         {
             throw new FailedToUpsertException();
         }
+
         await UpsertMany(entity);
     }
-    
+
     public async Task Insert<T, T2>(string scope, T entity) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         entity.Scope = scope;
@@ -112,7 +56,7 @@ public partial class Repository : IScopedRepository
         {
             scopedEntity.Scope = scope;
         }
-        
+
         await InsertMany(entities);
     }
 
@@ -124,7 +68,7 @@ public partial class Repository : IScopedRepository
 
     public async Task UpdateMany<T, T2>(string scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        entity.ForEach(f=>f.Scope = scope);
+        entity.ForEach(f => f.Scope = scope);
         await UpdateMany(entity);
     }
 
@@ -136,7 +80,7 @@ public partial class Repository : IScopedRepository
 
     public async Task UpsertMany<T, T2>(string scope, List<T> entity) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        entity.ForEach(f=>f.Scope = scope);
+        entity.ForEach(f => f.Scope = scope);
         await UpsertMany(entity);
     }
 

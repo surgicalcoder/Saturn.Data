@@ -13,6 +13,7 @@ public partial class Repository : IRepository
         {
             entity.Id = ObjectId.NewObjectId().ToString();
         }
+
         await GetCollection<T>().InsertAsync(entity);
     }
 
@@ -28,12 +29,12 @@ public partial class Repository : IRepository
 
     public async Task Save<T>(T entity) where T : Entity
     {
-        await Upsert<T>(entity);
+        await Upsert(entity);
     }
 
     public async Task SaveMany<T>(List<T> entities) where T : Entity
     {
-        await UpsertMany<T>(entities);
+        await UpsertMany(entities);
     }
 
     public async Task Update<T>(T entity) where T : Entity
@@ -45,8 +46,8 @@ public partial class Repository : IRepository
             throw new FailedToUpdateException();
         }
     }
-    
-    
+
+
     public async Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity) where T : Entity
     {
         var coll = GetCollection<T>();
@@ -63,7 +64,7 @@ public partial class Repository : IRepository
 
         var coll = GetCollection<T>();
 
-        for (int i = 0; i < entities.Count; i++)
+        for (var i = 0; i < entities.Count; i++)
         {
             var res = await coll.UpdateAsync(entities[i]);
 
@@ -81,8 +82,8 @@ public partial class Repository : IRepository
             entity.Id = ObjectId.NewObjectId().ToString();
         }
 
-        var updateResult =  await GetCollection<T>().UpsertAsync(entity); 
-            
+        var updateResult = await GetCollection<T>().UpsertAsync(entity);
+
         if (!updateResult)
         {
             throw new FailedToUpsertException();
@@ -98,7 +99,7 @@ public partial class Repository : IRepository
 
         var coll = GetCollection<T>();
 
-        for (int i = 0; i < entity.Count; i++)
+        for (var i = 0; i < entity.Count; i++)
         {
             if (string.IsNullOrEmpty(entity[i].Id))
             {
@@ -133,6 +134,7 @@ public partial class Repository : IRepository
         {
             return;
         }
+
         var list = entities.Select(r => r.Id).ToList();
 
         await GetCollection<T>().DeleteManyAsync(arg => list.Contains(arg.Id));

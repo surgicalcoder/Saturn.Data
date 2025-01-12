@@ -13,11 +13,11 @@ public partial class Repository : IScopedReadonlyRepository
         return await GetCollection<T>().FindOneAsync(e => e.Id == id && e.Scope == scope);
     }
 
-    public async Task<List<T>> ById<T, T2>(T2 scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IAsyncEnumerable<T>> ById<T, T2>(T2 scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope);
 
-        return result.ToList();
+        return result.ToAsyncEnumerable();
     }
 
     public IQueryable<T> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -31,9 +31,9 @@ public partial class Repository : IScopedReadonlyRepository
     {
         Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        
+
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
-        
+
         if (sortOrders != null)
         {
             foreach (var sortOrder in sortOrders)
@@ -41,7 +41,7 @@ public partial class Repository : IScopedReadonlyRepository
                 res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(sortOrder.Field) : res.OrderByDescending(sortOrder.Field);
             }
         }
-        
+
         return res.FirstOrDefault();
     }
 
@@ -58,6 +58,11 @@ public partial class Repository : IScopedReadonlyRepository
         }
 
         return await Task.Run(() => scopedEntities);
+    }
+
+    public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    {
+        return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
     }
 
     public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -95,27 +100,27 @@ public partial class Repository : IScopedReadonlyRepository
         return await GetCollection<T>().FindOneAsync(e => e.Id == id && e.Scope == scope);
     }
 
-    public async Task<List<T>> ById<T, T2>(string scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IAsyncEnumerable<T>> ById<T, T2>(string scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope);
 
-        return result.ToList();
+        return result.ToAsyncEnumerable();
     }
 
-    public IQueryable<T> All<T, T2>(string scope) where T : ScopedEntity<T2> where T2 : Entity, new()
+    public async Task<IAsyncEnumerable<T>> All<T, T2>(string scope) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
 
-        return scopedEntities;
+        return await Task.FromResult(scopedEntities.ToAsyncEnumerable());
     }
 
     public async Task<T> One<T, T2>(string scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        
+
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
-        
+
         if (sortOrders != null)
         {
             foreach (var sortOrder in sortOrders)
@@ -123,7 +128,7 @@ public partial class Repository : IScopedReadonlyRepository
                 res = sortOrder.Direction == SortDirection.Ascending ? res.OrderBy(sortOrder.Field) : res.OrderByDescending(sortOrder.Field);
             }
         }
-        
+
         return res.FirstOrDefault();
     }
 
