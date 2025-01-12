@@ -198,6 +198,8 @@ public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniq
         }
     }
 
+    public static implicit operator string(Entity entity) => entity?.Id;
+
     public virtual string _shortId => string.IsNullOrWhiteSpace(Id) ? null : GetIdAsHex(Id);
 
 
