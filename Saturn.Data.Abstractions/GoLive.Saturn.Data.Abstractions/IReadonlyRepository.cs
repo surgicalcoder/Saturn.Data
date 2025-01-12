@@ -9,25 +9,26 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface IReadonlyRepository : IDisposable
 {
-    Task<T> ById<T>(string id) where T : Entity;
-    Task<List<T>> ById<T>(List<string> IDs) where T : Entity;
+    Task<TItem> ById<TItem>(string id) where TItem : Entity;
+    Task<IAsyncEnumerable<TItem>> ById<TItem>(List<string> IDs) where TItem : Entity;
 
-    Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> item) where T : Entity, new();
-    Task<T> ByRef<T>(Ref<T> item) where T : Entity, new();
-    Task<Ref<T>> PopulateRef<T>(Ref<T> item) where T : Entity, new();
+    Task<List<Ref<TItem>>> ByRef<TItem>(List<Ref<TItem>> item) where TItem : Entity, new();
+    Task<TItem> ByRef<TItem>(Ref<TItem> item) where TItem : Entity, new();
+    Task<Ref<TItem>> PopulateRef<TItem>(Ref<TItem> item) where TItem : Entity, new();
         
-    IQueryable<T> All<T>() where T : Entity;
+    Task<IAsyncEnumerable<TItem>> All<TItem>() where TItem : Entity;
+    IQueryable<TItem> IQueryable<TItem>() where TItem : Entity;
+    
+    Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity;
+    Task<TItem> Random<TItem>() where TItem : Entity;
+    Task<IAsyncEnumerable<TItem>> Random<TItem>(int count) where TItem : Entity;
         
-    Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<T> Random<T>() where T : Entity;
-    Task<List<T>> Random<T>(int count) where T : Entity;
+    Task<IQueryable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity;
+    Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity;
+    Task<IQueryable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity;
+    Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null ) where TItem : Entity;
         
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate,int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity;
-    Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null ) where T : Entity;
-        
-    Task<long> CountMany<T>(Expression<Func<T, bool>> predicate) where T : Entity;
+    Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity;
 
-    Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity;
+    Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback) where TItem : Entity;
 }

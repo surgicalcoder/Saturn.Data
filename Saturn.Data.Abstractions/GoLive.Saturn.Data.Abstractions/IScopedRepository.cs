@@ -8,37 +8,23 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface IScopedRepository : IScopedReadonlyRepository
 {
-    Task Insert<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Insert<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    /*Task InsertMany<T, T2>(IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
-    Task InsertMany<T, T2>(T2 scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task InsertMany<T, T2>(string scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
-
-    Task Update<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Update<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    /*Task UpdateMany<T, T2>(List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
-    Task UpdateMany<T, T2>(T2 scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task UpdateMany<T, T2>(string scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
+    Task Insert<TItem, TScope>(string scope, TItem entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task InsertMany<TItem, TScope>(string scope, IEnumerable<TItem> entities)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    
+    Task Update<TItem, TScope>(string scope, TItem entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task UpdateMany<TItem, TScope>(string scope, List<TItem> entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
         
-    Task JsonUpdate<T, T2>(string scope, string id, int version, string json) where T : ScopedEntity<T2> where T2 : Entity, new();
+    Task JsonUpdate<TItem, TScope>(string scope, string id, int version, string json) where TItem : ScopedEntity<TScope> where TScope : Entity, new();
         
-    Task Upsert<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Upsert<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
+    Task Upsert<TItem, TScope>(string scope, TItem entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
         
-    Task UpsertMany<T, T2>(List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task UpsertMany<T, T2>(T2 scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task UpsertMany<T, T2>(string scope, List<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-        
-    Task Delete<T, T2>(T2 scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Delete<T, T2>(T2 scope, Expression<Func<T, bool>> filter)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Delete<T, T2>(T2 scope, string id)  where T : ScopedEntity<T2> where T2 : Entity, new();        
-    Task Delete<T, T2>(string scope, T entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Delete<T, T2>(string scope, string id)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task Delete<T, T2>(string scope, Expression<Func<T, bool>> filter)  where T : ScopedEntity<T2> where T2 : Entity, new();
-        
-    /*Task DeleteMany<T, T2>(IEnumerable<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();*/
-    Task DeleteMany<T, T2>(T2 scope, IEnumerable<T> entities)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task DeleteMany<T, T2>(T2 scope, List<string> IDs)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task DeleteMany<T, T2>(string scope, IEnumerable<T> entity)  where T : ScopedEntity<T2> where T2 : Entity, new();
-    Task DeleteMany<T, T2>(string scope, List<string> ds)  where T : ScopedEntity<T2> where T2 : Entity, new();
+    Task UpsertMany<TItem, TScope>(List<TItem> entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task UpsertMany<TItem, TScope>(string scope, List<TItem> entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    
+    Task Delete<TItem, TScope>(string scope, TItem entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task Delete<TItem, TScope>(string scope, string id)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task Delete<TItem, TScope>(string scope, Expression<Func<TItem, bool>> filter)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    
+    Task DeleteMany<TItem, TScope>(string scope, IEnumerable<TItem> entity)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
+    Task DeleteMany<TItem, TScope>(string scope, List<string> ds)  where TItem : ScopedEntity<TScope> where TScope : Entity, new();
 }

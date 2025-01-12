@@ -8,27 +8,27 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface IRepository : IReadonlyRepository
 {
-    Task Insert<T>(T entity) where T : Entity;
-    Task InsertMany<T>(IEnumerable<T> entities) where T : Entity;
+    Task Insert<TItem>(TItem entity) where TItem : Entity;
+    Task InsertMany<TItem>(IEnumerable<TItem> entities) where TItem : Entity;
         
-    Task Save<T>(T entity) where T : Entity;
-    Task SaveMany<T>(List<T> entities) where T : Entity;
+    Task Save<TItem>(TItem entity) where TItem : Entity;
+    Task SaveMany<TItem>(List<TItem> entities) where TItem : Entity;
         
-    Task Update<T>(T entity) where T : Entity;
+    Task Update<TItem>(TItem entity) where TItem : Entity;
     
-    Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity) where T : Entity;
+    Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity) where TItem : Entity;
     
-    Task UpdateMany<T>(List<T> entities) where T : Entity;
+    Task UpdateMany<TItem>(List<TItem> entities) where TItem : Entity;
 
-    Task Upsert<T>(T entity) where T : Entity;
-    Task UpsertMany<T>(List<T> entity) where T : Entity;
+    Task Upsert<TItem>(TItem entity) where TItem : Entity;
+    Task UpsertMany<TItem>(List<TItem> entity) where TItem : Entity;
         
-    Task Delete<T>(T entity) where T : Entity;
-    Task Delete<T>(Expression<Func<T, bool>> filter) where T : Entity;
-    Task Delete<T>(string id) where T : Entity;
+    Task Delete<TItem>(TItem entity) where TItem : Entity;
+    Task Delete<TItem>(Expression<Func<TItem, bool>> filter) where TItem : Entity;
+    Task Delete<TItem>(string id) where TItem : Entity;
         
-    Task DeleteMany<T>(IEnumerable<T> entities) where T : Entity;
-    Task DeleteMany<T>(List<string> IDs) where T : Entity;
+    Task DeleteMany<TItem>(IEnumerable<TItem> entities) where TItem : Entity;
+    Task DeleteMany<TItem>(List<string> IDs) where TItem : Entity;
         
-    Task JsonUpdate<T>(string id, int version, string json) where T : Entity;
+    Task JsonUpdate<TItem>(string id, int version, string json) where TItem : Entity;
 }

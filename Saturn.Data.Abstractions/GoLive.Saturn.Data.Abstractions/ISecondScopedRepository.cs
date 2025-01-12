@@ -15,7 +15,12 @@ public interface ISecondScopedRepository
         where TPrimaryScope : Entity, new();
   
 
-    IQueryable<TItem> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
+    Task<IAsyncEnumerable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new() 
+        where TPrimaryScope : Entity, new();
+    
+    IQueryable<TItem> IQueryable<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();
