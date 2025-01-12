@@ -18,6 +18,7 @@ using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
+using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.InternalTests")]
@@ -214,7 +215,6 @@ public partial class MongoDBRepository
         _ = BsonSerializer.TryRegisterSerializer(objectSerializer);
 
         _ = BsonSerializer.TryRegisterSerializer(typeof(Timestamp), new TimestampSerializer());
-        _ = 
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
 
@@ -274,5 +274,18 @@ public partial class MongoDBRepository
                     .SetDefaultValue(()=> ObjectId.GenerateNewId().ToString());
             });
         }
+    }
+    
+    protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
+    {
+        foreach (var sortOrder in sortOrders)
+        {
+            var sortBuilder = Builders<T>.Sort;
+            sortDefinition = sortOrder.Direction == SortDirection.Ascending
+                ? (sortDefinition == null ? sortBuilder.Ascending(sortOrder.Field) : sortDefinition.Ascending(sortOrder.Field))
+                : (sortDefinition == null ? sortBuilder.Descending(sortOrder.Field) : sortDefinition.Descending(sortOrder.Field));
+        }
+
+        return sortDefinition;
     }
 }

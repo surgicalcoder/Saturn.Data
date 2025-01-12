@@ -22,10 +22,17 @@ public partial class MongoDBRepository : ISecondScopedRepository
     return result;
   }
 
-  public IQueryable<TItem> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope) 
+  public Task<IAsyncEnumerable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope) 
     where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() 
     where TSecondScope : Entity, new() 
     where TPrimaryScope : Entity, new()
+  {
+    var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope);
+
+    return Task.FromResult(scopedEntities.ToAsyncEnumerable());
+  }
+  
+  public IQueryable<TItem> IQueryable<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
   {
     var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope);
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
+using GoLive.Saturn.Data.AsyncEnumerable;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -15,124 +16,114 @@ namespace GoLive.Saturn.Data;
 
 public partial class MongoDBRepository : IReadonlyRepository
 {
-    public async Task<T> ById<T>(string id) where T : Entity
+    public async Task<TItem> ById<TItem>(string id) where TItem : Entity
     {
-        return await (await GetCollection<T>().FindAsync(e => e.Id == id, new FindOptions<T> { Limit = 1 })).FirstOrDefaultAsync();
+        return await (await GetCollection<TItem>().FindAsync(e => e.Id == id, new FindOptions<TItem> { Limit = 1 })).FirstOrDefaultAsync();
     }
 
-    public async Task<List<T>> ById<T>(List<string> IDs) where T : Entity
+    public async Task<IAsyncEnumerable<TItem>> ById<TItem>(List<string> IDs) where TItem : Entity
     {
-        var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id));
-        return await result.ToListAsync().ConfigureAwait(false);
+        var result = await GetCollection<TItem>().FindAsync(e => IDs.Contains(e.Id));
+
+        return result.ToAsyncEnumerable();
     }
 
-    public async Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> item) where T : Entity, new()
+    public async Task<List<Ref<TItem>>> ByRef<TItem>(List<Ref<TItem>> items) where TItem : Entity, new()
     {
-        var enumerable = item.Where(e => string.IsNullOrWhiteSpace(e.Id)).Select(f => f.Id).ToList();
-        var res = await ById<T>(enumerable);
-        return res.Select(r => new Ref<T>(r)).ToList();
+        var ids = items.Where(e => !string.IsNullOrWhiteSpace(e.Id)).Select(e => e.Id).ToList();
+        var entities = await ById<TItem>(ids);
+        return entities.Select(e => new Ref<TItem>(e)).ToListAsync().Result;
     }
 
-    public async Task<T> ByRef<T>(Ref<T> item) where T : Entity, new()
+    public async Task<TItem> ByRef<TItem>(Ref<TItem> item) where TItem : Entity, new()
     {
-        return string.IsNullOrWhiteSpace(item.Id) ? null : await ById<T>(item.Id);
+        return string.IsNullOrWhiteSpace(item.Id) ? null : await ById<TItem>(item.Id);
     }
 
-    public async Task<Ref<T>> PopulateRef<T>(Ref<T> item) where T : Entity, new()
+    public async Task<Ref<TItem>> PopulateRef<TItem>(Ref<TItem> item) where TItem : Entity, new()
     {
         if (string.IsNullOrWhiteSpace(item.Id))
         {
             return default;
         }
-        item.Item = await ById<T>(item.Id);
+        item.Item = await ById<TItem>(item.Id);
         return item;
     }
 
-    public IQueryable<T> All<T>() where T : Entity
+    public async Task<IAsyncEnumerable<TItem>> All<TItem>() where TItem : Entity
     {
-        return GetCollection<T>().AsQueryable();
+        return (await GetCollection<TItem>().FindAsync(e => true)).ToAsyncEnumerable();
+    }
+    
+    public IQueryable<TItem> IQueryable<TItem>() where TItem : Entity
+    {
+        return GetCollection<TItem>().AsQueryable();
     }
 
-    public async Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
-        var findOptions = new FindOptions<T> { Limit = 1 };
+        var findOptions = new FindOptions<TItem> { Limit = 1 };
         
         if (sortOrders != null && sortOrders.Any())
         {
-            SortDefinition<T> sortDefinition = null;
+            SortDefinition<TItem> sortDefinition = null;
             sortDefinition = getSortDefinition(sortOrders, sortDefinition);
             findOptions.Sort = sortDefinition;
         }
         
-        var result = await GetCollection<T>().FindAsync(predicate, findOptions);
+        var result = await GetCollection<TItem>().FindAsync(predicate, findOptions);
 
         return await result.FirstOrDefaultAsync().ConfigureAwait(false);
     }
 
-    protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
+    public async Task<TItem> Random<TItem>() where TItem : Entity
     {
-        foreach (var sortOrder in sortOrders)
-        {
-            if (sortOrder.Direction == SortDirection.Ascending)
-            {
-                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Ascending(sortOrder.Field) : sortDefinition.Ascending(sortOrder.Field);
-            }
-            else
-            {
-                sortDefinition = sortDefinition == null ? Builders<T>.Sort.Descending(sortOrder.Field) : sortDefinition.Descending(sortOrder.Field);
-            }
-        }
-
-        return sortDefinition;
-    }
-
-    public async Task<T> Random<T>() where T : Entity
-    {
-        var item = await GetCollection<T>().AsQueryable().Sample(1).FirstOrDefaultAsync();
+        var item = await GetCollection<TItem>().AsQueryable().Sample(1).FirstOrDefaultAsync();
         return item;
     }
 
-    public async Task<List<T>> Random<T>(int count) where T : Entity
+    public Task<IAsyncEnumerable<TItem>> Random<TItem>(int count) where TItem : Entity
     {
-        var item = await GetCollection<T>().AsQueryable().Sample(count).ToListAsync();
-        return item;
+        var item = GetCollection<TItem>().AsQueryable().Sample(count);
+        return Task.FromResult(item.ToAsyncEnumerable());
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<IQueryable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
-        var items = GetCollection<T>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
 
         if (sortOrders != null)
         {
-            foreach (var sortOrder in sortOrders)
-            {
-                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(sortOrder.Field) : items.OrderByDescending(sortOrder.Field);
-            }
+            items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
         return await Task.Run(() => items);
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
+        var where = new BsonDocument(whereClause);
+
+        var findOptions = new FindOptions<TItem>();
+        
         if (sortOrders != null && sortOrders.Any())
         {
-            throw new NotImplementedException("SortOrder not implemented yet");
+            findOptions.Sort = getSortDefinition(sortOrders, null);
         }
         
-        var result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>()).FindAsync(null)).ToListAsync();
-        
-        return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
+        var res = await GetCollection<TItem>().FindAsync(where, findOptions);
+
+        return res.ToAsyncEnumerable();
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity 
+    public async Task<IQueryable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
         if (pageSize == 0 || pageNumber == 0)
         {
-            return await Many<T>(predicate).ConfigureAwait(false);
+            return await Many<TItem>(predicate).ConfigureAwait(false);
         }
 
-        var items = GetCollection<T>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
         
         if (sortOrders != null)
         {
@@ -145,46 +136,49 @@ public partial class MongoDBRepository : IReadonlyRepository
         return await Task.Run(() => items.Skip((pageNumber - 1) * pageSize).Take(pageSize));
     }
 
-    public async Task<List<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity // TODO
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
-        if (sortOrders != null && sortOrders.Any())
-        {
-            throw new NotImplementedException("SortOrders not implemented");
-        }
-        
         if (pageSize == 0 || pageNumber == 0)
         {
-            return await Many<T>(whereClause).ConfigureAwait(false);
+            return await Many<TItem>(whereClause);
         }
 
         var where = new BsonDocument(whereClause);
-        var result = await(await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<T>()).FindAsync(where, new FindOptions<BsonDocument>()
+
+        var findOptions = new FindOptions<TItem>
         {
             Skip = (pageNumber - 1) * pageSize,
-            Limit = pageSize,
-        } )).ToListAsync();
+            Limit = pageSize
+        };
+        
+        if (sortOrders != null && sortOrders.Any())
+        {
+            findOptions.Sort = getSortDefinition(sortOrders, null);
+        }
+        
+        var res = await GetCollection<TItem>().FindAsync(where, findOptions);
 
-        return result.Select(f => BsonSerializer.Deserialize<T>(f)).ToList();
+        return res.ToAsyncEnumerable();
     }
 
-    public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate) where T : Entity
+    public async Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity
     {
-        return await GetCollection<T>().CountDocumentsAsync(predicate);
+        return await GetCollection<TItem>().CountDocumentsAsync(predicate);
     }
 
-    public async Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity
+    public async Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback) where TItem : Entity
     {
-        var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<T>>();
+        var pipelineDefinition = new EmptyPipelineDefinition<ChangeStreamDocument<TItem>>();
 
-        var expression = Converter<ChangeStreamDocument<T>>.Convert(predicate);
+        var expression = Converter<ChangeStreamDocument<TItem>>.Convert(predicate);
 
         var opType = (ChangeStreamOperationType) operationFilter;
 
         var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
 
-        await GetCollection<T>().WatchAsync(definition);
+        await GetCollection<TItem>().WatchAsync(definition);
 
-        var collection = GetCollection<T>();
+        var collection = GetCollection<TItem>();
 
         using (var asyncCursor = await collection.WatchAsync(pipelineDefinition))
         {

@@ -57,13 +57,7 @@ public partial class MongoDBRepository : ITransparentScopedRepository
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         await UpdateMany<TItem, TParent>(scope, entity);
     }
-
-    /*public async Task UpsertMany<TItem, TParent>(List<TItem> entity) where TItem : ScopedEntity<TParent> where TParent : Entity, new()
-    {
-        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-        await UpdateMany<TItem, TParent>(scope, entity);
-    }*/
-
+    
     public async Task Delete<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));

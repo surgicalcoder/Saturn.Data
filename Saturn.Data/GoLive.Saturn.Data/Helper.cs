@@ -13,6 +13,6 @@ public static class Helper
 
         return firstDelim < 0
             ? asString
-            : asString.Substring(firstDelim + 1).TrimEnd(endTrim);
+            : asString[(firstDelim + 1)..].TrimEnd(endTrim);
     }
 }
