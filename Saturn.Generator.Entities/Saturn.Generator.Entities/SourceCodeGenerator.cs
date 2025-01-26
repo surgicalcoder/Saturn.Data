@@ -213,13 +213,6 @@ public static class SourceCodeGenerator
         }
 
         return limitedView;
-
-        /*if (input is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
-        {
-            return $"{nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{limitedView}";
-        }
-
-        return $"{input.ToDisplayString()}_{limitedView}";*/
     }
 
     private static void outputViewTwoWayMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
@@ -272,24 +265,7 @@ public static class SourceCodeGenerator
 
         foreach (var v1 in item)
         {
-            if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
-            {
-                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
-            }
-            else
-            {
-                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
-
-
-                /*if (v1.classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
-                {
-                    source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
-                }
-                else
-                {
-                    source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
-                }*/
-            }
+            source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
         }
 
         if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
