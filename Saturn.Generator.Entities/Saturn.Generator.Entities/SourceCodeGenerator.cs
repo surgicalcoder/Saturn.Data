@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -22,8 +20,9 @@ public static class SourceCodeGenerator
         source.AppendLine($"namespace {classToGen.Namespace};");
 
         source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged");
-        
+
         var updatableFromChildren = classToGen.Members.SelectMany(e => e.LimitedViews.Where(f => f.TwoWay).Select(f => f.Name)).Distinct().ToList();
+
         if (updatableFromChildren.Any())
         {
             foreach (var s in updatableFromChildren)
@@ -32,15 +31,15 @@ public static class SourceCodeGenerator
                 source.AppendLine($", ICreatableFrom<{classToGen.Name}_{s}>");
             }
         }
-        
+
         source.AppendLine("{");
         source.AppendIndent();
-            
-        foreach (var memberToGenerate in classToGen.Members.Where(e=>e.IsPartialProperty))
+
+        foreach (var memberToGenerate in classToGen.Members.Where(e => e.IsPartialProperty))
         {
             source.AppendLine($"private {memberToGenerate.Type} {memberToGenerate.Name};");
         }
-        
+
         if (classToGen.Members.Any(f => f.IsCollection) || classToGen.HasInitMethod)
         {
             source.AppendLine($"public {classToGen.Name}()");
@@ -50,18 +49,19 @@ public static class SourceCodeGenerator
             {
                 source.AppendLine("_init();");
             }
-        
-            foreach (var coll in classToGen.Members.Where(f=>f.IsCollection))
+
+            foreach (var coll in classToGen.Members.Where(f => f.IsCollection))
             {
                 var collTargetName = coll.Name.FirstCharToUpper();
                 source.AppendLine($"{collTargetName} = new();");
-            
+
                 source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
             }
+
             source.AppendCloseCurlyBracketLine();
         }
-        
-        foreach (var member in classToGen.Members.Where(f=>!f.UseOnlyForLimited))
+
+        foreach (var member in classToGen.Members.Where(f => !f.UseOnlyForLimited))
         {
             if (member.IsCollection)
             {
@@ -71,9 +71,8 @@ public static class SourceCodeGenerator
             {
                 GenerateNormalMember(source, member);
             }
-                
         }
-        
+
 
         if (updatableFromChildren.Any())
         {
@@ -83,7 +82,7 @@ public static class SourceCodeGenerator
                 source.AppendLine($"public static ICreatableFrom<{classToGen.Name}_{s}> Create({classToGen.Name}_{s} input )");
                 source.AppendOpenCurlyBracketLine();
                 source.AppendLine($"var item = new {classToGen.Name}();");
-                source.AppendLine($"item.UpdateFrom(input);");
+                source.AppendLine("item.UpdateFrom(input);");
                 source.AppendLine("");
                 source.AppendLine("if (input is IUniquelyIdentifiable inputWithId)");
                 source.AppendOpenCurlyBracketLine();
@@ -99,84 +98,65 @@ public static class SourceCodeGenerator
         {
             source.AppendLine($"public {classToGen.Name}_{item.Key} To_{item.Key}() => {classToGen.Name}_{item.Key}.Generate(this);");
         }
-        
-        
-        
+
+
         source.AppendLine("}");
 
         source.DecreaseIndent();
         source.AppendLine(2);
-            
-            
+
+
         foreach (var item in classToGen.Members.Where(r => r.LimitedViews.Any())
                      .SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
                      .GroupBy(e => e.LimitedView.Name))
         {
-            
             source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
 
             if (item.Any(e => e.LimitedView.TwoWay))
             {
                 source.AppendLine($", IUpdatableFrom<{classToGen.Name}_{item.Key}>");
             }
-            
-            if (classToGen.ParentItemToGenerate is { Count: > 0 }  && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*"))  )
+
+            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
             {
-                bool addedUniquelyIdentifiable = false;
-                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == item.Key && r.InheritFromIUniquelyIdentifiable ))
+                var addedUniquelyIdentifiable = false;
+
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == item.Key && r.InheritFromIUniquelyIdentifiable))
                 {
                     source.AppendLine(", IUniquelyIdentifiable");
                     addedUniquelyIdentifiable = true;
+
                     break;
                 }
 
                 if (!addedUniquelyIdentifiable)
                 {
-                    foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*" && r.InheritFromIUniquelyIdentifiable))
+                    foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*" && r.InheritFromIUniquelyIdentifiable))
                     {
                         source.AppendLine(", IUniquelyIdentifiable");
                         addedUniquelyIdentifiable = true;
+
                         break;
                     }
                 }
             }
+
             source.AppendOpenCurlyBracketLine();
-            
-            
-            
-            
-            // Constructors and IQueryable bits
-            
-            /*source.Append($"public static IQueryable<{classToGen.Name}_{item.Key}> Select(IQueryable<{classToGen.Name}> parentItems) => parentItems.Select(a => new {classToGen.Name}_{item.Key}(");
 
-            string[] constArguments = item.Select(r => $"{r.classDef.Name}").ToArray();
-            string[] constArgumentsWithTypesAndLowercaseProperty = item.Select(r => $"{r.classDef.Type} {r.classDef.Name.FirstCharToLower()}").ToArray();
-
-            source.Append(string.Join(", ", constArguments.Select(r=>$"a.{r.FirstCharToUpper()}")));
-            source.AppendLine("));");
-            
-            source.AppendLine($"public {classToGen.Name}_{item.Key}(){{}}");
-
-            if (item.Any(r => string.IsNullOrWhiteSpace(r.LimitedView.OverrideReturnTypeToUseLimitedView)))
-            {
-                source.Append($"public {classToGen.Name}_{item.Key} (");
-                source.Append(string.Join(", ", constArgumentsWithTypesAndLowercaseProperty));
-                source.AppendLine(")");
-                source.AppendOpenCurlyBracketLine();
-
-                foreach (var x1 in item)
-                {
-                    if (!string.IsNullOrWhiteSpace(x1.LimitedView.OverrideReturnTypeToUseLimitedView)) { }
-                    else
-                    {
-                        source.AppendLine($"this.{x1.classDef.Name.FirstCharToUpper()} = {x1.classDef.Name.FirstCharToLower()};");
-                    }
-                }
-
-                source.AppendCloseCurlyBracketLine();
-            }*/
+            source.AppendLine($"public static implicit operator {classToGen.Name}_{item.Key} ({classToGen.Name} source)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"var retr = new {classToGen.Name}_{item.Key}();");
+            source.AppendLine("retr.UpdateFrom(source);");
+            source.AppendLine("return retr;");
+            source.AppendCloseCurlyBracketLine();
 
 
+            source.AppendLine($"public static implicit operator {classToGen.Name}_{item.Key} (Ref<{classToGen.Name}> source)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"var retr = new {classToGen.Name}_{item.Key}();");
+            source.AppendLine("retr.UpdateFrom(source?.Item);");
+            source.AppendLine("return retr;");
+            source.AppendCloseCurlyBracketLine();
 
 
             foreach (var v1 in item)
@@ -185,66 +165,61 @@ public static class SourceCodeGenerator
                 outputAttributes(source, classDef);
 
                 var initString = string.IsNullOrWhiteSpace(v1.LimitedView.Initializer) ? string.Empty : $" = {v1.LimitedView.Initializer};";
-                
+
                 if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
                     source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
-                    
                 }
                 else
                 {
-                    if (classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
-                    {
-                        source.AppendLine($"public {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
-                    }
-                    else
-                    {
-                        source.AppendLine($"public {classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
-                    }
+                    source.AppendLine($"public {v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
                 }
             }
 
-            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r=>r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r=>r.ViewName == "*") ))
+            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
             {
                 source.AppendLine(2);
 
-                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == item.Key))
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == item.Key))
                 {
                     source.AppendLine($"public {getLimitedViewName(toGenerate.Property.Type, toGenerate.OverrideReturnTypeToUseLimitedView)} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
-                
-                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
+
+                foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*"))
                 {
                     source.AppendLine($"public {getLimitedViewName(toGenerate.Property.Type, toGenerate.OverrideReturnTypeToUseLimitedView)} {toGenerate.ChildPropertyName} {{get;set;}}");
                 }
             }
-                
+
             source.AppendLine(2);
 
-            outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
-            outputViewUpdateFromSelfMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )) );
+            outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
+            outputViewUpdateFromSelfMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
             outputViewGenerateMethod(source, classToGen, item.Key);
 
-            outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView )));
-            
+            outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
+
             source.AppendLine($"public static ICreatableFrom<{classToGen.Name}> Create({classToGen.Name} input) => Generate(input);");
-            
+
             source.AppendCloseCurlyBracketLine();
         }
     }
-    
+
     private static string getLimitedViewName(ITypeSymbol input, string limitedView)
     {
         if (string.IsNullOrWhiteSpace(limitedView))
         {
             return input.ToDisplayString();
         }
-        if (input is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
+
+        return limitedView;
+
+        /*if (input is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
         {
             return $"{nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{limitedView}";
         }
 
-        return $"{input.ToDisplayString()}_{limitedView}";
+        return $"{input.ToDisplayString()}_{limitedView}";*/
     }
 
     private static void outputViewTwoWayMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
@@ -266,10 +241,11 @@ public static class SourceCodeGenerator
                     // TODO need to do this at one point, maybe with some interfaces
                 }
             }
-                
+
             source.AppendCloseCurlyBracketLine();
         }
     }
+
     private static void outputViewUpdateFromSelfMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
     {
         if (item.Any(e => e.LimitedView.TwoWay))
@@ -281,7 +257,7 @@ public static class SourceCodeGenerator
             {
                 source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = self.{v1.classDef.Name.FirstCharToUpper()};");
             }
-                
+
             source.AppendCloseCurlyBracketLine();
         }
     }
@@ -293,6 +269,7 @@ public static class SourceCodeGenerator
         source.AppendLine($"public void UpdateFrom({classToGen.Name} source)");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine("OnUpdateFromStart(source);");
+
         foreach (var v1 in item)
         {
             if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
@@ -301,22 +278,25 @@ public static class SourceCodeGenerator
             }
             else
             {
-                if (v1.classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
+
+
+                /*if (v1.classDef.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
                 {
                     source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
                 }
                 else
                 {
                     source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {v1.classDef.Type}_{v1.LimitedView.OverrideReturnTypeToUseLimitedView}.Generate(source.{v1.classDef.Name.FirstCharToUpper()}); ");
-                }
+                }*/
             }
         }
-        
-        if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r=>r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r=>r.ViewName == "*") ))
+
+        if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
         {
             source.AppendLine(2);
 
-            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == itemKey))
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == itemKey))
             {
                 if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
                 {
@@ -324,7 +304,7 @@ public static class SourceCodeGenerator
                 }
                 else
                 {
-                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
                     {
                         source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
                     }
@@ -334,8 +314,8 @@ public static class SourceCodeGenerator
                     }
                 }
             }
-            
-            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r=>r.ViewName == "*"))
+
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*"))
             {
                 if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
                 {
@@ -343,7 +323,7 @@ public static class SourceCodeGenerator
                 }
                 else
                 {
-                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>"  )
+                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
                     {
                         source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
                     }
@@ -354,11 +334,12 @@ public static class SourceCodeGenerator
                 }
             }
         }
+
         source.AppendLine("OnUpdateFromEnd(source);");
         source.AppendLine();
         source.AppendCloseCurlyBracketLine();
     }
-    
+
     private static void outputViewGenerateMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey)
     {
         source.AppendLine($"protected virtual void OnGenerateStart({classToGen.Name} source, {classToGen.Name}_{itemKey} result) {{ }}");
@@ -402,7 +383,7 @@ public static class SourceCodeGenerator
             }
 
             builder.AppendLine(")]");
-                
+
             source.AppendLine(builder.ToString().Replace(",)]", ")]")); // TODO need to fix
         }
     }
@@ -426,11 +407,11 @@ public static class SourceCodeGenerator
             source.AppendLine(item.XmlDocumentation);
             source.AppendLine();
         }
-        
+
         outputAttributes(source, item);
         source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} {item.Type} {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
-            
+
         if (!item.WriteOnly)
         {
             source.AppendLine($"get => {itemName};");
@@ -470,9 +451,8 @@ public static class SourceCodeGenerator
                 }}
             }}
         }}");
-
-
-        } else if (!item.ReadOnly)
+        }
+        else if (!item.ReadOnly)
         {
             if (item.HasRunAfterSetMethodSimple)
             {
@@ -487,7 +467,7 @@ public static class SourceCodeGenerator
                 source.AppendLine($"set => SetField(ref this.{itemName}, value);");
             }
         }
-            
+
         source.AppendCloseCurlyBracketLine();
 
         if (item.HasRunAfterSetMethodIsRefItem && !string.IsNullOrWhiteSpace(item.RefType))
@@ -495,7 +475,7 @@ public static class SourceCodeGenerator
             source.AppendLine($"[System.ComponentModel.EditorBrowsable(EditorBrowsableState.Never)] public static Func<string, {item.RefType}> _{itemName}_runAfterSet_fetch;");
             source.AppendLine("");
         }
-        
+
         string getSimpleValue(MemberToGenerate item)
         {
             if (item.HasRunAfterSetMethodSimple || item.HasRunAfterSetMethodIsRefItem)

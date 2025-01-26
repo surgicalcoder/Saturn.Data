@@ -85,7 +85,8 @@ public static class Scanner
                         switch (namedArg.Key)
                         {
                             case "UseLimitedView":
-                                retr.OverrideReturnTypeToUseLimitedView = namedArg.Value.Value.ToString();
+                                string typeName = namedArg.Value.Value.ToString().Split('(').Last().Split(')').First();
+                                retr.OverrideReturnTypeToUseLimitedView = typeName;
                                 break;
                             case "ChildField":
                                 retr.ChildPropertyName = namedArg.Value.Value.ToString();
@@ -309,11 +310,6 @@ public static class Scanner
 
                     if (e.NamedArguments.Any())
                     {
-                        if (e.NamedArguments.Any(f => f.Key == "UseLimitedView"))
-                        {
-                            retr.OverrideReturnTypeToUseLimitedView = e.NamedArguments.FirstOrDefault(r => r.Key == "UseLimitedView").Value.Value.ToString();
-                        }
-
                         if (e.NamedArguments.Any(r => r.Key == "TwoWay"))
                         {
                             retr.TwoWay = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "TwoWay").Value.Value;
@@ -325,8 +321,7 @@ public static class Scanner
                             if (!string.IsNullOrEmpty(limitedViewType))
                             {
                                 var typeName = limitedViewType.Split('(').Last().Split(')').First();
-                                var suffix = typeName.Split('_').LastOrDefault();
-                                retr.OverrideReturnTypeToUseLimitedView = suffix;
+                                retr.OverrideReturnTypeToUseLimitedView = typeName;
                             }
                         }
 

@@ -10,7 +10,7 @@ public partial class RunAfterTest : MultiscopedEntity<MainItem>
     /// <summary>
     /// This is an example XML Doc
     /// </summary>
-    [AddToLimitedView("View1", true, UseLimitedView = "View1")]
+    [AddToLimitedView("View1", true, LimitedViewType = typeof(MainItem_View1))]
     [AddRefToScope] 
     private Ref<MainItem> mainItemView1;
 

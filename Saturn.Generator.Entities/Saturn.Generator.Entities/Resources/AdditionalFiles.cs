@@ -45,7 +45,6 @@ public class AddToLimitedViewAttribute : Attribute
         this.TwoWay = TwoWay;
     }
     public string ViewName { get; set; }
-    public string UseLimitedView { get; set; }
     public Type LimitedViewType { get; set; }
     public bool TwoWay { get; set; }
     public string Initializer { get; set; }
@@ -63,7 +62,7 @@ public class AddParentItemToLimitedViewAttribute : Attribute
     internal string ViewName { get; set; }
     internal string ParentField { get; set; }
     public string ChildField { get; set; }
-    public string UseLimitedView { get; set; }
+    public Type LimitedViewType { get; set; }
     public bool TwoWay { get; set; }
     public bool InheritFromIUniquelyIdentifiable { get; set; }
 }
