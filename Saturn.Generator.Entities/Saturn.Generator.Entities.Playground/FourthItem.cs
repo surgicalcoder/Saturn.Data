@@ -6,6 +6,7 @@ namespace Saturn.Generator.Entities.Playground;
 
 [AddParentItemToLimitedView("*", "_shortId", ChildField = "Id", InheritFromIUniquelyIdentifiable = true)]
 [AddParentItemToLimitedView("View1", "Scope", ChildField = "Scope", LimitedViewType = typeof(MainItem_View1))]
+[AddParentItemToLimitedView("View2", "Scope", ChildField = "Scope", LimitedViewType = typeof(string))]
 public partial class FourthItem : MultiscopedEntity<MainItem>
 {
     [AddToLimitedView("View1")]

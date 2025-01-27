@@ -84,7 +84,7 @@ public static class Scanner
                     {
                         switch (namedArg.Key)
                         {
-                            case "UseLimitedView":
+                            case "LimitedViewType":
                                 string typeName = namedArg.Value.Value.ToString().Split('(').Last().Split(')').First();
                                 retr.OverrideReturnTypeToUseLimitedView = typeName;
                                 break;
