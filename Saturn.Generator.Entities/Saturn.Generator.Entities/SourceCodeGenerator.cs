@@ -274,40 +274,13 @@ public static class SourceCodeGenerator
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == itemKey))
             {
-                if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
-                {
-                    source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
-                }
-                else
-                {
-                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
-                    {
-                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
-                    }
-                    else
-                    {
-                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {toGenerate.Property.Type}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
-                    }
-                }
+                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
             }
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*"))
             {
-                if (string.IsNullOrWhiteSpace(toGenerate.OverrideReturnTypeToUseLimitedView))
-                {
-                    source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
-                }
-                else
-                {
-                    if (toGenerate.Property.Type is INamedTypeSymbol { IsGenericType: true } nts && nts.OriginalDefinition.ToDisplayString() == "GoLive.Saturn.Data.Entities.Ref<T>")
-                    {
-                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {nts.TypeArguments.FirstOrDefault().ToDisplayString()}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
-                    }
-                    else
-                    {
-                        source.AppendLine($"this.{toGenerate.ChildPropertyName} = {toGenerate.Property.Type}_{toGenerate.OverrideReturnTypeToUseLimitedView}.Generate(source.{toGenerate.PropertyName}); ");
-                    }
-                }
+                var propertyAssignment = $"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};";
+                source.AppendLine(propertyAssignment);
             }
         }
 
