@@ -4,7 +4,7 @@ using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class Repository : ITransparentScopedRepository
+public partial class LiteDBRepository : ITransparentScopedRepository
 {
     public async Task Insert<TItem, TParent>(TItem entity) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {

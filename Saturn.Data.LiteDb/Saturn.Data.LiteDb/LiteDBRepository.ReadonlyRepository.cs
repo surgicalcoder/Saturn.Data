@@ -6,7 +6,7 @@ using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class Repository : IReadonlyRepository
+public partial class LiteDBRepository : IReadonlyRepository
 {
     public async Task<T> ById<T>(string id) where T : Entity
     {

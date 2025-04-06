@@ -5,7 +5,7 @@ using LiteDB.Queryable;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class Repository : ISecondScopedRepository
+public partial class LiteDBRepository : ISecondScopedRepository
 {
     public async Task<TItem> ById<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string id)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()

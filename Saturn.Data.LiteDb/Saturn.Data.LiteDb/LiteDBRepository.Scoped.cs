@@ -5,7 +5,7 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class Repository : IScopedRepository
+public partial class LiteDBRepository : IScopedRepository
 {
     public async Task JsonUpdate<T, T2>(string scope, string id, int version, string json) where T : ScopedEntity<T2> where T2 : Entity, new()
     {

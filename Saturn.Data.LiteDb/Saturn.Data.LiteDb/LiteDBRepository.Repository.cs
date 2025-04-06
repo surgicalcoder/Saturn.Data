@@ -5,7 +5,7 @@ using LiteDB;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class Repository : IRepository
+public partial class LiteDBRepository : IRepository
 {
     public async Task Insert<T>(T entity) where T : Entity
     {
@@ -25,6 +25,7 @@ public partial class Repository : IRepository
         }
 
         await GetCollection<T>().InsertBulkAsync(entities);
+        await database.CommitAsync();
     }
 
     public async Task Save<T>(T entity) where T : Entity
