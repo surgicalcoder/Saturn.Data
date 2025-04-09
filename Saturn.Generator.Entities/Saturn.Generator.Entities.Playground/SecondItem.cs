@@ -8,6 +8,6 @@ public partial class SecondItem : Entity
 {
     public partial string Item1 { get; set; }
     
-    [AddToLimitedView("View1", ComputedProperty = "Count", LimitedViewType = typeof(int), DisableComputedPropertyDefault = true)]
+    [AddToLimitedView("View1", ComputedProperty = "Count", LimitedViewType = typeof(int))]
     public partial ObservableList<MainItem> ThingsContained { get; set; }
 }

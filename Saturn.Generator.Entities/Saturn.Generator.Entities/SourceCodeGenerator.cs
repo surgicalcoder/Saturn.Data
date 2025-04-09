@@ -265,23 +265,23 @@ public static class SourceCodeGenerator
 
         foreach (var v1 in item)
         {
-            var str = $"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()}";
+            var strBuilder = new StringBuilder();
+            strBuilder.Append($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()}");
             
             if (v1.LimitedView.ComputedProperty != null)
             {
                 if (v1.LimitedView.DisableComputedPropertyDefault)
                 {
-                    str += $".{v1.LimitedView.ComputedProperty}";
+                    strBuilder.Append($".{v1.LimitedView.ComputedProperty}");
                 }
                 else
                 {
-                    str += $"?.{v1.LimitedView.ComputedProperty} ?? default";
+                    strBuilder.Append($"?.{v1.LimitedView.ComputedProperty} ?? default");
                 }
             }
 
-            str += ";";
-            
-            source.AppendLine(str);
+            strBuilder.Append(";");
+            source.AppendLine(strBuilder.ToString());
         }
 
         if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
