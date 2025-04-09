@@ -48,6 +48,8 @@ public class AddToLimitedViewAttribute : Attribute
     public Type LimitedViewType { get; set; }
     public bool TwoWay { get; set; }
     public string Initializer { get; set; }
+    public string ComputedProperty { get; set; }
+    public bool DisableComputedPropertyDefault { get; set; }
 }
 
 

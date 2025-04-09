@@ -329,6 +329,15 @@ public static class Scanner
                         {
                             retr.Initializer = (string)e.NamedArguments.FirstOrDefault(r => r.Key == "Initializer").Value.Value;
                         }
+                        
+                        if (e.NamedArguments.Any(r => r.Key == "ComputedProperty"))
+                        {
+                            retr.ComputedProperty = (string)e.NamedArguments.FirstOrDefault(r => r.Key == "ComputedProperty").Value.Value;
+                        }
+                        if (e.NamedArguments.Any(r => r.Key == "DisableComputedPropertyDefault"))
+                        {
+                            retr.DisableComputedPropertyDefault = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "DisableComputedPropertyDefault").Value.Value;
+                        }
                     }
 
                     return retr;

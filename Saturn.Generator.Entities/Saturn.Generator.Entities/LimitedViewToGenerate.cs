@@ -6,4 +6,6 @@ public class LimitedViewToGenerate
     public string OverrideReturnTypeToUseLimitedView { get; set; }
     public bool TwoWay { get; set; }
     public string Initializer { get; set; }
+    public string ComputedProperty { get; set; }
+    public bool DisableComputedPropertyDefault { get; set; }
 }

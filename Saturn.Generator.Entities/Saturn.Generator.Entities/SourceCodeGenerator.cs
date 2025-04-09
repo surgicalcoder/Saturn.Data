@@ -265,7 +265,23 @@ public static class SourceCodeGenerator
 
         foreach (var v1 in item)
         {
-            source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()};");
+            var str = $"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()}";
+            
+            if (v1.LimitedView.ComputedProperty != null)
+            {
+                if (v1.LimitedView.DisableComputedPropertyDefault)
+                {
+                    str += $".{v1.LimitedView.ComputedProperty}";
+                }
+                else
+                {
+                    str += $"?.{v1.LimitedView.ComputedProperty} ?? default";
+                }
+            }
+
+            str += ";";
+            
+            source.AppendLine(str);
         }
 
         if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
@@ -279,8 +295,7 @@ public static class SourceCodeGenerator
 
             foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*"))
             {
-                var propertyAssignment = $"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};";
-                source.AppendLine(propertyAssignment);
+                source.AppendLine($"this.{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName};");
             }
         }
 
