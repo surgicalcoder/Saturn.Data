@@ -5,5 +5,5 @@ namespace Saturn.Data.LiteDb;
 
 public class LiteDBRepositoryOptions : RepositoryOptions
 {
-    public BsonMapper Mapper { get; set; } = new EntityMapper();
+    public BsonMapper Mapper { get; set; } = new CustomEntityMapper();
 }

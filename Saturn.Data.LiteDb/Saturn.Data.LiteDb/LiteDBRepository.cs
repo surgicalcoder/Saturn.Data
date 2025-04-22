@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using LiteDB;
 using LiteDB.Async;
 using LiteDB.Queryable;
 
@@ -17,6 +18,19 @@ public partial class LiteDBRepository : IRepository
     {
         this.liteDbOptions = liteDbRepositoryOptions;
         database = new LiteDatabaseAsync(repositoryOptions.ConnectionString, liteDbRepositoryOptions.Mapper);
+        
+        /*var allEntityTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(r => r.GetTypes())
+            .Where(t => typeof(Entity).IsAssignableFrom(t) && t != typeof(Entity));
+        
+        allEntityTypes = allEntityTypes.Where(t => t.IsClass && !t.IsAbstract);
+        
+        foreach (var allEntityType in allEntityTypes)
+        {
+            var refType = typeof(Ref<>).MakeGenericType(allEntityType);
+            BsonMapper.Global.RegisterType(refType, LiteDBRefSerializer.Serialize(allEntityType), LiteDBRefSerializer.Deserialize(refType));
+        }*/
+        
         options = repositoryOptions;
     }
     
