@@ -8,7 +8,7 @@ public class CustomEntityMapper : BsonMapper
 {
     protected override IEnumerable<MemberInfo> GetTypeMembers(Type type)
     {
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Ref<>))
+        if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Ref<>) || type.GetGenericTypeDefinition() == typeof(WeakRef<>)))
         {
             return type
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
