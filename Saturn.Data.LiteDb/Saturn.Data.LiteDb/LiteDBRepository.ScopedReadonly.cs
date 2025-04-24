@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Net.NetworkInformation;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB.Queryable;
@@ -10,26 +11,46 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
 {
     public async Task<T> ById<T, T2>(T2 scope, string id) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        return await GetCollection<T>().FindOneAsync(e => e.Id == id && e.Scope == scope);
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
+        return await GetCollection<T>().FindOneAsync(e => e.Id == id && e.Scope == scope.Id);
     }
 
     public async Task<IAsyncEnumerable<T>> ById<T, T2>(T2 scope, List<string> IDs) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope);
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
+        var result = await GetCollection<T>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope.Id);
 
         return result.ToAsyncEnumerable();
     }
 
     public IQueryable<T> All<T, T2>(T2 scope) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope);
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
+        var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope.Id);
 
         return scopedEntities;
     }
 
     public async Task<T> One<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
+        Expression<Func<T, bool>> firstPred = item => item.Scope == scope.Id;
         var combinedPred = firstPred.And(predicate);
 
         var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
@@ -47,7 +68,12 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
 
     public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
+        var scopedEntities = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope.Id).Where(predicate);
 
         if (sortOrders != null)
         {
@@ -67,12 +93,17 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
 
     public async Task<IQueryable<T>> Many<T, T2>(T2 scope, Expression<Func<T, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return null;
+        }
+        
         if (pageSize == 0 || PageNumber == 0)
         {
             return await Many(scope, predicate).ConfigureAwait(false);
         }
 
-        var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+        var res = GetCollection<T>().AsQueryable().Where(f => f.Scope == scope.Id).Where(predicate);
 
         if (sortOrders != null)
         {
@@ -89,7 +120,12 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
 
     public async Task<long> CountMany<T, T2>(T2 scope, Expression<Func<T, bool>> predicate) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        Expression<Func<T, bool>> firstPred = item => item.Scope == scope;
+        if (scope == null || string.IsNullOrWhiteSpace(scope.Id))
+        {
+            return 0;
+        }
+        
+        Expression<Func<T, bool>> firstPred = item => item.Scope == scope.Id;
         var combinedPred = firstPred.And(predicate);
 
         return await GetCollection<T>().LongCountAsync(combinedPred);

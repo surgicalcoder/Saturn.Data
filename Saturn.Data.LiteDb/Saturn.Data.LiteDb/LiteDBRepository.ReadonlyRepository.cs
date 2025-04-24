@@ -57,7 +57,17 @@ public partial class LiteDBRepository : IReadonlyRepository
 
     public async Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
     {
-        return await GetCollection<T>().FindOneAsync(predicate); // TODO: need to implement Sort Orders
+        var query = GetCollection<T>().AsQueryable().Where(predicate);
+    
+        if (sortOrders != null)
+        {
+            query = sortOrders.Aggregate(query, (current, sortOrder) => 
+                sortOrder.Direction == SortDirection.Ascending 
+                    ? current.OrderBy(sortOrder.Field) 
+                    : current.OrderByDescending(sortOrder.Field));
+        }
+    
+        return await query.FirstOrDefaultAsync();
     }
 
     public async Task<T> Random<T>() where T : Entity

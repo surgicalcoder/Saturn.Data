@@ -12,7 +12,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var result = (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == primaryScope && e.SecondScope == secondScope)).FirstOrDefault();
+        var result = (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id)).FirstOrDefault();
 
         return result;
     }
@@ -22,7 +22,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope);
+        return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id);
     }
 
     public Task<IAsyncEnumerable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
@@ -30,7 +30,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope);
+        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id);
 
         return Task.FromResult(scopedEntities.ToAsyncEnumerable());
     }
@@ -40,7 +40,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope && item.SecondScope == secondScope;
+        Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
         var combinedPred = firstPred.And(predicate);
 
         var query = GetCollection<TItem>().Query().Where(combinedPred);
@@ -58,7 +58,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope).Where(predicate);
+        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id).Where(predicate);
 
         if (sortOrders != null)
         {
@@ -78,7 +78,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope && item.SecondScope == secondScope;
+        Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
         var combinedPred = firstPred.And(predicate);
 
         return await GetCollection<TItem>().LongCountAsync(combinedPred);
@@ -107,6 +107,6 @@ public partial class LiteDBRepository : ISecondScopedRepository
 
     public async Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string Id) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        await Delete<TItem>(e => e.Scope == primaryScope && e.SecondScope == secondScope && e.Id == Id);
+        await Delete<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id && e.Id == Id);
     }
 }
