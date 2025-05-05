@@ -1,0 +1,5 @@
+﻿<Project>  
+	<ItemGroup>
+		<CompilerVisibleProperty Include="Saturn_SkipAdditionalFiles" />
+	</ItemGroup>
+</Project>

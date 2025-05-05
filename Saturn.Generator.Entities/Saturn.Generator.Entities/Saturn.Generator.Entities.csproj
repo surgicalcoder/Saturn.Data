@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
@@ -34,6 +34,10 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
     </PropertyGroup>
+	<ItemGroup>
+		<CompilerVisibleProperty Include="Saturn_SkipAdditionalFiles" />
+		<None Include="GoLive.Saturn.Generator.Entities.props" Visible="false" Pack="true" PackagePath="build" />
+	</ItemGroup>
     <ItemGroup>
         <Compile Remove="Resources\AdditionalFiles.cs" />
         <EmbeddedResource Include="Resources\AdditionalFiles.cs" />
