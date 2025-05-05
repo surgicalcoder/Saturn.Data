@@ -1,5 +1,5 @@
 using Amazon.Auth.AccessControlPolicy;
-using GoLive.Generator.Saturn.Resources;
+using GoLive.Saturn.Generator.Entities.Resources;
 using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Generator.Entities.Playground;

@@ -66,7 +66,7 @@ public class ChangeTrackingAnalyzer : DiagnosticAnalyzer
         // Check if the property has the DoNotTrackChangesAttribute
         var propertySymbol = semanticModel.GetDeclaredSymbol(propertyDeclaration);
 
-        if (propertySymbol?.GetAttributes().Any(attr => attr.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute") == true)
+        if (propertySymbol?.GetAttributes().Any(attr => attr.AttributeClass.ToString() == "GoLive.Saturn.Generator.Entities.Resources.DoNotTrackChangesAttribute") == true)
         {
             return;
         }

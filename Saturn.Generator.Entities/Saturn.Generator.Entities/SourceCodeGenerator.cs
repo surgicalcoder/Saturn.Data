@@ -11,7 +11,7 @@ public static class SourceCodeGenerator
     {
         source.AppendLine("using System.ComponentModel;");
         source.AppendLine("using System.Runtime.CompilerServices;");
-        source.AppendLine("using GoLive.Generator.Saturn.Resources;");
+        source.AppendLine("using GoLive.Saturn.Generator.Entities.Resources;");
         source.AppendLine("using GoLive.Saturn.Data.Entities;");
         source.AppendLine("using System.Collections.Specialized;");
         source.AppendLine("using FastMember;");

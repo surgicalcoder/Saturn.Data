@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using GoLive.Generator.Saturn.Resources;
+using GoLive.Saturn.Generator.Entities.Resources;
 using GoLive.Saturn.Data.Entities;
 using ObservableCollections;
 

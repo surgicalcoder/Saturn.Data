@@ -1,6 +1,7 @@
 using System.ComponentModel;
-using GoLive.Generator.Saturn.Resources;
+using GoLive.Saturn.Generator.Entities.Resources;
 using GoLive.Saturn.Data.Entities;
+using GoLive.Saturn.Generator.Entities.Resources;
 
 namespace Saturn.Generator.Entities.Playground;
 

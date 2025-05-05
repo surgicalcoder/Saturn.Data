@@ -34,14 +34,6 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
     </PropertyGroup>
-	<ItemGroup>
-		<CompilerVisibleProperty Include="Saturn_SkipAdditionalFiles" />
-		<None Include="GoLive.Saturn.Generator.Entities.props" Visible="false" Pack="true" PackagePath="build" />
-	</ItemGroup>
-    <ItemGroup>
-        <Compile Remove="Resources\AdditionalFiles.cs" />
-        <EmbeddedResource Include="Resources\AdditionalFiles.cs" />
-    </ItemGroup>
     <PropertyGroup>
         <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
     </PropertyGroup>
@@ -62,12 +54,7 @@
         </PackageReference>
     </ItemGroup>
 
-    <Target Name="AddPackDependencies"
-            Inputs="@(RuntimeCopyLocalItems)"
-            Outputs="%(RuntimeCopyLocalItems.NuGetPackageId)"
-            DependsOnTargets="ResolvePackageAssets"
-            BeforeTargets="GenerateNuspec"
-            AfterTargets="ResolvePackageAssets">
+    <Target Name="AddPackDependencies" Inputs="@(RuntimeCopyLocalItems)" Outputs="%(RuntimeCopyLocalItems.NuGetPackageId)" DependsOnTargets="ResolvePackageAssets" BeforeTargets="GenerateNuspec" AfterTargets="ResolvePackageAssets">
         <ItemGroup>
             <NuGetPackageId Include="@(RuntimeCopyLocalItems -> '%(NuGetPackageId)')" />
         </ItemGroup>

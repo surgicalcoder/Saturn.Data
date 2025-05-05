@@ -51,7 +51,7 @@ public class FieldToPartialPropertyAnalyzer : DiagnosticAnalyzer
         var fieldSymbol = semanticModel.GetDeclaredSymbol(variable);
 
         // Check if the field has the DoNotTrackChangesAttribute
-        if (fieldSymbol?.GetAttributes().Any(attr => attr.AttributeClass.ToString() == "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute") == true)
+        if (fieldSymbol?.GetAttributes().Any(attr => attr.AttributeClass.ToString() == "GoLive.Saturn.Generator.Entities.Resources.DoNotTrackChangesAttribute") == true)
         {
             return;
         }

@@ -12,12 +12,13 @@ namespace GoLive.Saturn.Generator.Entities;
 public static class Scanner
 {
     private static readonly SymbolDisplayFormat symbolDisplayFormat = new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-    private const string ATTRIBUTES_DoNotTrackChanges = "GoLive.Generator.Saturn.Resources.DoNotTrackChangesAttribute";
-    private const string ATTRIBUTES_AddRefToScope = "GoLive.Generator.Saturn.Resources.AddRefToScopeAttribute";
-    private const string ATTRIBUTES_WriteOnly = "GoLive.Generator.Saturn.Resources.WriteOnlyAttribute";
-    private const string ATTRIBUTES_ReadOnly = "GoLive.Generator.Saturn.Resources.ReadonlyAttribute";
-    private const string ATTRIBUTE_AddToLimitedView = "GoLive.Generator.Saturn.Resources.AddToLimitedViewAttribute";
-    private const string ATTRIBUTE_AddParentItemToLimitedView = "GoLive.Generator.Saturn.Resources.AddParentItemToLimitedViewAttribute";
+    private const string ATTRIBUTES_DoNotTrackChanges = $"{ATTRIBUTE_NAMESPACE}.DoNotTrackChangesAttribute";
+    private const string ATTRIBUTES_AddRefToScope = $"{ATTRIBUTE_NAMESPACE}.AddRefToScopeAttribute";
+    private const string ATTRIBUTES_WriteOnly = $"{ATTRIBUTE_NAMESPACE}.WriteOnlyAttribute";
+    private const string ATTRIBUTES_ReadOnly = $"{ATTRIBUTE_NAMESPACE}.ReadonlyAttribute";
+    private const string ATTRIBUTE_AddToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddToLimitedViewAttribute";
+    private const string ATTRIBUTE_AddParentItemToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddParentItemToLimitedViewAttribute";
+    private const string ATTRIBUTE_NAMESPACE = "GoLive.Saturn.Generator.Entities.Resources";
 
     public static bool CanBeEntity(SyntaxNode node)
     {
@@ -240,9 +241,11 @@ public static class Scanner
 
             getAddToLimitedViewsFromAttributes(attr, memberToGenerate);
 
-            if ( member is not IPropertySymbol && attr.Any(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
+            
+
+            if ( member is not IPropertySymbol && attr.Any(r => !r.AttributeClass.ToString().StartsWith(ATTRIBUTE_NAMESPACE)))
             {
-                foreach (var at in attr.Where(r => !r.AttributeClass.ToString().StartsWith("GoLive.Generator.Saturn.Resources.")))
+                foreach (var at in attr.Where(r => !r.AttributeClass.ToString().StartsWith(ATTRIBUTE_NAMESPACE)))
                 {
                     MemberAttribute memAt = new();
 

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFramework>net8.0</TargetFramework>
+	  <LangVersion>latest</LangVersion>
+	  <PackOnBuild>true</PackOnBuild>
+	  <AssemblyName>GoLive.Saturn.Generator.Entities.Resources</AssemblyName>
+	  <RootNamespace>GoLive.Saturn.Generator.Entities.Resources</RootNamespace>
+	  <PackageId>GoLive.Saturn.Generator.Entities.Resources</PackageId>
+	  <Authors>SurgicalCoder</Authors>
+	  <Company>N/A</Company>
+	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	  <Description>Source Code Generator for GoLive.Saturn.Data entities to enrich data objects</Description>
+	  <Copyright>Copyright 2023-2025 - SurgicalCoder</Copyright>
+	  <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	  <PublishRepositoryUrl>true</PublishRepositoryUrl>
+	  <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+	  <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+	  <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.25" />
+  </ItemGroup>
+
+</Project>
