@@ -26,6 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FastExpressionCompiler" Version="5.1.1" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.25" />
   </ItemGroup>
 

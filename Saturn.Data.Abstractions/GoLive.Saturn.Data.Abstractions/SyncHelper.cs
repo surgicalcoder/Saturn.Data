@@ -22,7 +22,7 @@ public static class SyncHelper
 
         foreach (TRemote remoteItem in Remote)
         {
-            var item = Local.FirstOrDefault(f => Identifier.Invoke(f, remoteItem));
+            var item = Local.FirstOrDefault(f => Identifier(f, remoteItem));
             bool itemAdded = false;
                 
             if (item == null)
@@ -33,7 +33,7 @@ public static class SyncHelper
 
             if (PerformAssignments != null)
             {
-                item = PerformAssignments.Invoke(item, remoteItem);
+                item = PerformAssignments(item, remoteItem);
             }
             else
             {
@@ -54,17 +54,17 @@ public static class SyncHelper
 
         if (ItemsToDeleteFunc != null)
         {
-            await ItemsToDeleteFunc.Invoke(toDelete);
+            await ItemsToDeleteFunc(toDelete);
         }
 
         if (ItemsToUpdateFunc != null)
         {
-            await ItemsToUpdateFunc.Invoke(actualList);
+            await ItemsToUpdateFunc(actualList);
         }
 
         if (ItemsToAddFunc != null)
         {
-            await ItemsToAddFunc.Invoke(itemsAdded);
+            await ItemsToAddFunc(itemsAdded);
         }
             
         return Local;
