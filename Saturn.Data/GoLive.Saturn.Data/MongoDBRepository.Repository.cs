@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
@@ -12,14 +13,22 @@ namespace GoLive.Saturn.Data;
 
 public partial class MongoDBRepository : IRepository
 {
-    public async Task Insert<T>(T entity) where T : Entity
+    public async Task Insert<T>(T entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
     {
         if (string.IsNullOrWhiteSpace(entity.Id))
         {
             entity.Id = ObjectId.GenerateNewId().ToString();
         }
-        await GetCollection<T>().InsertOneAsync(entity);
-    }
+
+        if (transaction != null)
+        {
+            await GetCollection<T>().InsertOneAsync(((MongoDBTransactionWrapper)transaction).Session, entity, cancellationToken: token);
+        }
+        else
+        {
+            await GetCollection<T>().InsertOneAsync(entity, cancellationToken: token);
+        }
+    }   
 
     public async Task InsertMany<T>(IEnumerable<T> entities) where T : Entity
     {

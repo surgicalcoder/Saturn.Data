@@ -9,22 +9,7 @@ public partial class Statics
     public static ReadOnlySpan<char> Separator()
     {
         ReadOnlySpan<byte> span;
-        if (BitConverter.IsLittleEndian)
-        {
-            span = new byte[]
-            {
-                96,
-                0
-            };
-        }
-        else
-        {
-            span = new byte[]
-            {
-                0,
-                96
-            };
-        }
+        span = BitConverter.IsLittleEndian ? "`\0"u8 : "\0`"u8;
 
         return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<byte, char>(ref MemoryMarshal.GetReference(span)), 1);
     }

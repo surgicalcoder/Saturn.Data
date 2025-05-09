@@ -32,7 +32,7 @@ public partial class MongoDBRepository : IReadonlyRepository
     {
         var ids = items.Where(e => !string.IsNullOrWhiteSpace(e.Id)).Select(e => e.Id).ToList();
         var entities = await ById<TItem>(ids);
-        return entities.Select(e => new Ref<TItem>(e)).ToListAsync().Result;
+        return await entities.Select(e => new Ref<TItem>(e)).ToListAsync();
     }
 
     public async Task<TItem> ByRef<TItem>(Ref<TItem> item) where TItem : Entity, new()

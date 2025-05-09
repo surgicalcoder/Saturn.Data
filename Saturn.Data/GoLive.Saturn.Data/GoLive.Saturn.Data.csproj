@@ -19,14 +19,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="3.6.27" />
+    <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="4.0.28" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.25" />
     <PackageReference Include="GoLive.Saturn.Data.EntitySerializers" Version="4.0.16" />
-    <PackageReference Include="MongoDB.Bson" Version="3.1.0" />
-    <PackageReference Include="MongoDB.Driver" Version="3.1.0" />
+    <PackageReference Include="MongoDB.Bson" Version="3.4.0" />
+    <PackageReference Include="MongoDB.Driver" Version="3.4.0" />
     <PackageReference Include="MongoDB.Driver.Core.Extensions.DiagnosticSources" Version="2.0.0" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-    <PackageReference Include="System.Memory" Version="4.6.0" />
+    <PackageReference Include="System.Memory" Version="4.6.3" />
   </ItemGroup>
 
 </Project>
