@@ -32,4 +32,6 @@ public interface IRepository : IReadonlyRepository
     Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity;
         
     Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity;
+    
+    Task<IDatabaseTransaction> CreateTransaction();
 }
