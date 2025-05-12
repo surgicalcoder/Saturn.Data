@@ -19,10 +19,15 @@
         <RepositoryType>git</RepositoryType>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="3.6.27" />
+        <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="4.0.29" />
         <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.25" />
         <PackageReference Include="LiteDB" Version="5.0.21" />
         <PackageReference Include="LiteDB.Async" Version="0.1.8" />
         <PackageReference Include="LiteDB.Queryable" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
+        <PackageReference Include="ServiceScan.SourceGenerator" Version="1.5.2">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 </Project>

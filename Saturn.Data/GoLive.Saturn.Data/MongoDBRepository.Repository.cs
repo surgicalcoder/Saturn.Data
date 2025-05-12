@@ -28,7 +28,7 @@ public partial class MongoDBRepository : IRepository
         {
             await GetCollection<T>().InsertOneAsync(entity, cancellationToken: token);
         }
-    }   
+    }
 
     public async Task InsertMany<T>(IEnumerable<T> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
     {
@@ -63,6 +63,7 @@ public partial class MongoDBRepository : IRepository
         if (transaction != null)
         {
             var updateResult = await GetCollection<T>().ReplaceOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = false }, token);
+
             if (!updateResult.IsAcknowledged)
             {
                 throw new FailedToUpdateException();
@@ -71,6 +72,7 @@ public partial class MongoDBRepository : IRepository
         else
         {
             var updateResult = await GetCollection<T>().ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = false }, token);
+
             if (!updateResult.IsAcknowledged)
             {
                 throw new FailedToUpdateException();
@@ -112,7 +114,7 @@ public partial class MongoDBRepository : IRepository
         }
 
         ReplaceOneResult updateResult;
-        
+
         if (transaction != null)
         {
             updateResult = await GetCollection<T>().ReplaceOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, cancellationToken: token);
@@ -121,9 +123,7 @@ public partial class MongoDBRepository : IRepository
         {
             updateResult = await GetCollection<T>().ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, cancellationToken: token);
         }
-            
-        
-        
+
 
         if (!updateResult.IsAcknowledged)
         {
@@ -137,7 +137,7 @@ public partial class MongoDBRepository : IRepository
         {
             return;
         }
-        
+
         for (int i = 0; i < entity.Count; i++)
         {
             if (string.IsNullOrEmpty(entity[i].Id))
@@ -147,18 +147,17 @@ public partial class MongoDBRepository : IRepository
         }
 
         BulkWriteResult<T> bulkWriteResult;
-        
+
         if (transaction != null)
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session,entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions(){IsOrdered = false}, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session, entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions() { IsOrdered = false }, token);
         }
         else
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions(){IsOrdered = false}, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions() { IsOrdered = false }, token);
         }
 
-        
-        
+
         if (!bulkWriteResult.IsAcknowledged)
         {
             throw new FailedToUpsertException();
@@ -215,33 +214,33 @@ public partial class MongoDBRepository : IRepository
     }
 
     public async Task DeleteMany<T>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
+    {
+        if (IDs.Count == 0)
         {
-            if (IDs.Count == 0)
-            {
-                return;
-            }
-
-            if (transaction != null)
-            {
-                await GetCollection<T>().DeleteManyAsync(((MongoDBTransactionWrapper)transaction).Session, f => IDs.Contains(f.Id), cancellationToken: token);
-            }
-            else
-            {
-                await GetCollection<T>().DeleteManyAsync(f => IDs.Contains(f.Id), token);
-            }
+            return;
         }
+
+        if (transaction != null)
+        {
+            await GetCollection<T>().DeleteManyAsync(((MongoDBTransactionWrapper)transaction).Session, f => IDs.Contains(f.Id), cancellationToken: token);
+        }
+        else
+        {
+            await GetCollection<T>().DeleteManyAsync(f => IDs.Contains(f.Id), token);
+        }
+    }
 
     public async Task JsonUpdate<T>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
     {
         UpdateResult updateOneAsync;
-        
+
         if (transaction != null)
         {
-            updateOneAsync = await GetCollection<T>().UpdateOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == id && ((e.Version.HasValue && e.Version <= version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(json), cancellationToken: token);
+            updateOneAsync = await GetCollection<T>().UpdateOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<T>(json), cancellationToken: token);
         }
         else
         {
-            updateOneAsync = await GetCollection<T>().UpdateOneAsync(e => e.Id == id && ((e.Version.HasValue && e.Version <= version ) || !e.Version.HasValue), new JsonUpdateDefinition<T>(json), cancellationToken: token);
+            updateOneAsync = await GetCollection<T>().UpdateOneAsync(e => e.Id == id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<T>(json), cancellationToken: token);
         }
 
         if (!updateOneAsync.IsAcknowledged)
@@ -254,7 +253,7 @@ public partial class MongoDBRepository : IRepository
     {
         var pred = conditionPredicate.And(e => e.Id == entity.Id);
         ReplaceOneResult updateResult;
-        
+
         if (transaction != null)
         {
             updateResult = await GetCollection<T>().ReplaceOneAsync(((MongoDBTransactionWrapper)transaction).Session, pred, entity, new ReplaceOptions { IsUpsert = false }, token);
@@ -269,5 +268,4 @@ public partial class MongoDBRepository : IRepository
             throw new FailedToUpdateException();
         }
     }
-    
 }

@@ -66,6 +66,7 @@ public partial class MongoDBRepository : IReadonlyRepository
     {
         var ids = items.Where(e => !string.IsNullOrWhiteSpace(e.Id)).Select(e => e.Id).ToList();
         var entities = await ById<TItem>(ids, transaction, cancellationToken: cancellationToken);
+
         return await System.Linq.AsyncEnumerable.ToListAsync(entities.Select(e => new Ref<TItem>(e)), cancellationToken);
     }
 
@@ -97,7 +98,7 @@ public partial class MongoDBRepository : IReadonlyRepository
 
         if (transaction != null)
         {
-            item.Item = await (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, e=>e.Id == item.Id, options: new FindOptions<TItem>{Limit = 1}, cancellationToken: cancellationToken)).FirstOrDefaultAsync(cancellationToken: cancellationToken);
+            item.Item = await (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == item.Id, options: new FindOptions<TItem> { Limit = 1 }, cancellationToken: cancellationToken)).FirstOrDefaultAsync(cancellationToken: cancellationToken);
         }
         else
         {
@@ -118,7 +119,7 @@ public partial class MongoDBRepository : IReadonlyRepository
             return (await GetCollection<TItem>().FindAsync(e => true, cancellationToken: cancellationToken)).ToAsyncEnumerable();
         }
     }
-    
+
     public IQueryable<TItem> IQueryable<TItem>() where TItem : Entity
     {
         return GetCollection<TItem>().AsQueryable();
@@ -127,16 +128,16 @@ public partial class MongoDBRepository : IReadonlyRepository
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         var findOptions = new FindOptions<TItem> { Limit = 1 };
-        
+
         if (sortOrders != null && sortOrders.Any())
         {
             SortDefinition<TItem> sortDefinition = null;
             sortDefinition = getSortDefinition(sortOrders, sortDefinition);
             findOptions.Sort = sortDefinition;
         }
-        
+
         IAsyncCursor<TItem> result;
-        
+
         if (transaction != null)
         {
             result = await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, predicate, findOptions, cancellationToken);
@@ -145,14 +146,14 @@ public partial class MongoDBRepository : IReadonlyRepository
         {
             result = await GetCollection<TItem>().FindAsync(predicate, findOptions, cancellationToken);
         }
-        
+
         return await result.FirstOrDefaultAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TItem> Random<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         TItem item;
-        
+
         if (transaction != null)
         {
             item = await GetCollection<TItem>().Aggregate(((MongoDBTransactionWrapper)transaction).Session).AppendStage<TItem>(new BsonDocument("$sample", new BsonDocument("size", 1))).FirstOrDefaultAsync(cancellationToken);
@@ -170,7 +171,7 @@ public partial class MongoDBRepository : IReadonlyRepository
         var aggregate = transaction != null
             ? GetCollection<TItem>().Aggregate(((MongoDBTransactionWrapper)transaction).Session)
             : GetCollection<TItem>().Aggregate();
-        
+
         var result = aggregate.AppendStage<TItem>(new BsonDocument("$sample", new BsonDocument("size", count)));
 
         return result.ToAsyncEnumerable();
@@ -187,20 +188,21 @@ public partial class MongoDBRepository : IReadonlyRepository
 
         return items;
     }
-    
-    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : Entity
     {
         var where = new BsonDocument(whereClause);
 
         var findOptions = new FindOptions<TItem>();
-        
+
         if (sortOrders != null && sortOrders.Any())
         {
             findOptions.Sort = getSortDefinition(sortOrders, null);
         }
-        
+
         IAsyncCursor<TItem> res;
+
         if (transaction != null)
         {
             res = await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, where, findOptions, cancellationToken);
@@ -221,7 +223,7 @@ public partial class MongoDBRepository : IReadonlyRepository
         }
 
         var items = GetCollection<TItem>().AsQueryable().Where(predicate);
-        
+
         if (sortOrders != null)
         {
             items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
@@ -244,13 +246,14 @@ public partial class MongoDBRepository : IReadonlyRepository
             Skip = (pageNumber - 1) * pageSize,
             Limit = pageSize
         };
-        
+
         if (sortOrders != null && sortOrders.Any())
         {
             findOptions.Sort = getSortDefinition(sortOrders, null);
         }
-        
+
         IAsyncCursor<TItem> res;
+
         if (transaction != null)
         {
             res = await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, where, findOptions, cancellationToken);
@@ -267,11 +270,11 @@ public partial class MongoDBRepository : IReadonlyRepository
     {
         if (transaction != null)
         {
-            return await GetCollection<TItem>().CountDocumentsAsync(((MongoDBTransactionWrapper)transaction).Session, predicate,  cancellationToken: cancellationToken);
+            return await GetCollection<TItem>().CountDocumentsAsync(((MongoDBTransactionWrapper)transaction).Session, predicate, cancellationToken: cancellationToken);
         }
         else
         {
-            return await GetCollection<TItem>().CountDocumentsAsync(predicate, cancellationToken: cancellationToken );
+            return await GetCollection<TItem>().CountDocumentsAsync(predicate, cancellationToken: cancellationToken);
         }
     }
 
@@ -281,9 +284,10 @@ public partial class MongoDBRepository : IReadonlyRepository
 
         var expression = Converter<ChangeStreamDocument<TItem>>.Convert(predicate);
 
-        var opType = (ChangeStreamOperationType) operationFilter;
+        var opType = (ChangeStreamOperationType)operationFilter;
 
-        var definition = pipelineDefinition.Match(expression).Match(e=>e.OperationType == opType);
+        var definition = pipelineDefinition.Match(expression).Match(e => e.OperationType == opType);
+
         if (transaction != null)
         {
             await GetCollection<TItem>().WatchAsync(((MongoDBTransactionWrapper)transaction).Session, definition, cancellationToken: cancellationToken);
@@ -299,7 +303,7 @@ public partial class MongoDBRepository : IReadonlyRepository
         {
             foreach (var changeStreamDocument in asyncCursor.ToEnumerable())
             {
-                callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(), (ChangeOperation) changeStreamDocument.OperationType );
+                callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(), (ChangeOperation)changeStreamDocument.OperationType);
             }
         }
     }

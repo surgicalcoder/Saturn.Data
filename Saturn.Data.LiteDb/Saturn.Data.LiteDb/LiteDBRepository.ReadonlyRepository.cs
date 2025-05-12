@@ -2,52 +2,51 @@
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB.Queryable;
-using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.LiteDb;
 
 public partial class LiteDBRepository : IReadonlyRepository
 {
-    public async Task<T> ById<T>(string id) where T : Entity
+    public async Task<TItem> ById<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return await GetCollection<T>().FindByIdAsync(id);
+        return await GetCollection<TItem>().FindByIdAsync(id);
     }
 
-    public async Task<IAsyncEnumerable<T>> ById<T>(List<string> IDs) where T : Entity
+    public async Task<IAsyncEnumerable<TItem>> ById<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var results = await GetCollection<T>().FindAsync(entity => IDs.Contains(entity.Id));
+        var results = await GetCollection<TItem>().FindAsync(entity => IDs.Contains(entity.Id));
 
         return results.ToAsyncEnumerable();
     }
 
-    public async Task<List<Ref<T>>> ByRef<T>(List<Ref<T>> item) where T : Entity, new()
+    public async Task<List<Ref<TItem>>> ByRef<TItem>(List<Ref<TItem>> items, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
     {
-        var enumerable = item.Where(e => string.IsNullOrWhiteSpace(e.Id)).Select(f => f.Id).ToList();
-        var res = await ById<T>(enumerable);
+        var ids = items.Where(e => !string.IsNullOrWhiteSpace(e.Id)).Select(e => e.Id).ToList();
+        var entities = await ById<TItem>(ids, transaction, cancellationToken);
 
-        return res.Select(r => new Ref<T>(r)).ToListAsync().Result;
+        return await AsyncEnumerable.ToListAsync(entities.Select(e => new Ref<TItem>(e)), cancellationToken);
     }
 
-    public async Task<T> ByRef<T>(Ref<T> item) where T : Entity, new()
+    public async Task<TItem> ByRef<TItem>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
     {
-        return string.IsNullOrWhiteSpace(item.Id) ? null : await ById<T>(item.Id);
+        return (string.IsNullOrWhiteSpace(item.Id) ? null : await ById<TItem>(item.Id, cancellationToken: cancellationToken))!;
     }
 
-    public async Task<Ref<T>> PopulateRef<T>(Ref<T> item) where T : Entity, new()
+    public async Task<Ref<TItem>> PopulateRef<TItem>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
     {
         if (string.IsNullOrWhiteSpace(item.Id))
         {
             return default;
         }
 
-        item.Item = await ById<T>(item.Id);
+        item.Item = await ById<TItem>(item.Id);
 
         return item;
     }
 
-    public Task<IAsyncEnumerable<T>> All<T>() where T : Entity
+    public Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Task.FromResult(GetCollection<T>().AsQueryable().ToAsyncEnumerable());
+        return Task.FromResult(GetCollection<TItem>().AsQueryable().ToAsyncEnumerable());
     }
 
     public IQueryable<TItem> IQueryable<TItem>() where TItem : Entity
@@ -55,61 +54,58 @@ public partial class LiteDBRepository : IReadonlyRepository
         return GetCollection<TItem>().AsQueryable();
     }
 
-    public async Task<T> One<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var query = GetCollection<T>().AsQueryable().Where(predicate);
-    
+        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
+
         if (sortOrders != null)
         {
-            query = sortOrders.Aggregate(query, (current, sortOrder) => 
-                sortOrder.Direction == SortDirection.Ascending 
-                    ? current.OrderBy(sortOrder.Field) 
+            query = sortOrders.Aggregate(query, (current, sortOrder) =>
+                sortOrder.Direction == SortDirection.Ascending
+                    ? current.OrderBy(sortOrder.Field)
                     : current.OrderByDescending(sortOrder.Field));
         }
-    
-        return await query.FirstOrDefaultAsync();
+
+        return await query.FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<T> Random<T>() where T : Entity
+    public async Task<TItem> Random<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var item = await GetCollection<T>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(1).FirstOrDefaultAsync();
+        var item = await GetCollection<TItem>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(1).FirstOrDefaultAsync(cancellationToken);
 
         return item;
     }
 
-    public Task<IAsyncEnumerable<T>> Random<T>(int count) where T : Entity
+    public Task<IAsyncEnumerable<TItem>> Random<TItem>(int count, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var item = GetCollection<T>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(count);
+        var item = GetCollection<TItem>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(count);
 
         return Task.FromResult(item.ToAsyncEnumerable());
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public IQueryable<TItem> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
-        var items = GetCollection<T>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
 
         if (sortOrders != null)
         {
-            foreach (var sortOrder in sortOrders)
-            {
-                items = sortOrder.Direction == SortDirection.Ascending ? items.OrderBy(sortOrder.Field) : items.OrderByDescending(sortOrder.Field);
-            }
+            items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return await Task.Run(() => items);
+        return items;
     }
 
-    public async Task<IAsyncEnumerable<T>> Many<T>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var query = GetCollection<T>().AsQueryable();
+        var query = GetCollection<TItem>().AsQueryable();
 
         foreach (var clause in whereClause)
         {
-            var parameter = Expression.Parameter(typeof(T), "entity");
+            var parameter = Expression.Parameter(typeof(TItem), "entity");
             var property = Expression.Property(parameter, clause.Key);
             var constant = Expression.Constant(clause.Value);
             var equal = Expression.Equal(property, constant);
-            var lambda = Expression.Lambda<Func<T, bool>>(equal, parameter);
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
             query = query.Where(lambda);
         }
 
@@ -118,39 +114,37 @@ public partial class LiteDBRepository : IReadonlyRepository
             query = sortOrders.Aggregate(query, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        var result = await Task.Run(() => query.ToAsyncEnumerable());
-
-        return result;
+        return Task.FromResult(query.ToAsyncEnumerable());
     }
 
-    public async Task<IQueryable<T>> Many<T>(Expression<Func<T, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public IQueryable<TItem> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
     {
         if (pageSize == 0 || pageNumber == 0)
         {
-            return await Many(predicate).ConfigureAwait(false);
+            return Many(predicate);
         }
 
-        var items = GetCollection<T>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
 
         if (sortOrders != null)
         {
             items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return await Task.Run(() => items.Skip((pageNumber - 1) * pageSize).Take(pageSize));
+        return items.Skip((pageNumber - 1) * pageSize).Take(pageSize);
     }
 
-    public async Task<IAsyncEnumerable<T>> Many<T>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<T>> sortOrders = null) where T : Entity
+    public Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var query = GetCollection<T>().AsQueryable();
+        var query = GetCollection<TItem>().AsQueryable();
 
         foreach (var clause in whereClause)
         {
-            var parameter = Expression.Parameter(typeof(T), "entity");
+            var parameter = Expression.Parameter(typeof(TItem), "entity");
             var property = Expression.Property(parameter, clause.Key);
             var constant = Expression.Constant(clause.Value);
             var equal = Expression.Equal(property, constant);
-            var lambda = Expression.Lambda<Func<T, bool>>(equal, parameter);
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
             query = query.Where(lambda);
         }
 
@@ -164,17 +158,15 @@ public partial class LiteDBRepository : IReadonlyRepository
             query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
         }
 
-        var result = await Task.Run(() => query.ToAsyncEnumerable());
-
-        return result;
+        return Task.FromResult(query.ToAsyncEnumerable());
     }
 
-    public async Task<long> CountMany<T>(Expression<Func<T, bool>> predicate) where T : Entity
+    public async Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return await GetCollection<T>().LongCountAsync(predicate);
+        return await GetCollection<TItem>().LongCountAsync(predicate);
     }
 
-    public Task Watch<T>(Expression<Func<ChangedEntity<T>, bool>> predicate, ChangeOperation operationFilter, Action<T, string, ChangeOperation> callback) where T : Entity
+    public Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         throw new NotImplementedException();
     }

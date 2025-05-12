@@ -2,45 +2,45 @@
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Saturn.Data.LiteDb;
 
 public partial class LiteDBRepository : IRepository
 {
-    public async Task Insert<T>(T entity) where T : Entity
+    public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (string.IsNullOrWhiteSpace(entity.Id))
         {
             entity.Id = ObjectId.NewObjectId().ToString();
         }
 
-        await GetCollection<T>().InsertAsync(entity);
+        await GetCollection<TItem>().InsertAsync(entity);
     }
 
-    public async Task InsertMany<T>(IEnumerable<T> entities) where T : Entity
+    public async Task InsertMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entities == null || !entities.Any())
         {
             return;
         }
 
-        await GetCollection<T>().InsertBulkAsync(entities);
-        await database.CommitAsync();
+        await GetCollection<TItem>().InsertBulkAsync(entities);
     }
 
-    public async Task Save<T>(T entity) where T : Entity
+    public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        await Upsert(entity);
+        await Upsert(entity, cancellationToken: cancellationToken);
     }
 
-    public async Task SaveMany<T>(List<T> entities) where T : Entity
+    public async Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        await UpsertMany(entities);
+        await UpsertMany(entities, cancellationToken: cancellationToken);
     }
 
-    public async Task Update<T>(T entity) where T : Entity
+    public async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var updateResult = await GetCollection<T>().UpdateAsync(entity);
+        var updateResult = await GetCollection<TItem>().UpdateAsync(entity);
 
         if (!updateResult)
         {
@@ -48,22 +48,21 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-
-    public async Task Update<T>(Expression<Func<T, bool>> conditionPredicate, T entity) where T : Entity
+    public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var coll = GetCollection<T>();
+        var coll = GetCollection<TItem>();
         var id = await coll.FindOneAsync(conditionPredicate);
         await coll.UpdateAsync(id.Id, entity);
     }
 
-    public async Task UpdateMany<T>(List<T> entities) where T : Entity
+    public async Task UpdateMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entities == null || entities.Count == 0)
         {
             return;
         }
 
-        var coll = GetCollection<T>();
+        var coll = GetCollection<TItem>();
 
         for (var i = 0; i < entities.Count; i++)
         {
@@ -76,14 +75,14 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task Upsert<T>(T entity) where T : Entity
+    public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (string.IsNullOrWhiteSpace(entity.Id))
         {
             entity.Id = ObjectId.NewObjectId().ToString();
         }
 
-        var updateResult = await GetCollection<T>().UpsertAsync(entity);
+        var updateResult = await GetCollection<TItem>().UpsertAsync(entity);
 
         if (!updateResult)
         {
@@ -91,14 +90,14 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task UpsertMany<T>(List<T> entity) where T : Entity
+    public async Task UpsertMany<TItem>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entity == null || entity.Count == 0)
         {
             return;
         }
 
-        var coll = GetCollection<T>();
+        var coll = GetCollection<TItem>();
 
         for (var i = 0; i < entity.Count; i++)
         {
@@ -114,22 +113,22 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task Delete<T>(T entity) where T : Entity
+    public async Task Delete<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        await GetCollection<T>().DeleteManyAsync(f => f.Id == entity.Id);
+        await GetCollection<TItem>().DeleteManyAsync(f => f.Id == entity.Id);
     }
 
-    public async Task Delete<T>(Expression<Func<T, bool>> filter) where T : Entity
+    public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        await GetCollection<T>().DeleteManyAsync(filter);
+        await GetCollection<TItem>().DeleteManyAsync(filter);
     }
 
-    public async Task Delete<T>(string id) where T : Entity
+    public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        await Delete<T>(f => f.Id == id);
+        await Delete<TItem>(f => f.Id == id, cancellationToken: cancellationToken);
     }
 
-    public async Task DeleteMany<T>(IEnumerable<T> entities) where T : Entity
+    public async Task DeleteMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (!entities.Any())
         {
@@ -138,21 +137,51 @@ public partial class LiteDBRepository : IRepository
 
         var list = entities.Select(r => r.Id).ToList();
 
-        await GetCollection<T>().DeleteManyAsync(arg => list.Contains(arg.Id));
+        await GetCollection<TItem>().DeleteManyAsync(arg => list.Contains(arg.Id));
     }
 
-    public async Task DeleteMany<T>(List<string> IDs) where T : Entity
+    public async Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (IDs.Count == 0)
         {
             return;
         }
 
-        await GetCollection<T>().DeleteManyAsync(f => IDs.Contains(f.Id));
+        await GetCollection<TItem>().DeleteManyAsync(f => IDs.Contains(f.Id));
     }
 
-    public async Task JsonUpdate<T>(string id, int version, string json) where T : Entity
+    public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        throw new NotImplementedException();
+        var collection = GetCollection<TItem>();
+
+        // Find the existing entity
+        var existingEntity = await collection.FindOneAsync(e => e.Id == id);
+
+        if (existingEntity == null)
+        {
+            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
+        }
+
+        // Parse the JSON to BsonDocument
+        var updateDoc = JsonSerializer.Deserialize<BsonDocument>(json);
+
+        // Version check for optimistic concurrency
+        if (existingEntity.Version != version)
+        {
+            throw new ApplicationException($"Entity version mismatch. Current version: {existingEntity.Version}, requested version: {version}");
+        }
+
+        // Convert the update document to entity and preserve ID
+        var updatedEntity = BsonMapper.Global.ToObject<TItem>(updateDoc);
+        updatedEntity.Id = id;
+        updatedEntity.Version = version + 1;
+
+        // Update the entity
+        var result = await collection.UpdateAsync(updatedEntity);
+
+        if (!result)
+        {
+            throw new FailedToUpdateException();
+        }
     }
 }

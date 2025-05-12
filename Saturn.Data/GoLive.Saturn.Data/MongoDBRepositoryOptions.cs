@@ -14,8 +14,4 @@ public class MongoDBRepositoryOptions
     public Func<MongoCommandFailedEvent, Task> CommandFailedCallback { get; set; }
     public Func<MongoCommandStartedEvent, Task> CommandStartedCallback { get; set; }
     public Func<MongoCommandSucceededEvent, Task> CommandSucceededCallback { get; set; }
-    
-    /*public Action<MongoDBRepository, Type, object[]> UpdateCallback { get; set; }
-    public Action<MongoDBRepository, Type, object[]> UpsertCallback { get; set; }
-    public Action<MongoDBRepository, Type, object[]> DeleteCallback { get; set; }*/
 }

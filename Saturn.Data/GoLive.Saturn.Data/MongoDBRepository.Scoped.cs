@@ -20,7 +20,6 @@ public partial class MongoDBRepository : IScopedRepository
         if (transaction != null)
         {
             updateOneAsync = await GetCollection<T>().UpdateOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == Id && e.Scope == Scope && ((e.Version.HasValue && e.Version <= Version) || !e.Version.HasValue), new JsonUpdateDefinition<T>(Json), cancellationToken: cancellationToken);
-
         }
         else
         {
@@ -32,11 +31,12 @@ public partial class MongoDBRepository : IScopedRepository
             throw new FailedToUpdateException();
         }
     }
-    
+
     public async Task Delete<T, T2>(string scope, Expression<Func<T, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         await Delete<T>(filter.And(e => e.Scope == scope), transaction, cancellationToken);
     }
+
     public async Task Insert<T, T2>(string scope, T entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         entity.Scope = scope;
@@ -49,7 +49,7 @@ public partial class MongoDBRepository : IScopedRepository
         {
             scopedEntity.Scope = scope;
         }
-        
+
         await InsertMany(entities, transaction, cancellationToken);
     }
 
@@ -61,7 +61,7 @@ public partial class MongoDBRepository : IScopedRepository
 
     public async Task UpdateMany<T, T2>(string scope, List<T> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        entity.ForEach(f=>f.Scope = scope);
+        entity.ForEach(f => f.Scope = scope);
         await UpdateMany(entity, transaction, cancellationToken);
     }
 
@@ -73,7 +73,7 @@ public partial class MongoDBRepository : IScopedRepository
 
     public async Task UpsertMany<T, T2>(string scope, List<T> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        entity.ForEach(f=>f.Scope = scope);
+        entity.ForEach(f => f.Scope = scope);
         await UpsertMany(entity, transaction, cancellationToken);
     }
 

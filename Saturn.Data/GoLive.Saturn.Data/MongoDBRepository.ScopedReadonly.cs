@@ -46,7 +46,7 @@ public partial class MongoDBRepository : IScopedReadonlyRepository
 
         return result.ToAsyncEnumerable();
     }
-    
+
     public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
@@ -88,7 +88,6 @@ public partial class MongoDBRepository : IScopedReadonlyRepository
 
     public async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
-        
         if (transaction != null)
         {
             return (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
@@ -103,15 +102,16 @@ public partial class MongoDBRepository : IScopedReadonlyRepository
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        
+
         var findOptions = new FindOptions<TItem> { Limit = 1 };
+
         if (sortOrders != null && sortOrders.Any())
         {
             SortDefinition<TItem> sortDefinition = null;
             sortDefinition = getSortDefinition(sortOrders, sortDefinition);
             findOptions.Sort = sortDefinition;
         }
-        
+
         IAsyncCursor<TItem> result;
 
         if (transaction != null)

@@ -278,6 +278,12 @@ public partial class MongoDBRepository
             });
         }
     }
+
+    public async Task<IDatabaseTransaction> CreateTransaction()
+    {
+        var wrapper = new MongoDBTransactionWrapper(await client.StartSessionAsync());
+        return wrapper;
+    }
     
     protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
     {
