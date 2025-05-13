@@ -67,7 +67,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return res.FirstOrDefaultAsync(cancellationToken);
     }
 
-    public IQueryable<TItem> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -81,7 +81,12 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
             scopedEntities = sortOrders.Aggregate(scopedEntities, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return scopedEntities;
+        if (pageSize.HasValue && pageNumber.HasValue && pageSize.Value > 0 && pageNumber.Value > 0)
+        {
+            scopedEntities = scopedEntities.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
+        }
+
+        return scopedEntities.ToAsyncEnumerable();
     }
 
     public async Task<long> CountMany<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
@@ -95,5 +100,39 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         var combinedPred = firstPred.And(predicate);
 
         return await GetCollection<TItem>().LongCountAsync(combinedPred);
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(
+        Ref<TPrimaryScope> primaryScope,
+        Ref<TSecondScope> secondScope,
+        Expression<Func<TItem, bool>> predicate,
+        int pageSize = 20,
+        int pageNumber = 1,
+        IEnumerable<SortOrder<TItem>> sortOrders = null,
+        IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = new())
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new()
+        where TPrimaryScope : Entity, new()
+    {
+        var query = GetCollection<TItem>()
+                    .AsQueryable()
+                    .Where(item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id)
+                    .Where(predicate);
+
+        if (sortOrders != null)
+        {
+            query = sortOrders.Aggregate(query, (current, sortOrder) =>
+                sortOrder.Direction == SortDirection.Ascending
+                    ? current.OrderBy(sortOrder.Field)
+                    : current.OrderByDescending(sortOrder.Field));
+        }
+
+        if (pageSize > 0 && pageNumber > 0)
+        {
+            query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+        }
+
+        return await Task.FromResult(query.ToAsyncEnumerable());
     }
 }

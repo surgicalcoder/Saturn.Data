@@ -39,22 +39,22 @@ public partial class MongoDBRepository : IRepository
 
         if (transaction != null)
         {
-            await GetCollection<T>().InsertManyAsync(((MongoDBTransactionWrapper)transaction).Session, entities, new InsertManyOptions() { IsOrdered = true }, token);
+            await GetCollection<T>().InsertManyAsync(((MongoDBTransactionWrapper)transaction).Session, entities, new InsertManyOptions { IsOrdered = true }, token);
         }
         else
         {
-            await GetCollection<T>().InsertManyAsync(entities, new InsertManyOptions() { IsOrdered = true }, token);
+            await GetCollection<T>().InsertManyAsync(entities, new InsertManyOptions { IsOrdered = true }, token);
         }
     }
 
     public async Task Save<T>(T entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
     {
-        await Upsert<T>(entity, transaction: transaction, token: token);
+        await Upsert(entity, transaction, token);
     }
 
     public async Task SaveMany<T>(List<T> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where T : Entity
     {
-        await UpsertMany<T>(entities, transaction: transaction, token: token);
+        await UpsertMany(entities, transaction, token);
     }
 
 
@@ -93,11 +93,11 @@ public partial class MongoDBRepository : IRepository
 
         if (transaction != null)
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session, writeModel, new BulkWriteOptions() { IsOrdered = false }, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session, writeModel, new BulkWriteOptions { IsOrdered = false }, token);
         }
         else
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(writeModel, new BulkWriteOptions() { IsOrdered = false }, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(writeModel, new BulkWriteOptions { IsOrdered = false }, token);
         }
 
         if (!bulkWriteResult.IsAcknowledged)
@@ -117,11 +117,11 @@ public partial class MongoDBRepository : IRepository
 
         if (transaction != null)
         {
-            updateResult = await GetCollection<T>().ReplaceOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, cancellationToken: token);
+            updateResult = await GetCollection<T>().ReplaceOneAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, token);
         }
         else
         {
-            updateResult = await GetCollection<T>().ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, cancellationToken: token);
+            updateResult = await GetCollection<T>().ReplaceOneAsync(e => e.Id == entity.Id, entity, new ReplaceOptions { IsUpsert = true }, token);
         }
 
 
@@ -138,7 +138,7 @@ public partial class MongoDBRepository : IRepository
             return;
         }
 
-        for (int i = 0; i < entity.Count; i++)
+        for (var i = 0; i < entity.Count; i++)
         {
             if (string.IsNullOrEmpty(entity[i].Id))
             {
@@ -150,11 +150,11 @@ public partial class MongoDBRepository : IRepository
 
         if (transaction != null)
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session, entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions() { IsOrdered = false }, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(((MongoDBTransactionWrapper)transaction).Session, entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions { IsOrdered = false }, token);
         }
         else
         {
-            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions() { IsOrdered = false }, token);
+            bulkWriteResult = await GetCollection<T>().BulkWriteAsync(entity.Select(f => new ReplaceOneModel<T>(new ExpressionFilterDefinition<T>(e => e.Id == f.Id), f) { IsUpsert = true }), new BulkWriteOptions { IsOrdered = false }, token);
         }
 
 

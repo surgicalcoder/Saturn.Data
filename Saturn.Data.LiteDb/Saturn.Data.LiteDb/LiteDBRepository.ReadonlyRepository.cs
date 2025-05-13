@@ -83,7 +83,7 @@ public partial class LiteDBRepository : IReadonlyRepository
         return Task.FromResult(item.ToAsyncEnumerable());
     }
 
-    public IQueryable<TItem> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
     {
         var items = GetCollection<TItem>().AsQueryable().Where(predicate);
 
@@ -92,8 +92,9 @@ public partial class LiteDBRepository : IReadonlyRepository
             items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return items;
+        return items.ToAsyncEnumerable();
     }
+
 
     public Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
@@ -117,11 +118,11 @@ public partial class LiteDBRepository : IReadonlyRepository
         return Task.FromResult(query.ToAsyncEnumerable());
     }
 
-    public IQueryable<TItem> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : Entity
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
     {
         if (pageSize == 0 || pageNumber == 0)
         {
-            return Many(predicate);
+            return await Many(predicate, cancellationToken: cancellationToken);
         }
 
         var items = GetCollection<TItem>().AsQueryable().Where(predicate);
@@ -131,7 +132,7 @@ public partial class LiteDBRepository : IReadonlyRepository
             items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return items.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+        return items.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToAsyncEnumerable();
     }
 
     public Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity

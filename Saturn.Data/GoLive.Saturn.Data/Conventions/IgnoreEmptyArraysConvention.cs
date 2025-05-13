@@ -22,19 +22,25 @@ public class IgnoreEmptyArraysConvention : ConventionBase, IMemberMapConvention
     public void Apply(BsonMemberMap memberMap)
     {
         var typ = memberMap.MemberType;
+
         if (!typeof(IEnumerable).IsAssignableFrom(memberMap.MemberType) || //Allow IEnumerable
-            typeof(string) == memberMap.MemberType  //But not String
+            typeof(string) == memberMap.MemberType //But not String
             // || typeof(IDictionary).IsAssignableFrom(memberMap.MemberType)
            ) //Or Dictionary (concrete classes only see below)
+        {
             return;
+        }
 
         //*NOTE Microsoft was too stupid to make the generic dictionary interfaces implement IDictonary even though every single concrete class does
         //      They were also too stupid to make generic IDictionary implement IReadOnlyDictionary even though every single concrete class does I believe this should catch all
         if (memberMap.MemberType.IsGenericType && memberMap.MemberType.IsInterface)
         {
             var genericType = memberMap.MemberType.GetGenericTypeDefinition();
+
             if (genericType == typeof(IDictionary<,>) || genericType == typeof(IReadOnlyDictionary<,>))
+            {
                 return;
+            }
         }
 
         if (memberMap.MemberType.IsArray) //Load Empty Array
@@ -57,9 +63,11 @@ public class IgnoreEmptyArraysConvention : ConventionBase, IMemberMapConvention
         {
             memberMap.SetDefaultValue(() => Activator.CreateInstance(typeof(List<object>)));
         }
+
         memberMap.SetShouldSerializeMethod(instance =>
         {
             var value = (IEnumerable)memberMap.Getter(instance);
+
             return value?.GetEnumerator().MoveNext() ?? false;
         });
     }

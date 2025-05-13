@@ -6,10 +6,11 @@ using System.Threading;
 using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data.AsyncEnumerable;
+
 public static class AsyncCursorExtensions
 {
     /// <summary>
-    ///     Wraps a cursor in an <see cref="IAsyncEnumerable{T}" /> that can be enumerated one time.
+    /// Wraps a cursor in an <see cref="IAsyncEnumerable{T}" /> that can be enumerated one time.
     /// </summary>
     /// <typeparam name="TDocument">The type of the document.</typeparam>
     /// <param name="cursor">The cursor.</param>
@@ -17,6 +18,7 @@ public static class AsyncCursorExtensions
     public static IAsyncEnumerable<TDocument> ToAsyncEnumerable<TDocument>(this IAsyncCursor<TDocument> cursor)
     {
         ArgumentNullException.ThrowIfNull(cursor);
+
         return new AsyncCursorAsyncEnumerableOneTimeAdapter<TDocument>(cursor);
     }
 
@@ -29,12 +31,13 @@ public static class AsyncCursorExtensions
 
         using (cursor ??= await source!.ToCursorAsync(cancellationToken).ConfigureAwait(false))
         {
-            while (!cancellationToken.IsCancellationRequested && 
+            while (!cancellationToken.IsCancellationRequested &&
                    await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
             {
                 foreach (var document in cursor.Current)
                 {
                     yield return document;
+
                     if (cancellationToken.IsCancellationRequested)
                     {
                         yield break;
@@ -61,7 +64,7 @@ public static class AsyncCursorExtensions
                 throw new InvalidOperationException("An IAsyncCursor can only be enumerated once.");
             }
 
-            return ToAsyncEnumerable(null, _cursor, cancellationToken).GetAsyncEnumerator(cancellationToken); 
+            return ToAsyncEnumerable(null, _cursor, cancellationToken).GetAsyncEnumerator(cancellationToken);
         }
     }
 }

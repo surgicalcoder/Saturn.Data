@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Driver;
-using MongoDB.Driver.Linq;
 
 namespace GoLive.Saturn.Data;
 
@@ -34,7 +32,7 @@ public partial class MongoDBRepository : IScopedRepository
 
     public async Task Delete<T, T2>(string scope, Expression<Func<T, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
-        await Delete<T>(filter.And(e => e.Scope == scope), transaction, cancellationToken);
+        await Delete(filter.And(e => e.Scope == scope), transaction, cancellationToken);
     }
 
     public async Task Insert<T, T2>(string scope, T entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -77,24 +75,9 @@ public partial class MongoDBRepository : IScopedRepository
         await UpsertMany(entity, transaction, cancellationToken);
     }
 
-    public async Task Delete<T, T2>(string scope, T entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        await Delete<T>(f => f.Scope == scope && f.Id == entity.Id, transaction, cancellationToken);
-    }
-
     public async Task Delete<T, T2>(string scope, string Id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
     {
         await Delete<T>(f => f.Scope == scope && f.Id == Id, transaction, cancellationToken);
-    }
-
-    public async Task DeleteMany<T, T2>(string scope, IEnumerable<T> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
-    {
-        foreach (var scopedEntity in entity)
-        {
-            scopedEntity.Scope = scope;
-        }
-
-        await DeleteMany(entity, transaction, cancellationToken);
     }
 
     public async Task DeleteMany<T, T2>(string scope, List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
@@ -110,7 +93,22 @@ public partial class MongoDBRepository : IScopedRepository
         }
         else
         {
-            await GetCollection<T>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken: cancellationToken);
+            await GetCollection<T>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken);
         }
+    }
+
+    public async Task Delete<T, T2>(string scope, T entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
+    {
+        await Delete<T>(f => f.Scope == scope && f.Id == entity.Id, transaction, cancellationToken);
+    }
+
+    public async Task DeleteMany<T, T2>(string scope, IEnumerable<T> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : ScopedEntity<T2> where T2 : Entity, new()
+    {
+        foreach (var scopedEntity in entity)
+        {
+            scopedEntity.Scope = scope;
+        }
+
+        await DeleteMany(entity, transaction, cancellationToken);
     }
 }

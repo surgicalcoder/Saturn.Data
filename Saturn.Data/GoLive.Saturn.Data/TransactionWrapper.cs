@@ -5,7 +5,6 @@ using MongoDB.Driver;
 
 namespace GoLive.Saturn.Data;
 
-
 public class MongoDBTransactionWrapper(IClientSessionHandle session)
     : IDatabaseTransaction
 {
@@ -32,11 +31,6 @@ public class MongoDBTransactionWrapper(IClientSessionHandle session)
         }
     }
 
-    public void Dispose()
-    {
-        Session?.Dispose();
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (Session != null)
@@ -57,5 +51,10 @@ public class MongoDBTransactionWrapper(IClientSessionHandle session)
                 resource.Dispose();
             }
         }
+    }
+
+    public void Dispose()
+    {
+        Session?.Dispose();
     }
 }

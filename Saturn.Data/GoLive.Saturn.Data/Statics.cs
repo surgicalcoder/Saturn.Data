@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace GoLive.Saturn.Data;
 
-public partial class Statics
+public class Statics
 {
     public static ReadOnlySpan<char> Separator()
     {

@@ -10,6 +10,7 @@ using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace GoLive.Saturn.Data;
 
@@ -19,14 +20,14 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await ById<TItem, TParent>(scope, id, transaction, cancellationToken: cancellationToken);
+        return await ById<TItem, TParent>(scope, id, transaction, cancellationToken);
     }
 
     async Task<List<TItem>> ITransparentScopedReadonlyRepository.ById<TItem, TParent>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await System.Linq.AsyncEnumerable.ToListAsync((await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken)), cancellationToken);
+        return await System.Linq.AsyncEnumerable.ToListAsync(await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken), cancellationToken);
     }
 
     async Task<List<Ref<TItem>>> ITransparentScopedReadonlyRepository.ByRef<TItem, TParent>(List<Ref<TItem>> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -42,7 +43,7 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return string.IsNullOrWhiteSpace(item.Id) ? null : await ById<TItem, TParent>(scope, item.Id, transaction, cancellationToken: cancellationToken);
+        return string.IsNullOrWhiteSpace(item.Id) ? null : await ById<TItem, TParent>(scope, item.Id, transaction, cancellationToken);
     }
 
     async Task<Ref<TItem>> ITransparentScopedReadonlyRepository.PopulateRef<TItem, TParent>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -54,7 +55,7 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
             return null;
         }
 
-        item.Item = await ById<TItem, TParent>(scope, item.Id, transaction, cancellationToken: cancellationToken);
+        item.Item = await ById<TItem, TParent>(scope, item.Id, transaction, cancellationToken);
 
         return item;
     }
@@ -72,14 +73,14 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider(typeof(TParent));
 
-        return All<TItem, TParent>(scope, transaction, cancellationToken: cancellationToken);
+        return All<TItem, TParent>(scope, transaction, cancellationToken);
     }
 
     async Task<TItem> ITransparentScopedReadonlyRepository.One<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await One<TItem, TParent>(scope, predicate, sortOrders, transaction, cancellationToken: cancellationToken);
+        return await One<TItem, TParent>(scope, predicate, sortOrders, transaction, cancellationToken);
     }
 
     async Task<TItem> ITransparentScopedReadonlyRepository.Random<TItem, TParent>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -134,13 +135,6 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
         return items;
     }
 
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-
-        return Many<TItem, TParent>(scope, predicate, sortOrders);
-    }
-
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
@@ -150,22 +144,16 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
 
         if (transaction != null)
         {
-            result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(((MongoDBTransactionWrapper)transaction).Session, where, null, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+            result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(((MongoDBTransactionWrapper)transaction).Session, where, null, cancellationToken)).ToListAsync(cancellationToken);
         }
         else
         {
-            result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(where, null, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+            result = await (await mongoDatabase.GetCollection<BsonDocument>(GetCollectionNameForType<TItem>()).FindAsync(where, null, cancellationToken)).ToListAsync(cancellationToken);
         }
 
         return result.Select(f => BsonSerializer.Deserialize<TItem>(f)).ToAsyncEnumerable();
     }
 
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-
-        return Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders);
-    }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
@@ -207,7 +195,7 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
 
         if (transaction != null)
         {
-            res = await CountMany<TItem, TParent>(scope, predicate, transaction, cancellationToken: cancellationToken);
+            res = await CountMany<TItem, TParent>(scope, predicate, transaction, cancellationToken);
         }
         else
         {
@@ -220,5 +208,47 @@ public partial class MongoDBRepository : ITransparentScopedReadonlyRepository
     Task ITransparentScopedReadonlyRepository.Watch<TItem, TParent>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
+    }
+
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new())
+        where TItem : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        predicate = predicate.And(item => item.Scope == scope);
+        var filter = Builders<TItem>.Filter.Where(predicate);
+        var findOptions = new FindOptions<TItem>();
+
+        if (sortOrders != null && sortOrders.Any())
+        {
+            var sortDefinitions = sortOrders.Select(sortOrder => sortOrder.Direction == SortDirection.Ascending
+                                                ? Builders<TItem>.Sort.Ascending(sortOrder.Field)
+                                                : Builders<TItem>.Sort.Descending(sortOrder.Field))
+                                            .ToList();
+            findOptions.Sort = Builders<TItem>.Sort.Combine(sortDefinitions);
+        }
+
+        IAsyncCursor<TItem> res;
+
+        if (transaction != null)
+        {
+            res = await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, filter, findOptions, cancellationToken);
+        }
+        else
+        {
+            res = await GetCollection<TItem>().FindAsync(filter, findOptions, cancellationToken);
+        }
+
+        return res.ToAsyncEnumerable();
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new())
+        where TItem : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+
+        return await Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
     }
 }

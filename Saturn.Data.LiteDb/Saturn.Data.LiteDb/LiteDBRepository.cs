@@ -1,68 +1,85 @@
 ﻿using System.Collections.Concurrent;
-using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB;
 using LiteDB.Async;
-using LiteDB.Queryable;
 
 namespace Saturn.Data.LiteDb;
 
 public partial class LiteDBRepository : IRepository
 {
     protected LiteDatabaseAsync database;
-    protected RepositoryOptions options;
     protected LiteDBRepositoryOptions liteDbOptions;
-    
-    public LiteDBRepository(RepositoryOptions repositoryOptions, LiteDBRepositoryOptions liteDbRepositoryOptions )
+    protected RepositoryOptions options;
+
+    public LiteDBRepository(RepositoryOptions repositoryOptions, LiteDBRepositoryOptions liteDbRepositoryOptions)
     {
-        this.liteDbOptions = liteDbRepositoryOptions;
+        liteDbOptions = liteDbRepositoryOptions;
         var mapper = liteDbRepositoryOptions.Mapper;
-        
+
         RegisterAllEntityRefs(mapper);
-        
+
         database = new LiteDatabaseAsync(repositoryOptions.ConnectionString, mapper);
         options = repositoryOptions;
     }
-    
-    
-    
-    protected void RegisterAllEntityRefs(BsonMapper mapper)
+
+    protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
+
+    public void Dispose()
+    {
+        database?.Dispose();
+    }
+
+    public async Task<IDatabaseTransaction> CreateTransaction()
+    {
+        throw new NotImplementedException();
+    }
+
+    protected virtual void RegisterAllEntityRefs(BsonMapper mapper)
     {
         var entityBase = typeof(Entity);
-        var openRef    = typeof(Ref<>);
+        var openRef = typeof(Ref<>);
 
         // 1) find every non-abstract Entity subclass with a public parameterless ctor
         var entityTypes = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => {
-                try { return a.GetTypes(); }
-                catch { return Array.Empty<Type>(); }
-            })
-            .Where(t =>
-                entityBase.IsAssignableFrom(t) &&
-                !t.IsAbstract &&
-                t.GetConstructor(Type.EmptyTypes) != null
-            );
+                                   .SelectMany(a =>
+                                   {
+                                       try
+                                       {
+                                           return a.GetTypes();
+                                       }
+                                       catch
+                                       {
+                                           return Array.Empty<Type>();
+                                       }
+                                   })
+                                   .Where(t =>
+                                       entityBase.IsAssignableFrom(t) &&
+                                       !t.IsAbstract &&
+                                       t.GetConstructor(Type.EmptyTypes) != null
+                                   );
 
         foreach (var entityType in entityTypes)
         {
             // 2) construct the Ref<ThatEntity> type
             var refType = openRef.MakeGenericType(entityType);
-            var idProp  = refType.GetProperty("Id")!;
+            var idProp = refType.GetProperty("Id")!;
 
             // 3) serializer: take your Ref<ThatEntity>.Id → raw BsonValue
             Func<object, BsonValue> serialize = obj =>
             {
-                var idVal = idProp.GetValue(obj);  
+                var idVal = idProp.GetValue(obj);
+
                 return BsonMapper.Global.Serialize(idVal.GetType(), idVal);
             };
 
             // 4) deserializer: raw BsonValue → new Ref<ThatEntity> { Id = … }
             Func<BsonValue, object> deserialize = bson =>
             {
-                var inst  = Activator.CreateInstance(refType)!;
+                var inst = Activator.CreateInstance(refType)!;
                 var clrId = BsonMapper.Global.Deserialize(idProp.PropertyType, bson);
                 idProp.SetValue(inst, clrId);
+
                 return inst;
             };
 
@@ -70,24 +87,17 @@ public partial class LiteDBRepository : IRepository
             mapper.RegisterType(refType, serialize, deserialize);
         }
     }
-    
-    public void Dispose()
-    {
-        database?.Dispose();
-    }
-    
-    protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
-    
+
     protected virtual string GetCollectionNameForType<T>()
     {
         return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
     }
-    
+
     protected virtual ILiteCollectionAsync<T> GetCollection<T>() where T : Entity
     {
         return database.GetCollection<T>(GetCollectionNameForType<T>());
     }
-    
+
     public async Task InitDatabase()
     {
         await options?.InitCallback?.Invoke(this);

@@ -18,7 +18,7 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await System.Linq.AsyncEnumerable.ToListAsync((await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken)), cancellationToken);
+        return await AsyncEnumerable.ToListAsync(await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken), cancellationToken);
     }
 
     async Task<List<Ref<TItem>>> ITransparentScopedReadonlyRepository.ByRef<TItem, TParent>(List<Ref<TItem>> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -26,7 +26,8 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         var enumerable = item.Where(e => string.IsNullOrWhiteSpace(e.Id)).Select(f => f.Id).ToList();
         var res = await ById<TItem, TParent>(scope, enumerable, cancellationToken: cancellationToken);
-        return await System.Linq.AsyncEnumerable.ToListAsync(res.Select(r => new Ref<TItem>(r)), cancellationToken);
+
+        return await AsyncEnumerable.ToListAsync(res.Select(r => new Ref<TItem>(r)), cancellationToken);
     }
 
     public async Task<TItem> ByRef<TItem, TParent>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -87,22 +88,28 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
         return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
     }
 
-    public IQueryable<TItem> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+
+        var query = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
+
+        query = query.Where(predicate);
 
         if (sortOrders != null)
         {
-            scopedEntities = sortOrders.Aggregate(scopedEntities, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
+            query = sortOrders.Aggregate(query, (current, sortOrder) =>
+                sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
         }
 
-        return scopedEntities;
+        return query.ToAsyncEnumerable();
     }
-    
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-        return Many<TItem, TParent>(scope, predicate, sortOrders);
+
+        return await Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -126,13 +133,6 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
         }
 
         return query.ToAsyncEnumerable();
-    }
-
-    public IQueryable<TItem> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-
-        return Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -174,4 +174,5 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
     {
         throw new NotImplementedException();
     }
+    
 }

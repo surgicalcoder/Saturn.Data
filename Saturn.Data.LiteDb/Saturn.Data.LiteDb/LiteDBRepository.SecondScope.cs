@@ -53,27 +53,6 @@ public partial class LiteDBRepository : ISecondScopedRepository
         return await query.FirstOrDefaultAsync();
     }
 
-    public IQueryable<TItem> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate,
-        int pageSize = 20, int pageNumber = 1, IEnumerable<SortOrder<TItem>> sortOrders = null)
-        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
-        where TSecondScope : Entity, new()
-        where TPrimaryScope : Entity, new()
-    {
-        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id).Where(predicate);
-
-        if (sortOrders != null)
-        {
-            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
-        }
-
-        if (pageSize != 0 && pageNumber != 0)
-        {
-            res = res.Skip((pageNumber - 1) * pageSize).Take(pageSize);
-        }
-
-        return res;
-    }
-
     public async Task<long> CountMany<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new()
@@ -94,17 +73,26 @@ public partial class LiteDBRepository : ISecondScopedRepository
         entity.SecondScope = secondScope;
         await Insert(entity, cancellationToken: cancellationToken);
     }
-    
-    public async Task Update<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
-        where TSecondScope : Entity, new() 
-        where TPrimaryScope : Entity, new() {        entity.Scope = primaryScope;
+
+    public async Task Update<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new()
+        where TPrimaryScope : Entity, new()
+    {
+        entity.Scope = primaryScope;
         entity.SecondScope = secondScope;
-        await Update(entity, cancellationToken: cancellationToken); }
-    public async Task Upsert<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
-        where TSecondScope : Entity, new() 
-        where TPrimaryScope : Entity, new() {         entity.Scope = primaryScope;
+        await Update(entity, cancellationToken: cancellationToken);
+    }
+
+    public async Task Upsert<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new()
+        where TPrimaryScope : Entity, new()
+    {
+        entity.Scope = primaryScope;
         entity.SecondScope = secondScope;
-        await Upsert(entity, cancellationToken: cancellationToken);}
+        await Upsert(entity, cancellationToken: cancellationToken);
+    }
 
     public async Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string Id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
@@ -112,5 +100,26 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TPrimaryScope : Entity, new()
     {
         await Delete<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id && e.Id == Id, cancellationToken: cancellationToken);
+    }
+
+    public IQueryable<TItem> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate,
+        int pageSize = 20, int pageNumber = 1, IEnumerable<SortOrder<TItem>> sortOrders = null)
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new()
+        where TPrimaryScope : Entity, new()
+    {
+        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id).Where(predicate);
+
+        if (sortOrders != null)
+        {
+            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
+        }
+
+        if (pageSize != 0 && pageNumber != 0)
+        {
+            res = res.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+        }
+
+        return res;
     }
 }

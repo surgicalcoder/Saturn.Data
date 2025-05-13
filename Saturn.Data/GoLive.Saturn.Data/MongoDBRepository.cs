@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Callbacks;
@@ -30,16 +27,6 @@ namespace GoLive.Saturn.Data;
 
 public partial class MongoDBRepository
 {
-    #region Props
-    protected static RepositoryOptions options { get; set; }
-    protected static MongoDBRepositoryOptions mongoOptions { get; set; }
-    public static bool InitRun { get; set; }
-    public static DateTime InitLastChecked { get; set; }
-    protected IMongoDatabase mongoDatabase { get; set; }
-    protected IMongoClient client { get; set; }
-
-    #endregion
-
     internal MongoDBRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDBRepositoryOptions mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
@@ -115,47 +102,52 @@ public partial class MongoDBRepository
                 settings.ClusterConfigurator = setupCallbacks;
             }
         }
-        
+
         client = new MongoClient(settings);
-            
+
         mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
 
         RegisterConventions();
+    }
+
+    protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
+
+    public async Task<IDatabaseTransaction> CreateTransaction()
+    {
+        var wrapper = new MongoDBTransactionWrapper(await client.StartSessionAsync());
+
+        return wrapper;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     protected virtual void setupCallbacks(ClusterBuilder cb)
     {
         if (options?.CommandStartedCallback != null)
         {
-            cb.Subscribe<CommandStartedEvent>(e =>
-            {
-                options?.CommandStartedCallback?.Invoke(new CommandStartedArgs(){Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId});
-            });
+            cb.Subscribe<CommandStartedEvent>(e => { options?.CommandStartedCallback?.Invoke(new CommandStartedArgs { Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId }); });
         }
+
         if (options?.CommandFailedCallback != null)
         {
-            cb.Subscribe<CommandFailedEvent>(e =>
-            {
-                options?.CommandFailedCallback.Invoke(new CommandFailedArgs(){CommandName = e.CommandName, RequestId = e.RequestId, Exception = e.Failure});
-            });
+            cb.Subscribe<CommandFailedEvent>(e => { options?.CommandFailedCallback.Invoke(new CommandFailedArgs { CommandName = e.CommandName, RequestId = e.RequestId, Exception = e.Failure }); });
         }
+
         if (options?.CommandCompletedCallback != null)
         {
-            cb.Subscribe<CommandSucceededEvent>(e =>
-            {
-                options?.CommandCompletedCallback.Invoke(new CommandCompletedArgs() {CommandName = e.CommandName, RequestId = e.RequestId, Time = e.Duration});
-            });
+            cb.Subscribe<CommandSucceededEvent>(e => { options?.CommandCompletedCallback.Invoke(new CommandCompletedArgs { CommandName = e.CommandName, RequestId = e.RequestId, Time = e.Duration }); });
         }
-        
-        
-        
+
+
         if (mongoOptions?.CommandSucceededCallback != null)
         {
-            cb.Subscribe<CommandSucceededEvent>(e =>
-            {
-                Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e)));
-            });
+            cb.Subscribe<CommandSucceededEvent>(e => { Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e))); });
         }
+
         if (mongoOptions?.CommandStartedCallback != null)
         {
             cb.Subscribe<CommandStartedEvent>(e =>
@@ -167,17 +159,8 @@ public partial class MongoDBRepository
 
         if (mongoOptions?.CommandFailedCallback != null)
         {
-            cb.Subscribe<CommandFailedEvent>(e =>
-            {
-                Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e)));
-            });
+            cb.Subscribe<CommandFailedEvent>(e => { Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e))); });
         }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     public void Dispose(bool val)
@@ -188,13 +171,11 @@ public partial class MongoDBRepository
         }
     }
 
-    protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
-
     protected virtual IMongoCollection<T> GetCollection<T>() where T : Entity
     {
         return mongoDatabase.GetCollection<T>(GetCollectionNameForType<T>());
     }
-        
+
     protected virtual string GetCollectionNameForType<T>()
     {
         return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
@@ -213,7 +194,7 @@ public partial class MongoDBRepository
         };
 
         ConventionRegistry.Register("Custom Conventions", pack, t => true);
-        
+
         var objectSerializer = new ObjectSerializer(options.ObjectSerializerConfiguration);
         _ = BsonSerializer.TryRegisterSerializer(objectSerializer);
 
@@ -241,8 +222,8 @@ public partial class MongoDBRepository
             {
                 BsonSerializer.RegisterDiscriminatorConvention(convention.Key, convention.Value as IDiscriminatorConvention);
             }
-
         }
+
         if (options?.GenericSerializers != null)
         {
             foreach (var serializer in options?.GenericSerializers)
@@ -258,43 +239,50 @@ public partial class MongoDBRepository
                 BsonSerializer.RegisterSerializer(serializer.Key, serializer.Value as IBsonSerializer);
             }
         }
-        
+
         if (!BsonClassMap.IsClassMapRegistered(typeof(Entity)))
         {
-            BsonClassMap.RegisterClassMap<Entity>(delegate (BsonClassMap<Entity> map)
+            BsonClassMap.RegisterClassMap(delegate(BsonClassMap<Entity> map)
             {
                 map.AutoMap();
 
                 map.MapProperty(f => f.Version).SetElementName("_v");
-                map.UnmapProperty(f=>f.EnableChangeTracking);
-                map.UnmapProperty(f=>f.Changes);
+                map.UnmapProperty(f => f.EnableChangeTracking);
+                map.UnmapProperty(f => f.Changes);
 
                 map.MapProperty(e => e.Properties).SetSerializer(new DictionaryInterfaceImplementerSerializer<Dictionary<string, dynamic>>(DictionaryRepresentation.ArrayOfDocuments)).SetElementName("_p");
 
                 map.IdMemberMap.SetSerializer(new StringSerializer().WithRepresentation(BsonType.ObjectId))
-                    .SetIdGenerator(StringObjectIdGenerator.Instance)
-                    .SetIgnoreIfDefault(true)
-                    .SetDefaultValue(()=> ObjectId.GenerateNewId().ToString());
+                   .SetIdGenerator(StringObjectIdGenerator.Instance)
+                   .SetIgnoreIfDefault(true)
+                   .SetDefaultValue(() => ObjectId.GenerateNewId().ToString());
             });
         }
     }
 
-    public async Task<IDatabaseTransaction> CreateTransaction()
-    {
-        var wrapper = new MongoDBTransactionWrapper(await client.StartSessionAsync());
-        return wrapper;
-    }
-    
     protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
     {
         foreach (var sortOrder in sortOrders)
         {
             var sortBuilder = Builders<T>.Sort;
             sortDefinition = sortOrder.Direction == SortDirection.Ascending
-                ? (sortDefinition == null ? sortBuilder.Ascending(sortOrder.Field) : sortDefinition.Ascending(sortOrder.Field))
-                : (sortDefinition == null ? sortBuilder.Descending(sortOrder.Field) : sortDefinition.Descending(sortOrder.Field));
+                ? sortDefinition == null ? sortBuilder.Ascending(sortOrder.Field) : sortDefinition.Ascending(sortOrder.Field)
+                : sortDefinition == null
+                    ? sortBuilder.Descending(sortOrder.Field)
+                    : sortDefinition.Descending(sortOrder.Field);
         }
 
         return sortDefinition;
     }
+
+    #region Props
+
+    protected static RepositoryOptions options { get; set; }
+    protected static MongoDBRepositoryOptions mongoOptions { get; set; }
+    public static bool InitRun { get; set; }
+    public static DateTime InitLastChecked { get; set; }
+    protected IMongoDatabase mongoDatabase { get; set; }
+    protected IMongoClient client { get; set; }
+
+    #endregion
 }

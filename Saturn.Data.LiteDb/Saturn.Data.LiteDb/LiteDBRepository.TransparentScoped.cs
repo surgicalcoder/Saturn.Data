@@ -84,11 +84,11 @@ public partial class LiteDBRepository : ITransparentScopedRepository
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         await JsonUpdate<TItem, TParent>(scope, id, version, json, cancellationToken: cancellationToken);
     }
-    
-    
+
+
     public async Task DeleteMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-        await DeleteMany<TItem, TParent>(scope, entities.Select(r=>r.Id).ToList(), cancellationToken: cancellationToken);
+        await DeleteMany<TItem, TParent>(scope, entities.Select(r => r.Id).ToList(), cancellationToken: cancellationToken);
     }
 }

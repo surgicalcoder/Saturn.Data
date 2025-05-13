@@ -12,7 +12,5 @@ public class IdMemberMapConvention : ConventionBase, IMemberMapConvention
         {
             memberMap.SetSerializer(new EntityObjectIdSerializer());
         }
-
-        return;
     }
 }

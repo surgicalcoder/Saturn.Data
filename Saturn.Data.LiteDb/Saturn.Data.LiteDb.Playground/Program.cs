@@ -2,6 +2,7 @@
 
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using LiteDB;
 using Saturn.Data.LiteDb;
 
 LiteDBRepository repo = new LiteDBRepository(new RepositoryOptions()
@@ -20,6 +21,14 @@ await repo.Insert(ent1);
 //ChildItem item = await repo.ById<ChildItem>("680824a49a8a1a0e8adba3a5");
 
 
+var par = await repo.One<ParentItem>(e => e.Id == "68082ee6ef897303ea42350f");
+
+//ChildItem checkItem = await repo.One<ChildItem>(e => e.Scope == "68082ee6ef897303ea42350f");
+ChildItem checkItem = await repo.One<ChildItem>(e => e.Scope == par);
+var wibble = await ((IScopedRepository)repo).One<ChildItem, ParentItem>(par, e=>true);
+
+ChildItem checkItem2 = await repo.One<ChildItem>(e => e.Scope == "68082ee6ef897303ea42350f");
+
 ParentItem item = new ParentItem();
 item.Data = "This is parent data";
 
@@ -27,7 +36,7 @@ await repo.Insert(item);
 
 ChildItem childItem = new ChildItem();
 childItem.Scope = item;
-childItem.AdditionalData = "This is child data";
+childItem.AdditionalData = $"This is child data as of {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
 await repo.Insert(childItem);
 
 Console.WriteLine("Done...");

@@ -8,6 +8,7 @@ public static class Statics
     public static ReadOnlySpan<char> Separator()
     {
         ReadOnlySpan<byte> span;
+
         if (BitConverter.IsLittleEndian)
         {
             span = new byte[]

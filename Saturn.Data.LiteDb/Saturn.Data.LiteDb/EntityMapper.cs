@@ -11,15 +11,14 @@ public class CustomEntityMapper : BsonMapper
         if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Ref<>) || type.GetGenericTypeDefinition() == typeof(WeakRef<>)))
         {
             return type
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.Name == nameof(GoLive.Saturn.Data.Entities.Entity.Id));
+                   .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                   .Where(p => p.Name == nameof(GoLive.Saturn.Data.Entities.Entity.Id));
         }
-        
+
         return base.GetTypeMembers(type)
-            .Where(m => !m.IsDefined(typeof(NonSerializedAttribute), true) &&
-                        m.Name != "_shortId" &&
-                        m.Name != "Changes" &&
-                        m.Name != "EnableChangeTracking");
+                   .Where(m => !m.IsDefined(typeof(NonSerializedAttribute), true) &&
+                               m.Name != "_shortId" &&
+                               m.Name != "Changes" &&
+                               m.Name != "EnableChangeTracking");
     }
 }
-

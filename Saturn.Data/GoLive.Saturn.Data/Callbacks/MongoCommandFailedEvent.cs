@@ -1,4 +1,5 @@
 using System;
+using MongoDB.Driver.Core.Events;
 
 namespace GoLive.Saturn.Data.Callbacks;
 
@@ -13,8 +14,8 @@ public struct MongoCommandFailedEvent
     public int RequestId { get; private set; }
     public string ServiceId { get; private set; }
     public DateTime Timestamp { get; private set; }
-    
-    internal static MongoCommandFailedEvent FromMongoEvent(MongoDB.Driver.Core.Events.CommandFailedEvent mongoEvent)
+
+    internal static MongoCommandFailedEvent FromMongoEvent(CommandFailedEvent mongoEvent)
     {
         return new MongoCommandFailedEvent
         {

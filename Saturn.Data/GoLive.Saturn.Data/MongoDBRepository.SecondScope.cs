@@ -23,11 +23,11 @@ public partial class MongoDBRepository : ISecondScopedRepository
 
         if (transaction != null)
         {
-            result = await (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == id && e.Scope == primaryScope && e.SecondScope == secondScope, new FindOptions<TItem> { Limit = 1 }, cancellationToken: cancellationToken)).FirstOrDefaultAsync(cancellationToken: cancellationToken);
+            result = await (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, e => e.Id == id && e.Scope == primaryScope && e.SecondScope == secondScope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken);
         }
         else
         {
-            result = await (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == primaryScope && e.SecondScope == secondScope, new FindOptions<TItem> { Limit = 1 }, cancellationToken: cancellationToken)).FirstOrDefaultAsync(cancellationToken: cancellationToken);
+            result = await (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == primaryScope && e.SecondScope == secondScope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken);
         }
 
         return result;
@@ -42,10 +42,8 @@ public partial class MongoDBRepository : ISecondScopedRepository
         {
             return (await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, f => f.Scope == primaryScope && f.SecondScope == secondScope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
         }
-        else
-        {
-            return (await GetCollection<TItem>().FindAsync(f => f.Scope == primaryScope && f.SecondScope == secondScope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
-        }
+
+        return (await GetCollection<TItem>().FindAsync(f => f.Scope == primaryScope && f.SecondScope == secondScope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
     }
 
     public IQueryable<TItem> IQueryable<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)
@@ -86,27 +84,39 @@ public partial class MongoDBRepository : ISecondScopedRepository
             result = await GetCollection<TItem>().FindAsync(combinedPred, findOptions, cancellationToken);
         }
 
-        return await result.FirstOrDefaultAsync(cancellationToken: cancellationToken);
+        return await result.FirstOrDefaultAsync(cancellationToken);
     }
 
-    public IQueryable<TItem> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, int pageSize, int PageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null)
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, int pageSize = 20, int pageNumber = 1, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new())
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope && f.SecondScope == secondScope).Where(predicate);
+        predicate = predicate.And(item => item.Scope == primaryScope && item.SecondScope == secondScope);
+        var filter = Builders<TItem>.Filter.Where(predicate);
+        var findOptions = new FindOptions<TItem>();
 
-        if (sortOrders != null)
+        if (sortOrders != null && sortOrders.Any())
         {
-            res = sortOrders.Aggregate(res, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
+            var sortDefinitions = sortOrders.Select(sortOrder => sortOrder.Direction == SortDirection.Ascending
+                                                ? Builders<TItem>.Sort.Ascending(sortOrder.Field)
+                                                : Builders<TItem>.Sort.Descending(sortOrder.Field))
+                                            .ToList();
+            findOptions.Sort = Builders<TItem>.Sort.Combine(sortDefinitions);
         }
 
-        if (pageSize != 0 && PageNumber != 0)
+        IAsyncCursor<TItem> res;
+
+        if (transaction != null)
         {
-            res = res.Skip((PageNumber - 1) * pageSize).Take(pageSize);
+            res = await GetCollection<TItem>().FindAsync(((MongoDBTransactionWrapper)transaction).Session, filter, findOptions, cancellationToken);
+        }
+        else
+        {
+            res = await GetCollection<TItem>().FindAsync(filter, findOptions, cancellationToken);
         }
 
-        return res;
+        return res.ToAsyncEnumerable();
     }
 
     public async Task<long> CountMany<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -137,7 +147,7 @@ public partial class MongoDBRepository : ISecondScopedRepository
     {
         entity.Scope = primaryScope;
         entity.SecondScope = secondScope;
-        await Insert(entity, transaction, token: cancellationToken);
+        await Insert(entity, transaction, cancellationToken);
     }
 
     public async Task Update<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -145,7 +155,7 @@ public partial class MongoDBRepository : ISecondScopedRepository
     {
         entity.Scope = primaryScope;
         entity.SecondScope = secondScope;
-        await Update(entity, transaction, token: cancellationToken);
+        await Update(entity, transaction, cancellationToken);
     }
 
     public async Task Upsert<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -153,12 +163,12 @@ public partial class MongoDBRepository : ISecondScopedRepository
     {
         entity.Scope = primaryScope;
         entity.SecondScope = secondScope;
-        await Upsert(entity, transaction, token: cancellationToken);
+        await Upsert(entity, transaction, cancellationToken);
     }
 
     public async Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string Id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        await Delete<TItem>(e => e.Scope == primaryScope && e.SecondScope == secondScope && e.Id == Id, transaction, token: cancellationToken);
+        await Delete<TItem>(e => e.Scope == primaryScope && e.SecondScope == secondScope && e.Id == Id, transaction, cancellationToken);
     }
 }

@@ -7,8 +7,8 @@ namespace GoLive.Saturn.Data.AsyncEnumerable;
 public static class AsyncCursorSourceExtensions
 {
     /// <summary>
-    ///     Wraps a cursor source in an <see cref="IAsyncEnumerable{T}" />. Each time
-    ///     <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator" /> is called a new cursor is fetched from the cursor source.
+    /// Wraps a cursor source in an <see cref="IAsyncEnumerable{T}" />. Each time
+    /// <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator" /> is called a new cursor is fetched from the cursor source.
     /// </summary>
     /// <typeparam name="TDocument">The type of the document.</typeparam>
     /// <param name="source">The source.</param>

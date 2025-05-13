@@ -1,7 +1,5 @@
 ﻿using System;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using MongoDB.Driver.Core.Connections;
+using MongoDB.Driver.Core.Events;
 
 namespace GoLive.Saturn.Data.Callbacks;
 
@@ -16,8 +14,8 @@ public struct MongoCommandSucceededEvent
     public string ServiceId { get; private set; }
     public DateTime Timestamp { get; private set; }
     public string Reply { get; private set; }
-    
-    internal static MongoCommandSucceededEvent FromMongoEvent(MongoDB.Driver.Core.Events.CommandSucceededEvent mongoEvent)
+
+    internal static MongoCommandSucceededEvent FromMongoEvent(CommandSucceededEvent mongoEvent)
     {
         return new MongoCommandSucceededEvent
         {
