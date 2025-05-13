@@ -28,6 +28,7 @@
   <ItemGroup>
     <PackageReference Include="FastExpressionCompiler" Version="5.1.1" />
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.25" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
