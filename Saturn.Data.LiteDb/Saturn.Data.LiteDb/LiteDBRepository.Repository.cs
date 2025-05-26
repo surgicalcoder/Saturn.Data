@@ -8,7 +8,7 @@ namespace Saturn.Data.LiteDb;
 
 public partial class LiteDBRepository : IRepository
 {
-    public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (string.IsNullOrWhiteSpace(entity.Id))
         {
@@ -18,7 +18,7 @@ public partial class LiteDBRepository : IRepository
         await GetCollection<TItem>().InsertAsync(entity);
     }
 
-    public async Task InsertMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task InsertMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entities == null || !entities.Any())
         {
@@ -28,17 +28,17 @@ public partial class LiteDBRepository : IRepository
         await GetCollection<TItem>().InsertBulkAsync(entities);
     }
 
-    public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         await Upsert(entity, cancellationToken: cancellationToken);
     }
 
-    public async Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         await UpsertMany(entities, cancellationToken: cancellationToken);
     }
 
-    public async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         var updateResult = await GetCollection<TItem>().UpdateAsync(entity);
 
@@ -48,14 +48,14 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         var coll = GetCollection<TItem>();
         var id = await coll.FindOneAsync(conditionPredicate);
         await coll.UpdateAsync(id.Id, entity);
     }
 
-    public async Task UpdateMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task UpdateMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entities == null || entities.Count == 0)
         {
@@ -75,7 +75,7 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (string.IsNullOrWhiteSpace(entity.Id))
         {
@@ -90,7 +90,7 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task UpsertMany<TItem>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task UpsertMany<TItem>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (entity == null || entity.Count == 0)
         {
@@ -113,22 +113,22 @@ public partial class LiteDBRepository : IRepository
         }
     }
 
-    public async Task Delete<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Delete<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         await GetCollection<TItem>().DeleteManyAsync(f => f.Id == entity.Id);
     }
 
-    public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         await GetCollection<TItem>().DeleteManyAsync(filter);
     }
 
-    public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         await Delete<TItem>(f => f.Id == id, cancellationToken: cancellationToken);
     }
 
-    public async Task DeleteMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task DeleteMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (!entities.Any())
         {
@@ -140,7 +140,7 @@ public partial class LiteDBRepository : IRepository
         await GetCollection<TItem>().DeleteManyAsync(arg => list.Contains(arg.Id));
     }
 
-    public async Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         if (IDs.Count == 0)
         {
@@ -150,7 +150,7 @@ public partial class LiteDBRepository : IRepository
         await GetCollection<TItem>().DeleteManyAsync(f => IDs.Contains(f.Id));
     }
 
-    public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         var collection = GetCollection<TItem>();
 

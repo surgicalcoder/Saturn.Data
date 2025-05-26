@@ -8,7 +8,7 @@ namespace Saturn.Data.LiteDb;
 
 public partial class LiteDBRepository : IScopedReadonlyRepository
 {
-    public async Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual async Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -18,7 +18,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return await GetCollection<TItem>().FindOneAsync(e => e.Id == id && e.Scope == scope);
     }
 
-    public async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (string.IsNullOrWhiteSpace(scope))
         {
@@ -30,7 +30,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return result.ToAsyncEnumerable();
     }
 
-    public Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -42,12 +42,12 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return Task.FromResult(scopedEntities.ToAsyncEnumerable());
     }
 
-    public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
     }
 
-    public Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -67,7 +67,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return res.FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -89,7 +89,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return scopedEntities.ToAsyncEnumerable();
     }
 
-    public async Task<long> CountMany<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public virtual async Task<long> CountMany<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -102,7 +102,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         return await GetCollection<TItem>().LongCountAsync(combinedPred);
     }
 
-    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(
+    public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem, TSecondScope, TPrimaryScope>(
         Ref<TPrimaryScope> primaryScope,
         Ref<TSecondScope> secondScope,
         Expression<Func<TItem, bool>> predicate,

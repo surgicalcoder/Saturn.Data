@@ -50,7 +50,7 @@ public partial class LiteDBRepository : IRepository
                                        }
                                        catch
                                        {
-                                           return Array.Empty<Type>();
+                                           return [];
                                        }
                                    })
                                    .Where(t =>
