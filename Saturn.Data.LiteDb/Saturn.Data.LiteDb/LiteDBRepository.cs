@@ -19,6 +19,8 @@ public partial class LiteDBRepository : IRepository
 
         RegisterAllEntityRefs(mapper);
 
+        BsonMapper.Global = mapper;
+
         database = new LiteDatabaseAsync(repositoryOptions.ConnectionString, mapper);
         options = repositoryOptions;
     }
