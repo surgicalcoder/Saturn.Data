@@ -24,8 +24,7 @@ public partial class LiteDBRepository : IRepository
         {
             return;
         }
-
-        await GetCollection<TItem>().InsertBulkAsync(entities);
+        await GetCollection<TItem>().InsertAsync(entities);
     }
 
     public virtual async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity

@@ -41,7 +41,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TPrimaryScope : Entity, new()
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
-        var combinedPred = firstPred.And(predicate);
+        var combinedPred = firstPred.And(TransformRefEntityComparisons(predicate));
 
         var query = GetCollection<TItem>().Query().Where(combinedPred);
 
@@ -59,7 +59,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TPrimaryScope : Entity, new()
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
-        var combinedPred = firstPred.And(predicate);
+        var combinedPred = firstPred.And(TransformRefEntityComparisons(predicate));
 
         return await GetCollection<TItem>().LongCountAsync(combinedPred);
     }
@@ -108,7 +108,7 @@ public partial class LiteDBRepository : ISecondScopedRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id).Where(predicate);
+        var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id).Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {

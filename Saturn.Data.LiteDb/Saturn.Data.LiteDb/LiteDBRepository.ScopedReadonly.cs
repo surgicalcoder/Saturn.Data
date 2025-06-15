@@ -55,7 +55,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         }
 
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
-        var combinedPred = firstPred.And(predicate);
+        var combinedPred = firstPred.And(TransformRefEntityComparisons(predicate));
 
         var res = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope).Where(combinedPred);
 
@@ -74,7 +74,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
             return null;
         }
 
-        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope).Where(predicate);
+        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope).Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {
@@ -118,7 +118,7 @@ public partial class LiteDBRepository : IScopedReadonlyRepository
         var query = GetCollection<TItem>()
                     .AsQueryable()
                     .Where(item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id)
-                    .Where(predicate);
+                    .Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {

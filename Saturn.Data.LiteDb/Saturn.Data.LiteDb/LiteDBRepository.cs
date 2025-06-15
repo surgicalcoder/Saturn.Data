@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB;
@@ -104,4 +105,99 @@ public partial class LiteDBRepository : IRepository
     {
         await options?.InitCallback?.Invoke(this);
     }
+    
+    
+    
+    
+    private Expression<Func<TItem, bool>> TransformRefEntityComparisons<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity
+    {
+        return (Expression<Func<TItem, bool>>)new RefEqualityExpressionVisitor().Visit(predicate);
+    }
+    
+    private class RefEqualityExpressionVisitor : ExpressionVisitor
+    {
+        protected override Expression VisitBinary(BinaryExpression node)
+        {
+            // Handle logical AND operations - break them apart and process individually
+            if (node.NodeType is ExpressionType.AndAlso or ExpressionType.And)
+            {
+                var leftVisited = Visit(node.Left);
+                var rightVisited = Visit(node.Right);
+                
+                return Expression.MakeBinary(node.NodeType, leftVisited, rightVisited, node.IsLiftedToNull, node.Method);
+            }
+            
+            // Process equality expressions
+            if (node.NodeType != ExpressionType.Equal && node.NodeType != ExpressionType.NotEqual)
+                return base.VisitBinary(node);
+    
+            var left = Visit(node.Left);
+            var right = Visit(node.Right);
+    
+            
+            // Case 0: Check if right is a Convert node with an entity inside
+            if (right is UnaryExpression unaryExpr && unaryExpr.NodeType == ExpressionType.Convert &&
+                IsEntityType(unaryExpr.Operand.Type) && !IsRefType(unaryExpr.Operand.Type))
+            {
+                // Replace with a comparison to the entity's Id property
+                var idProperty = Expression.Property(unaryExpr.Operand, "Id");
+                // Ensure type compatibility by converting if needed
+                if (idProperty.Type != left.Type)
+                {
+                    right = Expression.Convert(idProperty, left.Type);
+                }
+                else
+                {
+                    right = idProperty;
+                }
+                return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
+            }
+            
+            /*
+            // Case 1: left is Ref<T> and right is a T entity
+            if (IsRefType(left.Type) && IsEntityType(right.Type) && !IsRefType(right.Type))
+            {
+                // Replace right with right.Id
+                right = Expression.Property(right, "Id");
+                return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
+            }
+            
+            // Case 2: right is Ref<T> and left is a T entity
+            if (IsRefType(right.Type) && IsEntityType(left.Type) && !IsRefType(left.Type))
+            {
+                // Replace left with left.Id
+                left = Expression.Property(left, "Id");
+                return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
+            }
+            
+            // Case 3: both are entity objects (not Ref<T>)
+            if (IsEntityType(left.Type) && !IsRefType(left.Type) && 
+                IsEntityType(right.Type) && !IsRefType(right.Type))
+            {
+                left = Expression.Property(left, "Id");
+                right = Expression.Property(right, "Id");
+                return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
+            }
+            
+            // Case 4: both are Ref<T> - no transformation needed as they compare correctly
+            
+            // No transformation needed
+            if (left != node.Left || right != node.Right)
+                return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
+                */
+                
+            return node;
+        }
+        
+        private static bool IsRefType(Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Ref<>);
+        }
+        
+        private static bool IsEntityType(Type type)
+        {
+            return typeof(Entity).IsAssignableFrom(type);
+        }
+    }
+    
 }

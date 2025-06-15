@@ -56,7 +56,7 @@ public partial class LiteDBRepository : IReadonlyRepository
 
     public virtual async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
+        var query = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {
@@ -85,7 +85,7 @@ public partial class LiteDBRepository : IReadonlyRepository
 
     public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
     {
-        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {
@@ -125,7 +125,7 @@ public partial class LiteDBRepository : IReadonlyRepository
             return await Many(predicate, cancellationToken: cancellationToken);
         }
 
-        var items = GetCollection<TItem>().AsQueryable().Where(predicate);
+        var items = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {
@@ -164,7 +164,7 @@ public partial class LiteDBRepository : IReadonlyRepository
 
     public virtual async Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return await GetCollection<TItem>().LongCountAsync(predicate);
+        return await GetCollection<TItem>().LongCountAsync(TransformRefEntityComparisons(predicate));
     }
 
     public virtual Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity

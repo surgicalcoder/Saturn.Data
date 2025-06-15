@@ -62,7 +62,7 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await One<TItem, TParent>(scope, predicate, sortOrders, cancellationToken: cancellationToken);
+        return await One<TItem, TParent>(scope, TransformRefEntityComparisons(predicate), sortOrders, cancellationToken: cancellationToken);
     }
 
     public virtual async Task<TItem> Random<TItem, TParent>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -94,7 +94,7 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
 
         var query = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
 
-        query = query.Where(predicate);
+        query = query.Where(TransformRefEntityComparisons(predicate));
 
         if (sortOrders != null)
         {
@@ -109,7 +109,7 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await Many<TItem, TParent>(scope, predicate, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
+        return await Many<TItem, TParent>(scope, TransformRefEntityComparisons(predicate), pageSize, pageNumber, sortOrders, transaction, cancellationToken);
     }
 
     public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -167,7 +167,7 @@ public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
 
-        return await CountMany<TItem, TParent>(scope, predicate, cancellationToken: cancellationToken);
+        return await CountMany<TItem, TParent>(scope, TransformRefEntityComparisons(predicate), cancellationToken: cancellationToken);
     }
 
     public virtual Task Watch<TItem, TParent>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
