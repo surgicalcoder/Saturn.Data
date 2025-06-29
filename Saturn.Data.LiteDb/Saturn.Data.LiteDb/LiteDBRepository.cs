@@ -4,6 +4,7 @@ using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB;
 using LiteDB.Async;
+using LiteDB.Engine;
 
 namespace Saturn.Data.LiteDb;
 
@@ -28,6 +29,11 @@ public partial class LiteDBRepository : IRepository
 
     protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
 
+    public async Task Rebuild()
+    {
+        await database.RebuildAsync();
+    }
+    
     public void Dispose()
     {
         database?.Dispose();
