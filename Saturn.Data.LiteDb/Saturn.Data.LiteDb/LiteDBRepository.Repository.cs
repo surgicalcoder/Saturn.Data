@@ -81,12 +81,7 @@ public partial class LiteDBRepository : IRepository
             entity.Id = ObjectId.NewObjectId().ToString();
         }
 
-        var updateResult = await GetCollection<TItem>().UpsertAsync(entity);
-
-        if (!updateResult)
-        {
-            throw new FailedToUpsertException();
-        }
+        _ = await GetCollection<TItem>().UpsertAsync(entity);
     }
 
     public virtual async Task UpsertMany<TItem>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -105,10 +100,7 @@ public partial class LiteDBRepository : IRepository
                 entity[i].Id = ObjectId.NewObjectId().ToString();
             }
 
-            if (!await coll.UpsertAsync(entity[i]))
-            {
-                throw new FailedToUpsertException(); // TODO might be worth adding in here which item failed to upsert/update
-            }
+            _ = await coll.UpsertAsync(entity[i]);
         }
     }
 

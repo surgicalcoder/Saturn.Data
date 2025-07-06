@@ -20,6 +20,13 @@ await repo.Insert(ent1);
 
 //ChildItem item = await repo.ById<ChildItem>("680824a49a8a1a0e8adba3a5");
 
+var upsertTest = new ChildItem {Id= "686aecf600c04f09d28150c1"};
+//var upsertTest = new ChildItem();
+
+upsertTest.AdditionalData = "This is some additional data";
+
+await repo.Upsert(upsertTest);
+
 
 var par = await repo.One<ParentItem>(e => e.Id == "68082ee6ef897303ea42350f");
 
