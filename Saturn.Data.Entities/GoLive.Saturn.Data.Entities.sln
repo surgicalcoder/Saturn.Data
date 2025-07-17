@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28307.421
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoLive.Saturn.Data.Entities", "GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj", "{ADA1302E-AB33-45A0-B1FB-1CB30E37F954}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saturn.Data.Entities.JsonConverters", "Saturn.Data.Entities.JsonConverters\Saturn.Data.Entities.JsonConverters.csproj", "{6C4BE1AD-9453-411A-A7A5-7C37C84E437A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{ADA1302E-AB33-45A0-B1FB-1CB30E37F954}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ADA1302E-AB33-45A0-B1FB-1CB30E37F954}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ADA1302E-AB33-45A0-B1FB-1CB30E37F954}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C4BE1AD-9453-411A-A7A5-7C37C84E437A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C4BE1AD-9453-411A-A7A5-7C37C84E437A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C4BE1AD-9453-411A-A7A5-7C37C84E437A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C4BE1AD-9453-411A-A7A5-7C37C84E437A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

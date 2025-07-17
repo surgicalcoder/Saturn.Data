@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
       SOLUTION: 'Saturn.Data.Entities/GoLive.Saturn.Data.Entities.sln'
-      BUILD_VER: '3.3'
+      BUILD_VER: '3.4'
     name: build, pack & publish
     runs-on: windows-latest
     steps:
