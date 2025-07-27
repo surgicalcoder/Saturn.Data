@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Data.Abstractions/GoLive.Saturn.Data.Abstractions/GoLive.Saturn.Data.Abstractions.csproj'
-     BUILD_VER : '4.0'
+     BUILD_VER : '4.1'
     name: build, pack & publish
     runs-on: windows-latest
     steps:

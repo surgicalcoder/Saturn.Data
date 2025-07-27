@@ -12,6 +12,17 @@ public class SortOrder<T> where T :Entity
         Direction = direction;
         Field = field;
     }
+    
+    public static SortOrder<T> Ascending(Expression<Func<T, object>> field)
+    {
+        return new SortOrder<T>(field, SortDirection.Ascending);
+    }
+    
+    public static SortOrder<T> Descending(Expression<Func<T, object>> field)
+    {
+        return new SortOrder<T>(field, SortDirection.Descending);
+    }
+    
     public SortDirection Direction { get; set; }
     public Expression<Func<T, object>> Field { get; set; }
 }
