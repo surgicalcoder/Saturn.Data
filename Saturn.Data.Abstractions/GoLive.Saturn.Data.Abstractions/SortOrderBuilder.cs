@@ -9,6 +9,8 @@ public class SortOrderBuilder<T> where T : Entity
 {
     private readonly List<SortOrder<T>> order = new();
 
+    public SortOrderBuilder() { }
+
     public SortOrderBuilder<T> Ascending(Expression<Func<T, object>> field)
     {
         order.Add(new SortOrder<T>(field, SortDirection.Ascending));
@@ -26,5 +28,16 @@ public class SortOrderBuilder<T> where T : Entity
     public static implicit operator List<SortOrder<T>>(SortOrderBuilder<T> builder)
     {
         return builder.order;
+    }
+
+    // For fluent static usage: SortOrderBuilder<T>.StartAscending(...).Descending(...)
+    public static SortOrderBuilder<T> StartAscending(Expression<Func<T, object>> field)
+    {
+        return new SortOrderBuilder<T>().Ascending(field);
+    }
+
+    public static SortOrderBuilder<T> StartDescending(Expression<Func<T, object>> field)
+    {
+        return new SortOrderBuilder<T>().Descending(field);
     }
 }
