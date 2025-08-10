@@ -11,7 +11,6 @@ public class EnhancedSharedEngine : ILiteEngine
     private readonly FileDistributedLock mutex;
     private LiteEngine _engine;
     private bool _transactionRunning = false;
-    private IDistributedSynchronizationHandle _lockHandle;
 
     public EnhancedSharedEngine(EngineSettings settings)
     {
@@ -25,23 +24,10 @@ public class EnhancedSharedEngine : ILiteEngine
     /// <returns>true if successfully opened; false if already open</returns>
     private bool OpenDatabase()
     {
-        if (_lockHandle == null)
-        {
-            _lockHandle = mutex.Acquire();
-        }
         if (!_transactionRunning && _engine == null)
         {
-            try
-            {
-                _engine = new LiteEngine(_settings);
-                return true;
-            }
-            catch
-            {
-                _lockHandle?.Dispose();
-                _lockHandle = null;
-                throw;
-            }
+            _engine = new LiteEngine(_settings);
+            return true;
         }
         else
         {
@@ -57,14 +43,8 @@ public class EnhancedSharedEngine : ILiteEngine
         // Don't dispose the engine while a transaction is running.
         if (!_transactionRunning && _engine != null)
         {
-            // If no transaction pending, dispose the engine.
             _engine.Dispose();
             _engine = null;
-        }
-        if (_lockHandle != null)
-        {
-            _lockHandle.Dispose();
-            _lockHandle = null;
         }
     }
 
@@ -72,48 +52,53 @@ public class EnhancedSharedEngine : ILiteEngine
 
     public bool BeginTrans()
     {
-        OpenDatabase();
-
-        try
+        using (var handle = mutex.Acquire())
         {
-            _transactionRunning = _engine.BeginTrans();
-
-            return _transactionRunning;
-        }
-        catch
-        {
-            CloseDatabase();
-            throw;
+            OpenDatabase();
+            try
+            {
+                _transactionRunning = _engine.BeginTrans();
+                return _transactionRunning;
+            }
+            catch
+            {
+                CloseDatabase();
+                throw;
+            }
         }
     }
 
     public bool Commit()
     {
-        if (_engine == null) return false;
-
-        try
+        using (var handle = mutex.Acquire())
         {
-            return _engine.Commit();
-        }
-        finally
-        {
-            _transactionRunning = false;
-            CloseDatabase();
+            if (_engine == null) return false;
+            try
+            {
+                return _engine.Commit();
+            }
+            finally
+            {
+                _transactionRunning = false;
+                CloseDatabase();
+            }
         }
     }
 
     public bool Rollback()
     {
-        if (_engine == null) return false;
-
-        try
+        using (var handle = mutex.Acquire())
         {
-            return _engine.Rollback();
-        }
-        finally
-        {
-            _transactionRunning = false;
-            CloseDatabase();
+            if (_engine == null) return false;
+            try
+            {
+                return _engine.Rollback();
+            }
+            finally
+            {
+                _transactionRunning = false;
+                CloseDatabase();
+            }
         }
     }
 
@@ -123,12 +108,12 @@ public class EnhancedSharedEngine : ILiteEngine
 
     public IBsonDataReader Query(string collection, Query query)
     {
+        var handle = mutex.Acquire();
         bool opened = OpenDatabase();
-
         var reader = _engine.Query(collection, query);
-
         return new SharedDataReader(reader, () =>
         {
+            handle.Dispose();
             if (opened)
             {
                 CloseDatabase();
@@ -232,26 +217,24 @@ public class EnhancedSharedEngine : ILiteEngine
                 _engine.Dispose();
                 _engine = null;
             }
-            if (_lockHandle != null)
-            {
-                _lockHandle.Dispose();
-                _lockHandle = null;
-            }
         }
     }
 
     private T QueryDatabase<T>(Func<T> Query)
     {
-        bool opened = OpenDatabase();
-        try
+        using (var handle = mutex.Acquire())
         {
-            return Query();
-        }   
-        finally
-        {
-            if (opened)
+            bool opened = OpenDatabase();
+            try
             {
-                CloseDatabase();
+                return Query();
+            }
+            finally
+            {
+                if (opened)
+                {
+                    CloseDatabase();
+                }
             }
         }
     }
