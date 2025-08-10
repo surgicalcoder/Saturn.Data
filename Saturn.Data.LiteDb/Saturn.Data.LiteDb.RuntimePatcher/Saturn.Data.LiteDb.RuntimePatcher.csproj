@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <PackageId>GoLive.Saturn.Data.LiteDb.RuntimePatcher</PackageId>
+        <Authors>SurgicalCoder</Authors>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
+        <Copyright>Copyright 2020-2025 - SurgicalCoder</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
+        <PackOnBuild>true</PackOnBuild>
+        <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="DistributedLock.FileSystem" Version="1.0.3" />
+      <PackageReference Include="HarmonyX" Version="2.14.0" />
+      <PackageReference Include="LiteDB" Version="5.0.21" />
+    </ItemGroup>
+
+</Project>

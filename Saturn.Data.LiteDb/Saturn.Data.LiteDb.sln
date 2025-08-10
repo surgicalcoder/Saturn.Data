@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saturn.Data.LiteDb", "Satur
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saturn.Data.LiteDb.Playground", "Saturn.Data.LiteDb.Playground\Saturn.Data.LiteDb.Playground.csproj", "{BD19A692-4607-430D-A945-ABA7750A4895}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saturn.Data.LiteDb.RuntimePatcher", "Saturn.Data.LiteDb.RuntimePatcher\Saturn.Data.LiteDb.RuntimePatcher.csproj", "{A13915BA-9971-406D-B555-8EF64AF326D9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{BD19A692-4607-430D-A945-ABA7750A4895}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BD19A692-4607-430D-A945-ABA7750A4895}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BD19A692-4607-430D-A945-ABA7750A4895}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A13915BA-9971-406D-B555-8EF64AF326D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A13915BA-9971-406D-B555-8EF64AF326D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A13915BA-9971-406D-B555-8EF64AF326D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A13915BA-9971-406D-B555-8EF64AF326D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

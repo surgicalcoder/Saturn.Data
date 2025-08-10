@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Reflection;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDB;
@@ -19,7 +20,7 @@ public partial class LiteDBRepository : IRepository
         liteDbOptions = liteDbRepositoryOptions;
         var mapper = liteDbRepositoryOptions.Mapper;
 
-        RegisterAllEntityRefs(mapper);
+        RegisterAllEntityRefs(mapper, liteDbRepositoryOptions.AdditionalAssembliesToScanForRefs);
 
         BsonMapper.Global = mapper;
 
@@ -44,13 +45,16 @@ public partial class LiteDBRepository : IRepository
         throw new NotImplementedException();
     }
 
-    protected virtual void RegisterAllEntityRefs(BsonMapper mapper)
+    protected virtual void RegisterAllEntityRefs(BsonMapper mapper, Assembly[] additionalAssembliesToScanForRefs)
     {
         var entityBase = typeof(Entity);
         var openRef = typeof(Ref<>);
 
         // 1) find every non-abstract Entity subclass with a public parameterless ctor
-        var entityTypes = AppDomain.CurrentDomain.GetAssemblies()
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Concat(additionalAssembliesToScanForRefs ?? []);
+        
+        var entityTypes = assemblies
                                    .SelectMany(a =>
                                    {
                                        try
@@ -59,7 +63,7 @@ public partial class LiteDBRepository : IRepository
                                        }
                                        catch
                                        {
-                                           return [];
+                                            return [];
                                        }
                                    })
                                    .Where(t =>
