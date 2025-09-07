@@ -90,7 +90,21 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        throw new NotImplementedException("Unsupported");
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+    
+        foreach (var kvp in whereClause)
+        {
+            var param = Expression.Parameter(typeof(TItem), "x");
+            var property = Expression.PropertyOrField(param, kvp.Key);
+            var constant = Expression.Constant(kvp.Value);
+            var equal = Expression.Equal(property, Expression.Convert(constant, property.Type));
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, param);
+            query = query.Where(lambda);
+        }
+    
+        query = ApplySort(query, sortOrders);
+        return query.ToAsyncEnumerable();
     }
 
     async Task<IAsyncEnumerable<TItem>> ITransparentScopedReadonlyRepository.Many<TItem, TParent>(

@@ -100,7 +100,27 @@ public partial class StellarRepository : ITransparentScopedRepository
 
     public async Task JsonUpdate<TItem, TParent>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        throw new NotImplementedException();
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
+        var entityId = new EntityId(id);
+        if (!collection.ContainsKey(id))
+        {
+            throw new KeyNotFoundException($"Entity with id {id} not found.");
+        }
+    
+        var entity = collection[entityId];
+        var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
+    
+        if (updatedEntity == null)
+        {
+            throw new InvalidOperationException("Deserialization failed.");
+        }
+    
+        if (entity.Version != version)
+        {
+            throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
+        }
+        
+        await collection.UpdateAsync(id, updatedEntity);
     }
 
     async Task ITransparentScopedRepository.UpsertMany<TItem, TParent>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken token = default)

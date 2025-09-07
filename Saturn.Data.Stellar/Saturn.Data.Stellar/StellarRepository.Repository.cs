@@ -25,16 +25,7 @@ public partial class StellarRepository : IRepository
 
     public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-
-        if (entity.Id == null)
-        {
-            await collection.AddAsync(entity.Id, entity);
-        }
-        else
-        {
-            await collection.UpdateAsync(entity.Id, entity);
-        }
+        await Upsert(entity, transaction, token);
     }
     
     public async Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -124,7 +115,28 @@ public partial class StellarRepository : IRepository
     
     public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        throw new NotImplementedException();
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var entity = await ById<TItem>(id, token: token);
+    
+        if (entity == null)
+        {
+            throw new KeyNotFoundException($"Entity with id {id} not found.");
+        }
+    
+        if (entity.Version != version)
+        {
+            throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
+        }
+    
+        // Update entity from json
+        var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
+        if (updatedEntity == null)
+        {
+            throw new InvalidOperationException("Deserialization failed.");
+        }
+        updatedEntity.Id = id;
+    
+        await collection.UpdateAsync(id, updatedEntity);
     }
 
     public Task<IDatabaseTransaction> CreateTransaction()

@@ -40,7 +40,35 @@ public partial class StellarRepository : IScopedRepository
 
     public async Task JsonUpdate<TItem, TScope>(string scope, string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
-        throw new NotImplementedException();
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var entityId = new EntityId(id);
+        var entity = await ById<TItem, TScope>(scope, id);
+    
+        if (entity == null)
+        {
+            throw new KeyNotFoundException($"Entity with id '{id}' not found.");
+        }
+    
+        if (entity.Scope != scope)
+        {
+            throw new InvalidOperationException("Scope mismatch.");
+        }
+    
+        if (entity.Version != version)
+        {
+            throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
+        }
+    
+        var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
+        if (updatedEntity == null)
+        {
+            throw new InvalidOperationException("Deserialization failed.");
+        }
+    
+        updatedEntity.Id = id;
+        updatedEntity.Scope = scope;
+    
+        await collection.UpdateAsync(id, updatedEntity);
     }
 
     public async Task Upsert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()

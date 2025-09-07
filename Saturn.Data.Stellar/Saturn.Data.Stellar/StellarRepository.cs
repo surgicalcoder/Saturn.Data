@@ -6,18 +6,18 @@ using Stellar.Collections;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository
+public partial class StellarRepository : IAsyncDisposable
 {
     protected FastDB database;
-    public StellarRepository(RepositoryOptions options, StellarRepositoryOptions databaseOptions)
+    public StellarRepository(RepositoryOptions repositoryOptions, StellarRepositoryOptions databaseOptions)
     {
+        options = repositoryOptions ?? new RepositoryOptions();
         var fastDbOptions = new FastDBOptions
         {
             BaseDirectory = options.ConnectionString,
             BufferMode = BufferModeType.WriteParallelEnabled,
             DatabaseName = databaseOptions.DatabaseName
         };
-        
         database = new FastDB(fastDbOptions);
     }
     
@@ -43,6 +43,12 @@ public partial class StellarRepository
     
     public void Dispose()
     {
+        database.DisposeAsync().GetAwaiter().GetResult();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await database.DisposeAsync();
     }
 }
 

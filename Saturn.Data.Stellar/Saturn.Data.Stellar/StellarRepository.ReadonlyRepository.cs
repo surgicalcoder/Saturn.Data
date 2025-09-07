@@ -107,7 +107,22 @@ public partial class StellarRepository : IReadonlyRepository
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        throw new NotImplementedException("Unsupported");
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+    
+        foreach (var kvp in whereClause)
+        {
+            var parameter = Expression.Parameter(typeof(TItem), "x");
+            var property = Expression.PropertyOrField(parameter, kvp.Key);
+            var constant = Expression.Constant(kvp.Value);
+            var equal = Expression.Equal(property, Expression.Convert(constant, property.Type));
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
+            query = query.Where(lambda);
+        }
+    
+        query = ApplySort(query, sortOrders);
+    
+        return query.ToAsyncEnumerable();
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
