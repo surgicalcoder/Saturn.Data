@@ -35,7 +35,7 @@ public partial class StellarRepository : IScopedReadonlyRepository
     public async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        return collection.AsQueryable().ToAsyncEnumerable();
+        return collection.AsQueryable().Where(e => e.Scope == scope).ToAsyncEnumerable();
     }
     
     public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
@@ -63,6 +63,8 @@ public partial class StellarRepository : IScopedReadonlyRepository
     public async Task<long> CountMany<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        return collection.AsQueryable().LongCount(predicate);
+        Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
+        var combinedPred = firstPred.And(predicate);
+        return collection.AsQueryable().LongCount(combinedPred);
     }
 }

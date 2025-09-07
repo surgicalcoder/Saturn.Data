@@ -53,6 +53,15 @@ public class Scoped_Tests : IDisposable
         Assert.Equal(2, await ((IScopedRepository)repo).CountMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, e=>true));
         Assert.Equal(2, await ((IScopedRepository)repo).CountMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, e=>true));
         
+        var allScoped1 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id)).ToListAsync();
+        var allScoped2 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id)).ToListAsync();
+        
+        Assert.Equal(allScoped1[0].Id, WELL_KNOWN.Parent_Scope_1_Child_Entity_1.Id);
+        Assert.Equal(allScoped1[1].Id, WELL_KNOWN.Parent_Scope_1_Child_Entity_2.Id);
+        Assert.Equal(allScoped2[0].Id, WELL_KNOWN.Parent_Scope_2_Child_Entity_1.Id);
+        Assert.Equal(allScoped2[1].Id, WELL_KNOWN.Parent_Scope_2_Child_Entity_2.Id);
+
+
     }
     
 }
