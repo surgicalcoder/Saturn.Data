@@ -123,7 +123,7 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var query = await Many(whereClause, sortOrders);
+        var query = await Many(whereClause, sortOrders, token: cancellationToken);
         return query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
     }
 

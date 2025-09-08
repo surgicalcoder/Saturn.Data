@@ -37,7 +37,6 @@ public partial class StellarRepository : ITransparentScopedRepository
 
     public async Task SaveMany<TItem, TParent>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
         var entitiesToUpdate = entities.Where(entity => !string.IsNullOrEmpty(entity.Id)).ToList();
         var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
         await UpdateMany<TItem, TParent>(entitiesToUpdate, token: token);

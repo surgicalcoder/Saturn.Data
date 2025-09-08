@@ -95,6 +95,10 @@ public partial class StellarRepository : ISecondScopedRepository
     public async Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string Id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(Id);
+        var entity = await ById<TItem, TSecondScope, TPrimaryScope>(primaryScope, secondScope, Id);
+        if (entity != null && entity.Scope.Equals(primaryScope) && entity.SecondScope.Equals(secondScope))
+        {
+            await collection.RemoveAsync(Id);
+        }
     }
 }
