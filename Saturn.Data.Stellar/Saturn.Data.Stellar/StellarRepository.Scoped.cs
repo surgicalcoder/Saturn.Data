@@ -96,7 +96,11 @@ public partial class StellarRepository : IScopedRepository
     public async Task Delete<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(id);
+        var entity = await ById<TItem, TScope>(scope, id);
+        if (entity != null && entity.Scope == scope)
+        {
+            await collection.RemoveAsync(id);
+        }
     }
 
     public async Task Delete<TItem, TScope>(string scope, Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
@@ -109,12 +113,24 @@ public partial class StellarRepository : IScopedRepository
     public async Task DeleteMany<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(entities.Select(e => new EntityId(e.Id)));
+        var validEntities = entities.Where(e => e.Scope == scope);
+        await collection.RemoveBulkAsync(validEntities.Select(e => new EntityId(e.Id)));
     }
 
-    public async Task DeleteMany<TItem, TScope>(string scope, List<string> ds, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
+    public async Task DeleteMany<TItem, TScope>(string scope, List<string> ids, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(ds.Select(id => new EntityId(id)));
+        var validIds = new List<EntityId>();
+        
+        foreach (var id in ids)
+        {
+            var entity = collection.AsQueryable().FirstOrDefault(e => e.Id == id && e.Scope == scope);
+            if (entity != null)
+            {
+                validIds.Add(new EntityId(id));
+            }
+        }
+        
+        await collection.RemoveBulkAsync(validIds);
     }
 }

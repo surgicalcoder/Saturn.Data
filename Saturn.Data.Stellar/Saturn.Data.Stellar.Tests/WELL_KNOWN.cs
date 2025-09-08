@@ -34,7 +34,8 @@ public static class WELL_KNOWN
     
     public static readonly ChildEntity Parent_Scope_1_Child_Entity_1 = new() { Id = "68bdd5525324ff2610c4362d", Name = "Child Entity 1 of Parent Scope 1", Scope = Parent_Scope_1.Id };
     public static readonly ChildEntity Parent_Scope_1_Child_Entity_2 = new() { Id = "68bdd5525324ff2610c4362e", Name = "Child Entity 2 of Parent Scope 1", Scope = Parent_Scope_1.Id };
+    
     public static readonly ChildEntity Parent_Scope_2_Child_Entity_1 = new() { Id = "68bdd5525324ff2610c4362f", Name = "Child Entity 1 of Parent Scope 2", Scope = Parent_Scope_2.Id };
-    public static readonly ChildEntity Parent_Scope_2_Child_Entity_2 = new() { Id = "68bdd5525324ff2610c43630", Name = "Child Entity 1 of Parent Scope 2", Scope = Parent_Scope_2.Id };
+    public static readonly ChildEntity Parent_Scope_2_Child_Entity_2 = new() { Id = "68bdd5525324ff2610c43630", Name = "Child Entity 2 of Parent Scope 2", Scope = Parent_Scope_2.Id };
     
 }

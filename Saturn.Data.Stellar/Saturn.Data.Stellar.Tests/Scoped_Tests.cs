@@ -56,12 +56,14 @@ public class Scoped_Tests : IDisposable
         var allScoped1 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id)).ToListAsync();
         var allScoped2 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id)).ToListAsync();
         
-        Assert.Equal(allScoped1[0].Id, WELL_KNOWN.Parent_Scope_1_Child_Entity_1.Id);
-        Assert.Equal(allScoped1[1].Id, WELL_KNOWN.Parent_Scope_1_Child_Entity_2.Id);
-        Assert.Equal(allScoped2[0].Id, WELL_KNOWN.Parent_Scope_2_Child_Entity_1.Id);
-        Assert.Equal(allScoped2[1].Id, WELL_KNOWN.Parent_Scope_2_Child_Entity_2.Id);
-
-
+        Assert.Equal(2, allScoped1.Count);
+        Assert.Equal(2, allScoped2.Count);
+        
+        Assert.Contains(allScoped1, x => x.Id == WELL_KNOWN.Parent_Scope_1_Child_Entity_1.Id);
+        Assert.Contains(allScoped1, x => x.Id == WELL_KNOWN.Parent_Scope_1_Child_Entity_2.Id);
+        
+        Assert.Contains(allScoped2, x => x.Id == WELL_KNOWN.Parent_Scope_2_Child_Entity_1.Id);
+        Assert.Contains(allScoped2, x => x.Id == WELL_KNOWN.Parent_Scope_2_Child_Entity_2.Id);
     }
     
 }

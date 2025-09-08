@@ -16,7 +16,7 @@ public partial class StellarRepository : IScopedReadonlyRepository
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var entities = IDs.Select(id => new EntityId(id));
-        return collection.AsQueryable().Where(e => entities.Contains(e.Id)).ToAsyncEnumerable();
+        return collection.AsQueryable().Where(e => entities.Contains(e.Id) && e.Scope.Equals(scope)).ToAsyncEnumerable();
     }
     
     public async Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
@@ -29,7 +29,7 @@ public partial class StellarRepository : IScopedReadonlyRepository
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var entities = IDs.Select(id => new EntityId(id));
-        return collection.AsQueryable().Where(e => entities.Contains(e.Id)).ToAsyncEnumerable();
+        return collection.AsQueryable().Where(e => entities.Contains(e.Id) && e.Scope == scope).ToAsyncEnumerable();
     }
     
     public async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
@@ -41,13 +41,15 @@ public partial class StellarRepository : IScopedReadonlyRepository
     public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>()).Result;
-        return collection.AsQueryable();
+        return collection.AsQueryable().Where(e => e.Scope == scope);
     }
     
     public async Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable().Where(predicate);
+        Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
+        var combinedPred = scopePred.And(predicate);
+        var query = collection.AsQueryable().Where(combinedPred);
         query = ApplySort(query, sortOrders);
         return query.FirstOrDefault();
     }
@@ -55,7 +57,9 @@ public partial class StellarRepository : IScopedReadonlyRepository
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable().Where(predicate);
+        Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
+        var combinedPred = scopePred.And(predicate);
+        var query = collection.AsQueryable().Where(combinedPred);
         query = ApplySort(query, sortOrders);
         return query.ToAsyncEnumerable();
     }
