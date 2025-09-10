@@ -144,30 +144,25 @@ public partial class LiteDBRepository : IRepository
     public virtual async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         var collection = GetCollection<TItem>();
-
-        // Find the existing entity
+        
         var existingEntity = await collection.FindOneAsync(e => e.Id == id);
 
         if (existingEntity == null)
         {
             throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
         }
-
-        // Parse the JSON to BsonDocument
+        
         var updateDoc = JsonSerializer.Deserialize<BsonDocument>(json);
-
-        // Version check for optimistic concurrency
+        
         if (existingEntity.Version != version)
         {
             throw new ApplicationException($"Entity version mismatch. Current version: {existingEntity.Version}, requested version: {version}");
         }
-
-        // Convert the update document to entity and preserve ID
+        
         var updatedEntity = BsonMapper.Global.ToObject<TItem>(updateDoc);
         updatedEntity.Id = id;
         updatedEntity.Version = version + 1;
-
-        // Update the entity
+        
         var result = await collection.UpdateAsync(updatedEntity);
 
         if (!result)
