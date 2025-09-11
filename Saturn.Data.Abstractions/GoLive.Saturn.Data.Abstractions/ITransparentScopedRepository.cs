@@ -17,7 +17,7 @@ public interface ITransparentScopedRepository : IReadonlyRepository
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
 
-    Task DeleteMany<TItem, TParent>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Delete<TItem, TParent>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
     
@@ -25,7 +25,7 @@ public interface ITransparentScopedRepository : IReadonlyRepository
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
     
-    Task InsertMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Insert<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
         
@@ -37,7 +37,7 @@ public interface ITransparentScopedRepository : IReadonlyRepository
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
     
-    Task SaveMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Save<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
         
@@ -49,7 +49,7 @@ public interface ITransparentScopedRepository : IReadonlyRepository
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
     
-    Task UpdateMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Update<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
 
@@ -57,7 +57,7 @@ public interface ITransparentScopedRepository : IReadonlyRepository
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
     
-    Task UpsertMany<TItem, TParent>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Upsert<TItem, TParent>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 
         where TParent : Entity, new();
 }

@@ -42,7 +42,7 @@ public interface IScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TParent>, new()
-        where TParent : Entity, new();
+    Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+        where TItem : ScopedEntity<TScope>
+        where TScope : Entity, new();
 }

@@ -19,7 +19,7 @@ public interface ISecondScopedRepository
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();    
     
-    Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> ds, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();
@@ -50,6 +50,10 @@ public interface ISecondScopedRepository
         where TPrimaryScope : Entity, new();
     
     Task Update<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
+        where TSecondScope : Entity, new() 
+        where TPrimaryScope : Entity, new();
+    Task Update<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();

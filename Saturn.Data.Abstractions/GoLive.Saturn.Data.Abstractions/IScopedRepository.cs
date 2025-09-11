@@ -17,7 +17,7 @@ public interface IScopedRepository : IScopedReadonlyRepository
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
-    Task Delete<TItem, TScope>(string scope, IEnumerable<string> ds, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Delete<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
