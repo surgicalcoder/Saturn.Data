@@ -7,7 +7,7 @@ using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions;
 
-public interface ITransparentScopedRepository : IReadonlyRepository
+public interface ITransparentScopedRepository : ITransparentScopedReadonlyRepository
 {
     Task Delete<TItem, TParent>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TParent>, new() 

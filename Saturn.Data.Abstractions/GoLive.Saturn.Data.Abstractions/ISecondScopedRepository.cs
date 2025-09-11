@@ -7,9 +7,9 @@ using GoLive.Saturn.Data.Entities;
 
 namespace GoLive.Saturn.Data.Abstractions;
 
-public interface ISecondScopedRepository 
+public interface ISecondScopedRepository : ISecondScopedReadonlyRepository
 {
-    Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string Id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new() 
         where TPrimaryScope : Entity, new();    

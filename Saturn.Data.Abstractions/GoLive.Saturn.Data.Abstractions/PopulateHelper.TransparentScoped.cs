@@ -11,17 +11,21 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public static partial class PopulateHelper
 {
-    public static async Task Populate<T>(this Ref<T> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : Entity, new()
+    public static async Task Populate<TItem, TParent>(this Ref<TItem> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (item == null || repository == null)
         {
             return;
         }
-        item.Item = await repository.ById<T>(item.Id, transaction: transaction, cancellationToken: cancellationToken);
+        item.Item = await repository.ById<TItem, TParent>(item.Id, transaction: transaction, cancellationToken: cancellationToken);
     }
         
 
-    public static async Task Populate<T>(this List<Ref<T>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : Entity, new()
+    public static async Task Populate<TItem, TParent>(this List<Ref<TItem>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (item == null || item.Count == 0 || repository == null)
         {
@@ -29,14 +33,16 @@ public static partial class PopulateHelper
         }
             
         var IDs = item.Select(f => f.Id);
-        var items = await (await repository.ById<T>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<TItem, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
         for (var i = 0; i < item.Count; i++)
         {
             item[i].Fetch(items);
         }
     }
     
-    public static async Task Populate<T>(this IList<Ref<T>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T : Entity, new()
+    public static async Task Populate<TItem, TParent>(this IList<Ref<TItem>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (item == null || item.Count == 0 || repository == null)
         {
@@ -44,18 +50,21 @@ public static partial class PopulateHelper
         }
             
         var IDs = item.Select(f => f.Id);
-        var items = await (await repository.ById<T>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<TItem, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        // ReSharper disable once ForCanBeConvertedToForeach
         for (var i = 0; i < item.Count; i++)
         {
             item[i].Fetch(items);
         }
     }
 
-    public static async Task<List<T>> Populate<T, T2>(this List<T> collection, Expression<Func<T, Ref<T2>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T2 : Entity, new()
+    public static async Task<List<TItem>> Populate<TItem, T2, TParent>(this List<TItem> collection, Expression<Func<TItem, Ref<T2>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where T2 : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
-            return default;
+            return null;
         }
             
         var compile = item.CompileFast();
@@ -77,9 +86,9 @@ public static partial class PopulateHelper
             return collection;
         }
             
-        var items = await (await repository.ById<T2>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<T2, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
 
-        collection.ForEach(delegate (T obj)
+        collection.ForEach(delegate (TItem obj)
         {
             var re = compile(obj);
 
@@ -92,7 +101,9 @@ public static partial class PopulateHelper
         return collection;
     }
     
-    public static async Task<IList<T>> Populate<T, T2>(this IList<T> collection, Expression<Func<T, Ref<T2>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T2 : Entity, new()
+    public static async Task<IList<TItem>> Populate<TItem, T2, TParent>(this IList<TItem> collection, Expression<Func<TItem, Ref<T2>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where T2 : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
@@ -118,7 +129,7 @@ public static partial class PopulateHelper
             return collection;
         }
             
-        var items = await (await repository.ById<T2>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<T2, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
 
         for (var i = 0; i < collection.Count; i++)
         {
@@ -133,7 +144,9 @@ public static partial class PopulateHelper
         return collection;
     }
 
-    public static async Task<List<T>> PopulateMultiple<T, T2>(this List<T> collection, Expression<Func<T, List<Ref<T2>>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T2 : Entity, new()
+    public static async Task<List<TItem>> PopulateMultiple<TItem, T2, TParent>(this List<TItem> collection, Expression<Func<TItem, List<Ref<T2>>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where T2 : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
@@ -144,7 +157,7 @@ public static partial class PopulateHelper
 
         var IDs = collection.SelectMany(f => compiledFunc(f)).Select(r => r.Id).ToList();
 
-        var items = await (await repository.ById<T2>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<T2, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
 
         
         for (var i = 0; i < collection.Count; i++)
@@ -165,7 +178,9 @@ public static partial class PopulateHelper
         return collection;
     }
     
-    public static async Task<IList<T>> PopulateMultiple<T, T2>(this IList<T> collection, Expression<Func<T, IList<Ref<T2>>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where T2 : Entity, new()
+    public static async Task<IList<T>> PopulateMultiple<T, T2, TParent>(this IList<T> collection, Expression<Func<T, IList<Ref<T2>>>> item, ITransparentScopedRepository repository, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where T2 : ScopedEntity<TParent>, new()
+        where TParent : Entity, new()
     {
         if (collection == null || collection.Count == 0 || item == null || repository == null)
         {
@@ -176,7 +191,7 @@ public static partial class PopulateHelper
 
         var IDs = collection.SelectMany(f => compiledFunc(f)).Select(r => r.Id).ToList();
 
-        var items = await (await repository.ById<T2>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
+        var items = await (await repository.ById<T2, TParent>(IDs, transaction: transaction, cancellationToken: cancellationToken)).ToListAsync(cancellationToken: cancellationToken);
 
         
         for (var i = 0; i < collection.Count; i++)
