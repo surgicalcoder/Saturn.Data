@@ -18,11 +18,11 @@ public interface IScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<long> CountMany<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
@@ -30,15 +30,19 @@ public interface IScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, int? pageSize = null, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+        where TItem : ScopedEntity<TScope>
+        where TScope : Entity, new();
+    
+    Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TScope>
         where TScope : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(string scope, int count, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TParent>, new()
         where TParent : Entity, new();
 }

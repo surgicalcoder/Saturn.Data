@@ -9,7 +9,6 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public interface IScopedRepository : IScopedReadonlyRepository
 {
-    
     Task Delete<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
@@ -18,14 +17,15 @@ public interface IScopedRepository : IScopedReadonlyRepository
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
-    Task DeleteMany<TItem, TScope>(string scope, List<string> ds, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Delete<TItem, TScope>(string scope, IEnumerable<string> ds, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
+    
     Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
-    Task InsertMany<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Insert<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
         
@@ -33,11 +33,23 @@ public interface IScopedRepository : IScopedReadonlyRepository
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
+    Task Save<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TScope> 
+        where TScope : Entity, new();
+    
+    Task Save<TItem, TScope>(string scope, IEnumerable< TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TScope> 
+        where TScope : Entity, new();
+    
     Task Update<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
-    Task UpdateMany<TItem, TScope>(string scope, List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Update<TItem, TScope>(string scope, Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+        where TItem : ScopedEntity<TScope> 
+        where TScope : Entity, new();
+    
+    Task Update<TItem, TScope>(string scope, IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
         
@@ -45,7 +57,7 @@ public interface IScopedRepository : IScopedReadonlyRepository
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
     
-    Task UpsertMany<TItem, TScope>(string scope, List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
+    Task Upsert<TItem, TScope>(string scope, IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)  
         where TItem : ScopedEntity<TScope> 
         where TScope : Entity, new();
 }

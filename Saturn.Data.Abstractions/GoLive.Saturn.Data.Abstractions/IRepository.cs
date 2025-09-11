@@ -11,25 +11,20 @@ public interface IRepository : IReadonlyRepository
 {
     
     Task<IDatabaseTransaction> CreateTransaction();
-        
-    Task Delete<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
-        where TItem : Entity;
     
     Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
     Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
-        
-    Task DeleteMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    
+    Task Delete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
-    Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
-        where TItem : Entity;
     Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
-    Task InsertMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
         
     Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
@@ -38,7 +33,7 @@ public interface IRepository : IReadonlyRepository
     Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
-    Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
         
     Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
@@ -47,12 +42,12 @@ public interface IRepository : IReadonlyRepository
     Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
-    Task UpdateMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
 
     Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
     
-    Task UpsertMany<TItem>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
+    Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
         where TItem : Entity;
 }
