@@ -1,7 +1,5 @@
-﻿using System;
+﻿namespace GoLive.Saturn.Data.Abstractions;
 
-namespace GoLive.Saturn.Data.Abstractions;
-
-public class FailedToUpdateException : ApplicationException
+public class FailedToUpdateException : SaturnDataException
 {
 }

@@ -2,6 +2,6 @@
 
 namespace GoLive.Saturn.Data.Abstractions;
 
-public class FailedToUpsertException : SaturnDataException
+public class SaturnDataException : ApplicationException
 {
 }
