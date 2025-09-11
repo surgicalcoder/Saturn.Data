@@ -11,38 +11,38 @@ namespace GoLive.Saturn.Data.Abstractions;
 public interface IScopedReadonlyRepository : IDisposable
 {
     Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     IQueryable<TItem> IQueryable<TItem, TScope>(string scope)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
     
     Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) 
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
     Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : ScopedEntity<TScope>
+        where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 }
