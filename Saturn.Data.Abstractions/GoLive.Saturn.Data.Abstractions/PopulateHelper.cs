@@ -17,7 +17,7 @@ public static partial class PopulateHelper
         {
             return;
         }
-        item.Item = await repository.ByRef(item, transaction: transaction, cancellationToken: cancellationToken);
+        item.Item = await repository.ById<T>(item.Id, transaction: transaction, cancellationToken: cancellationToken);
     }
     
     public static void Populate<T>(this Ref<T> item, IList<T> items) where T : Entity, new()

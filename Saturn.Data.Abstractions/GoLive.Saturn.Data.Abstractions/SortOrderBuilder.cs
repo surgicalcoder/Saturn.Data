@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Entities;
@@ -17,13 +17,13 @@ public class SortOrderBuilder<T> where T : Entity
         return this;
     }
 
+    public List<SortOrder<T>> Build() => order;
+
     public SortOrderBuilder<T> Descending(Expression<Func<T, object>> field)
     {
         order.Add(new SortOrder<T>(field, SortDirection.Descending));
         return this;
     }
-
-    public List<SortOrder<T>> Build() => order;
 
     public static implicit operator List<SortOrder<T>>(SortOrderBuilder<T> builder)
     {

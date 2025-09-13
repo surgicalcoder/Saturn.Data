@@ -11,19 +11,11 @@ public static class Statics
 
         if (BitConverter.IsLittleEndian)
         {
-            span = new byte[]
-            {
-                96,
-                0
-            };
+            span = "`\0"u8;
         }
         else
         {
-            span = new byte[]
-            {
-                0,
-                96
-            };
+            span = "\0`"u8;
         }
 
         return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<byte, char>(ref MemoryMarshal.GetReference(span)), 1);

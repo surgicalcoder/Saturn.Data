@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +7,23 @@ namespace GoLive.Saturn.Data.Abstractions;
 
 public static class SyncHelper
 {
+
+    private static void CopyPropertiesTo<T, TU>(this T source, TU dest)
+    {
+        var sourceProps = typeof(T).GetProperties().Where(x => x.CanRead).Where(f => f.Name != "Id").ToList();
+        var destProps = typeof(TU).GetProperties().Where(x => x.CanWrite).Where(f => f.Name != "Id" ).ToList();
+
+        foreach (var sourceProp in sourceProps)
+        {
+            if (destProps.Any(x => x.Name == sourceProp.Name))
+            {
+                var p = destProps.First(x => x.Name == sourceProp.Name);
+                p.SetValue(dest, sourceProp.GetValue(source, null), null);
+            }
+
+        }
+
+    }
     public static async Task<List<TLocal>> SyncFrom<TLocal, TRemote>(
         this List<TLocal> Local,
         List<TRemote> Remote,
@@ -68,22 +85,5 @@ public static class SyncHelper
         }
             
         return Local;
-    }
-
-    private static void CopyPropertiesTo<T, TU>(this T source, TU dest)
-    {
-        var sourceProps = typeof(T).GetProperties().Where(x => x.CanRead).Where(f => f.Name != "Id").ToList();
-        var destProps = typeof(TU).GetProperties().Where(x => x.CanWrite).Where(f => f.Name != "Id" ).ToList();
-
-        foreach (var sourceProp in sourceProps)
-        {
-            if (destProps.Any(x => x.Name == sourceProp.Name))
-            {
-                var p = destProps.First(x => x.Name == sourceProp.Name);
-                p.SetValue(dest, sourceProp.GetValue(source, null), null);
-            }
-
-        }
-
     }
 }
