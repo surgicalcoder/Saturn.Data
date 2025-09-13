@@ -4,26 +4,29 @@ using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository : ITransparentScopedReadonlyRepository
-{
+public partial class StellarRepository : ITransparentScopedReadonlyRepository {
     async Task<TItem> ITransparentScopedReadonlyRepository.ById<TItem, TParent>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken())
     {
-        return (await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>()))[id];
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        return await ById<TItem, TParent>(scope, id, transaction, cancellationToken);
     }
 
     public async Task<List<TItem>> ById<TItem, TParent>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        return collection.Where(e => IDs.Contains(e.Id)).ToList();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        return await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken);
     }
 
     public async Task<List<Ref<TItem>>> ByRef<TItem, TParent>(List<Ref<TItem>> items, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        var resultItems = await Many<TItem, TParent>(scope, e=> items.Select(r => r.Id).Contains(e.Id), cancellationToken: cancellationToken);
+        
+        var entityDict = await resultItems.ToDictionaryAsync(e => e.Id, cancellationToken);
         var result = new List<Ref<TItem>>();
         foreach (var item in items)
         {
-            if (collection.TryGet(item.Id, out var entity))
+            if (entityDict.TryGetValue(item.Id, out var entity))
             {
                 item.Item = entity;
                 result.Add(item);
@@ -32,79 +35,67 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
         return result;
     }
 
-    public async Task<TItem> ByRef<TItem, TParent>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task<TItem> ByRef<TItem, TParent>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) 
+        where TItem : ScopedEntity<TParent>, new() 
+        where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        return collection.TryGet(item.Id, out var entity) ? entity : null;
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        return await ById<TItem, TParent>(scope, item.Id, transaction, cancellationToken);
     }
 
     public async Task<Ref<TItem>> PopulateRef<TItem, TParent>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var entity = await ByRef<TItem, TParent>(item);
+        var entity = await ByRef<TItem, TParent>(item, cancellationToken: cancellationToken);
         item.Item = entity;
         return item;
     }
 
     public async Task<IAsyncEnumerable<TItem>> All<TItem, TParent>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        return collection.AsEnumerable().Select(kvp => kvp.Value).ToAsyncEnumerable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        return await All<TItem, TParent>(scope, transaction, cancellationToken);
     }
 
     public IQueryable<TItem> IQueryable<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>()).Result;
-        return collection.AsQueryable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+
+        return IQueryable<TItem, TParent>(scope);
     }
 
     public async Task<TItem> One<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable().Where(predicate);
-        query = ApplySort(query, sortOrders);
-        return query.FirstOrDefault();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await One<TItem, TParent>(scope, predicate, sortOrders, transaction, cancellationToken);
     }
 
     public async Task<TItem> Random<TItem, TParent>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var items = collection.AsEnumerable().ToList();
-        return items.Count > 0 ? items[new Random().Next(items.Count)].Value : null;
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await Random<TItem, TParent>(scope, transaction, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(int count, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var items = collection.AsEnumerable().ToList();
-        var randomItems = items.OrderBy(_ => Guid.NewGuid()).Take(count).Select(kvp => kvp.Value);
-        return randomItems.ToAsyncEnumerable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await Random<TItem, TParent>(scope, count, transaction, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable().Where(predicate);
-        query = ApplySort(query, sortOrders);
-        return query.ToAsyncEnumerable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await Many<TItem, TParent>(scope, predicate, sortOrders, transaction, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable();
-    
-        foreach (var kvp in whereClause)
-        {
-            var param = Expression.Parameter(typeof(TItem), "x");
-            var property = Expression.PropertyOrField(param, kvp.Key);
-            var constant = Expression.Constant(kvp.Value);
-            var equal = Expression.Equal(property, Expression.Convert(constant, property.Type));
-            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, param);
-            query = query.Where(lambda);
-        }
-    
-        query = ApplySort(query, sortOrders);
-        return query.ToAsyncEnumerable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await Many<TItem, TParent>(scope, whereClause, sortOrders, transaction, cancellationToken);
     }
 
     async Task<IAsyncEnumerable<TItem>> ITransparentScopedReadonlyRepository.Many<TItem, TParent>(
@@ -115,10 +106,9 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
         IDatabaseTransaction transaction,
         CancellationToken cancellationToken)
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable().Where(predicate);
-        query = ApplySort(query, sortOrders);
-        return query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToAsyncEnumerable();
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        
+        return await Many<TItem, TParent>(scope, predicate, sortOrders, transaction, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TParent>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
