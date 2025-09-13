@@ -1,4 +1,4 @@
-name: Saturn.Data.EntitySerializers
+name: MongoDb.EntitySerializers
 on:
   workflow_dispatch:
 

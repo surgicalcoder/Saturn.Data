@@ -1,4 +1,4 @@
-name: Publish Generator Entities
+name: Generator Entities
 on:
   workflow_dispatch:
 

@@ -1,4 +1,4 @@
-name: Saturn.Data.LiteDb
+name: LiteDb
 on:
   workflow_dispatch:
 

@@ -1,4 +1,4 @@
-name: Saturn.Data.Abstractions
+name: Abstractions
 on:
   workflow_dispatch:
 
