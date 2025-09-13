@@ -54,9 +54,18 @@ public partial class MongoDbRepository : IReadonlyRepository
     {
         return GetCollection<TItem>().AsQueryable();
     }
+
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var filter = Builders<TItem>.Filter.Where(predicate);
+        FilterDefinition<TItem> filter = Builders<TItem>.Filter.Where(predicate);
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            filter = Builders<TItem>.Filter.And(
+                filter,
+                Builders<TItem>.Filter.Gt(x => x.Id, continueFrom)
+            );
+        }
+    
         var findOptions = new FindOptions<TItem>();
 
         if (sortOrders != null && sortOrders.Any())
@@ -67,29 +76,95 @@ public partial class MongoDbRepository : IReadonlyRepository
                                             .ToList();
             findOptions.Sort = Builders<TItem>.Sort.Combine(sortDefinitions);
         }
-
-        IAsyncCursor<TItem> res;
-
-        if (transaction != null)
+        
+        if (pageSize.HasValue)
         {
-            res = await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, filter, findOptions, cancellationToken);
+            findOptions.Limit = pageSize.Value;
         }
-        else
-        {
-            res = await GetCollection<TItem>().FindAsync(filter, findOptions, cancellationToken);
-        }
-
-        return res.ToAsyncEnumerable();
-    }
     
+        if (pageNumber is > 0 && string.IsNullOrEmpty(continueFrom))
+        {
+            findOptions.Skip = (pageNumber.Value - 1) * (pageSize ?? 20);
+        }
+    
+        var result = await ExecuteWithTransaction<TItem, IAsyncCursor<TItem>>(
+            transaction,
+            (collection, session) => collection.FindAsync(session, filter, findOptions, cancellationToken),
+            collection => collection.FindAsync(filter, findOptions, cancellationToken)
+        );
+
+        return result.ToAsyncEnumerable();
+    }
+
+
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        throw new NotImplementedException();
+        FilterDefinition<TItem> filter = new BsonDocument(whereClause);
+        
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            filter = Builders<TItem>.Filter.And(
+                filter,
+                Builders<TItem>.Filter.Gt(x => x.Id, continueFrom)
+            );
+        }
+
+        var findOptions = new FindOptions<TItem>();
+
+        if (sortOrders != null && sortOrders.Any())
+        {
+            findOptions.Sort = getSortDefinition(sortOrders, null);
+        }
+
+        if (pageSize.HasValue)
+        {
+            findOptions.Limit = pageSize.Value;
+        }
+    
+        if (pageNumber is > 0 && string.IsNullOrEmpty(continueFrom))
+        {
+            findOptions.Skip = (pageNumber.Value - 1) * (pageSize ?? 20);
+        }
+
+        var result = await ExecuteWithTransaction<TItem, IAsyncCursor<TItem>>(
+            transaction,
+            (collection, session) => collection.FindAsync(session, filter, findOptions, cancellationToken),
+            collection => collection.FindAsync(filter, findOptions, cancellationToken)
+        );
+    
+        return result.ToAsyncEnumerable();
     }
+    
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        throw new NotImplementedException();
+        FilterDefinition<TItem> filter = Builders<TItem>.Filter.Where(predicate);
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            filter = Builders<TItem>.Filter.And(
+                filter,
+                Builders<TItem>.Filter.Gt(x => x.Id, continueFrom)
+            );
+        }
+    
+        var findOptions = new FindOptions<TItem> { Limit = 1 };
+
+        if (sortOrders != null && sortOrders.Any())
+        {
+            SortDefinition<TItem> sortDefinition = null;
+            sortDefinition = getSortDefinition(sortOrders, sortDefinition);
+            findOptions.Sort = sortDefinition;
+        }
+
+        var result = await ExecuteWithTransaction<TItem, IAsyncCursor<TItem>>(
+            transaction,
+            (collection, session) => collection.FindAsync(session, filter, findOptions, cancellationToken),
+            collection => collection.FindAsync(filter, findOptions, cancellationToken)
+        );
+
+        return await result.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
     }
+    
+    
     public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var aggregate = transaction != null

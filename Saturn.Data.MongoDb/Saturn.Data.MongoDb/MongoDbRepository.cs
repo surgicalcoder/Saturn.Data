@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
@@ -255,6 +256,70 @@ public partial class MongoDbRepository
                    .SetDefaultValue(() => ObjectId.GenerateNewId().ToString());
             });
         }
+    }
+
+    /// <summary>
+    /// Builds a filter definition with optional continuation token support
+    /// </summary>
+    protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
+        FilterDefinition<TItem> baseFilter, 
+        string continueFrom) where TItem : Entity
+    {
+        if (string.IsNullOrEmpty(continueFrom))
+            return baseFilter;
+
+        return Builders<TItem>.Filter.And(
+            baseFilter,
+            Builders<TItem>.Filter.Gt(x => x.Id, continueFrom)
+        );
+    }
+
+    /// <summary>
+    /// Builds a filter definition from a predicate with optional continuation token support
+    /// </summary>
+    protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
+        Expression<Func<TItem, bool>> predicate, 
+        string continueFrom) where TItem : Entity
+    {
+        var baseFilter = Builders<TItem>.Filter.Where(predicate);
+        return BuildFilterWithContinuation(baseFilter, continueFrom);
+    }
+
+    /// <summary>
+    /// Builds FindOptions with pagination and sorting support
+    /// </summary>
+    protected static FindOptions<TItem> BuildFindOptions<TItem>(
+        IEnumerable<SortOrder<TItem>> sortOrders = null,
+        int? pageSize = null,
+        int? pageNumber = null,
+        string continueFrom = null,
+        int? limit = null) where TItem : Entity
+    {
+        var findOptions = new FindOptions<TItem>();
+
+        // Handle sorting
+        if (sortOrders != null && sortOrders.Any())
+        {
+            findOptions.Sort = getSortDefinition(sortOrders, null);
+        }
+
+        // Handle limit (takes precedence over pageSize)
+        if (limit.HasValue)
+        {
+            findOptions.Limit = limit.Value;
+        }
+        else if (pageSize.HasValue)
+        {
+            findOptions.Limit = pageSize.Value;
+        }
+
+        // Handle pagination (only when not using continuation tokens)
+        if (pageNumber is > 0 && string.IsNullOrEmpty(continueFrom))
+        {
+            findOptions.Skip = (pageNumber.Value - 1) * (pageSize ?? 20);
+        }
+
+        return findOptions;
     }
 
     protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
