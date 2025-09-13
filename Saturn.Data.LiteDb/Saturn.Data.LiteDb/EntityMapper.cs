@@ -6,9 +6,47 @@ namespace Saturn.Data.LiteDb;
 
 public class CustomEntityMapper : BsonMapper
 {
-    public CustomEntityMapper(Func<Type, object> customTypeInstantiator = null, ITypeNameBinder typeNameBinder = null) : base(customTypeInstantiator, typeNameBinder)
+    public CustomEntityMapper(Func<Type, object>? customTypeInstantiator = null, ITypeNameBinder? typeNameBinder = null) : base(customTypeInstantiator, typeNameBinder)
     {
-        RegisterType<HashedString>(serialize: (HashedString value) =>
+        RegisterType<string>(
+            serialize: value =>
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    return BsonValue.Null;
+                }
+
+                if (GoLive.Saturn.Data.Entities.Entity.TryParseId(value, out var output) && output is {} output1)
+                {
+                    return new BsonValue(new ObjectId(output));
+                }
+                else
+                {
+                    return new BsonValue(value);
+                }
+            },
+            deserialize: bson =>
+            {
+                if (bson == null || bson.IsNull)
+                {
+                    return null;
+                }
+                
+                if (bson.IsObjectId)
+                {
+                    return bson.AsObjectId.ToString();
+                }
+                
+                if (bson.IsString)
+                {
+                    return bson.AsString;
+                }
+                
+                return bson.ToString();
+            });
+
+        RegisterType<HashedString>(
+            serialize: value =>
             {
                 if (value == null || (string.IsNullOrEmpty(value.Hash) &&
                                       string.IsNullOrEmpty(value.Salt) &&
@@ -38,7 +76,7 @@ public class CustomEntityMapper : BsonMapper
                 
                 return doc;
             },
-            deserialize: (BsonValue bson) =>
+            deserialize: bson =>
             {
                 if (bson == null || bson.IsNull)
                 {
@@ -68,7 +106,8 @@ public class CustomEntityMapper : BsonMapper
                 return item;
             });
 
-        RegisterType<EncryptedString>(serialize: (EncryptedString value) =>
+        RegisterType<EncryptedString>(
+            serialize: value =>
             {
                 if (value == null || (string.IsNullOrEmpty(value.Encoded) &&
                                       string.IsNullOrEmpty(value.Hash) &&
@@ -96,7 +135,7 @@ public class CustomEntityMapper : BsonMapper
                 
                 return doc;
             },
-            deserialize: (BsonValue bson) =>
+            deserialize: bson =>
             {
                 if (bson == null || bson.IsNull)
                 {
@@ -128,8 +167,7 @@ public class CustomEntityMapper : BsonMapper
                 }
                 
                 return item;
-            }
-            );
+            });
     }
 
     protected override IEnumerable<MemberInfo> GetTypeMembers(Type type)
