@@ -7,7 +7,7 @@ public static class Patcher
 {
     public static void PatchMongoDB()
     {
-        var harmony = new Harmony("GoLive.Saturn.Data.EntitySerializers.RuntimePatcher");
+        var harmony = new Harmony("GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher");
 
         // Get the type and method to patch
         var targetType = Type.GetType("MongoDB.Driver.Linq.Linq3Implementation.Ast.Expressions.AstGetFieldExpression, MongoDB.Driver");

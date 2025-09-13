@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="GoLive.Saturn.Data.MongoDb.EntitySerializers.Json/GoLive.Saturn.Data.MongoDb.EntitySerializers.Json.csproj" />
+  <Project Path="GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft/GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft.csproj" />
+  <Project Path="GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher/GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher.csproj" />
+  <Project Path="GoLive.Saturn.Data.MongoDb.EntitySerializers/GoLive.Saturn.Data.MongoDb.EntitySerializers.csproj" />
+</Solution>

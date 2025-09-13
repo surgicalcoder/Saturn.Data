@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-      <PackageId>GoLive.Saturn.Data.EntitySerializers</PackageId>
+    <TargetFramework>net9.0</TargetFramework>
+      <PackageId>GoLive.Saturn.Data.MongoDb.EntitySerializers</PackageId>
       <Authors>SurgicalCoder</Authors>
       <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
       <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
@@ -15,12 +15,13 @@
       <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
       <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
       <RepositoryType>git</RepositoryType>
+      <RootNamespace>GoLive.Saturn.Data.EntitySerializers</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Crypto" Version="1.0.15" />
-    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.3.3" />
-    <PackageReference Include="MongoDB.Bson" Version="3.0.0" />
+    <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.27" />
+    <PackageReference Include="MongoDB.Bson" Version="3.5.0" />
   </ItemGroup>
 
 </Project>

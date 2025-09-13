@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <PackageId>GoLive.Saturn.Data.EntitySerializers.RuntimePatcher</PackageId>
+        <PackageId>GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher</PackageId>
         <Authors>SurgicalCoder</Authors>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>An experimental Rapid Prototype Development Framework in c#/.net core.</Description>
@@ -17,10 +17,11 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <RootNamespace>GoLive.Saturn.Data.EntitySerializers.RuntimePatcher</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="SurgicalCoder.HarmonyX" Version="2.14.0-alpha" />
+      <PackageReference Include="HarmonyX" Version="2.15.0" />
     </ItemGroup>
 
 </Project>
