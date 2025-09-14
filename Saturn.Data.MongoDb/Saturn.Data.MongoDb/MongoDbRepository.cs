@@ -18,10 +18,10 @@ using Saturn.Data.MongoDb.Callbacks;
 using Saturn.Data.MongoDb.Conventions;
 using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
-namespace Saturn.Data.MongoDb;
-
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.InternalTests")]
+
+namespace Saturn.Data.MongoDb;
 
 public partial class MongoDbRepository
 {
