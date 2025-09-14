@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.Tests.csproj" Type="Classic C#" />
   <Project Path="Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj" />
 </Solution>

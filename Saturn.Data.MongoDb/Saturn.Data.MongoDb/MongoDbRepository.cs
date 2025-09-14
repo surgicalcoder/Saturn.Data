@@ -20,6 +20,7 @@ using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.Benchmarks")]
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.InternalTests")]
+[assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.Tests")]
 
 namespace Saturn.Data.MongoDb;
 
