@@ -51,7 +51,16 @@ public partial class MongoDbRepository : ISecondScopedRepository
 
     public async Task JsonUpdate<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
-        await JsonUpdate<TItem>(id, version, json, transaction, cancellationToken);
+        var result = await ExecuteWithTransaction<TItem, UpdateResult>(
+            transaction,
+            (collection, session) => collection.UpdateOneAsync(session, e => e.Id == id && e.Scope == Scope.Id && e.SecondScope == secondScope.Id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
+            collection => collection.UpdateOneAsync(e => e.Id == id && e.Scope == Scope.Id && e.SecondScope == secondScope.Id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
+        );
+
+        if (!result.IsAcknowledged)
+        {
+            throw new FailedToUpdateException();
+        }
     }
 
     public async Task Save<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()

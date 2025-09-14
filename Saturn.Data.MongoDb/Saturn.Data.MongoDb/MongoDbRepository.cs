@@ -330,7 +330,7 @@ public partial class MongoDbRepository
             findOptions.Limit = pageSize.Value;
         }
 
-        // Handle pagination (only when not using continuation tokens)
+        // Handle pagination (skip-based pagination is incompatible with continuation tokens)
         if (pageNumber is > 0 && string.IsNullOrEmpty(continueFrom))
         {
             findOptions.Skip = (pageNumber.Value - 1) * (pageSize ?? 20);
