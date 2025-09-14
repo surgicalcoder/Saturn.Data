@@ -128,27 +128,6 @@ public partial class MongoDbRepository
     {
         if (mongoOptions.CommandStartedCallback != null)
         {
-            cb.Subscribe<CommandStartedEvent>(e => { mongoOptions.CommandStartedCallback.Invoke(new MongoCommandStartedEvent { Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId }); });
-        }
-
-        if (mongoOptions.CommandFailedCallback != null)
-        {
-            cb.Subscribe<CommandFailedEvent>(e => { mongoOptions.CommandFailedCallback.Invoke(new MongoCommandFailedEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Failure = e.Failure }); });
-        }
-
-        if (mongoOptions.CommandSucceededCallback != null)
-        {
-            cb.Subscribe<CommandSucceededEvent>(e => { mongoOptions.CommandSucceededCallback.Invoke(new MongoCommandSucceededEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Duration = e.Duration }); });
-        }
-
-
-        if (mongoOptions.CommandSucceededCallback != null)
-        {
-            cb.Subscribe<CommandSucceededEvent>(e => { Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e))); });
-        }
-
-        if (mongoOptions.CommandStartedCallback != null)
-        {
             cb.Subscribe<CommandStartedEvent>(e =>
             {
                 var document = e.Command.ToJson();
@@ -159,6 +138,11 @@ public partial class MongoDbRepository
         if (mongoOptions.CommandFailedCallback != null)
         {
             cb.Subscribe<CommandFailedEvent>(e => { Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e))); });
+        }
+
+        if (mongoOptions.CommandSucceededCallback != null)
+        {
+            cb.Subscribe<CommandSucceededEvent>(e => { Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e))); });
         }
     }
 
