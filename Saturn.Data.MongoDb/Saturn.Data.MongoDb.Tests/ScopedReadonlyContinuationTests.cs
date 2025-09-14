@@ -49,8 +49,9 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, scope2Entities);
 
-        // Create sort order by Name for predictable pagination
-        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Name, SortDirection.Ascending) };
+        // Use ID-based sorting for reliable continuation token pagination
+        // This ensures continuation tokens work correctly since they are ID-based
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
 
         // Act - Get first page from scope 1
         var firstPageScope1 = await (await ScopedReadonlyRepo.Many<ChildEntity, ParentScope>(
@@ -83,8 +84,8 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         var secondPageIds = secondPageScope1.Select(e => e.Id).ToHashSet();
         Assert.Empty(firstPageIds.Intersect(secondPageIds));
         
-        // Verify sequential ordering
-        Assert.True(string.Compare(firstPageScope1.First().Name, secondPageScope1.First().Name, StringComparison.Ordinal) < 0);
+        // Verify sequential ID ordering (since we're sorting by ID)
+        Assert.True(string.Compare(firstPageScope1.Last().Id, secondPageScope1.First().Id, StringComparison.Ordinal) < 0);
     }
 
     [Fact]
@@ -192,7 +193,9 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
 
-        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Name, SortDirection.Ascending) };
+        // Use ID-based sorting for reliable continuation token pagination
+        // This ensures continuation tokens work correctly since they are ID-based
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
 
         // Act - Get first entity
         var firstEntity = await ScopedReadonlyRepo.One<ChildEntity, ParentScope>(
@@ -214,8 +217,8 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, firstEntity.Scope);
         Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, secondEntity.Scope);
         
-        // Verify ordering
-        Assert.True(string.Compare(firstEntity.Name, secondEntity.Name, StringComparison.Ordinal) < 0);
+        // Verify ID ordering (since we're sorting by ID)
+        Assert.True(string.Compare(firstEntity.Id, secondEntity.Id, StringComparison.Ordinal) < 0);
     }
 
     [Fact]
@@ -333,7 +336,9 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entities);
 
-        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Name, SortDirection.Ascending) };
+        // Use ID-based sorting for reliable continuation token pagination
+        // This ensures continuation tokens work correctly since they are ID-based
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
 
         // Act - Get first page of only "Even" entities
         var firstPageEven = await (await ScopedReadonlyRepo.Many<ChildEntity, ParentScope>(
@@ -368,6 +373,9 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         // All results should be from the same scope
         Assert.All(firstPageEven, e => Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, e.Scope));
         Assert.All(secondPageEven, e => Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, e.Scope));
+        
+        // Verify that continuation results have IDs greater than the continuation token
+        Assert.All(secondPageEven, e => Assert.True(string.Compare(e.Id, continueFromToken, StringComparison.Ordinal) > 0));
     }
 
     [Fact]

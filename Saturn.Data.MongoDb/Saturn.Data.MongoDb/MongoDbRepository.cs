@@ -200,17 +200,9 @@ public partial class MongoDbRepository
         _ = BsonSerializer.TryRegisterSerializer(typeof(Timestamp), new TimestampSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
+        
         BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
         BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
-        /*// Register Ref<T> and WeakRef<T> serializers only if not already registered
-        if (!BsonSerializer.LookupSerializer(typeof(Ref<>)).GetType().Name.Contains("RefSerializer"))
-        {
-            BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
-        }
-        if (!BsonSerializer.LookupSerializer(typeof(WeakRef<>)).GetType().Name.Contains("WeakRefSerializer"))
-        {
-            BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
-        }*/
 
         _ = BsonSerializer.TryRegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(HashedString), new HashedStringSerializer());
@@ -294,25 +286,18 @@ public partial class MongoDbRepository
         return BuildFilterWithContinuation(baseFilter, continueFrom);
     }
 
-    /// <summary>
-    /// Builds a filter definition from a predicate with optional continuation token support for composite sort keys
-    /// </summary>
-    protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
-        Expression<Func<TItem, bool>> predicate,
-        string? continueFrom,
-        IEnumerable<SortOrder<TItem>>? sortOrders) where TItem : Entity
-    {
-        var baseFilter = Builders<TItem>.Filter.Where(predicate);
-        return BuildFilterWithContinuation(baseFilter, continueFrom);
-    }
-
     // Helper to get the field name from an expression
-    private static string GetFieldName<TItem, TKey>(Expression<Func<TItem, TKey>> keySelector)
+    private static string GetFieldNameFromExpression<TItem, TKey>(Expression<Func<TItem, TKey>> keySelector)
     {
         if (keySelector.Body is MemberExpression member)
+        {
             return member.Member.Name;
+        }
+
         if (keySelector.Body is UnaryExpression unary && unary.Operand is MemberExpression member2)
+        {
             return member2.Member.Name;
+        }
         throw new InvalidOperationException("Invalid key selector expression");
     }
 
@@ -356,7 +341,9 @@ public partial class MongoDbRepository
 
     protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T>? sortDefinition) where T : Entity
     {
-        foreach (var sortOrder in sortOrders)
+        var sortOrdersList = sortOrders.ToList();
+        
+        foreach (var sortOrder in sortOrdersList)
         {
             var sortBuilder = Builders<T>.Sort;
             sortDefinition = sortOrder.Direction == SortDirection.Ascending
@@ -364,6 +351,18 @@ public partial class MongoDbRepository
                 : sortDefinition == null
                     ? sortBuilder.Descending(sortOrder.Field)
                     : sortDefinition.Descending(sortOrder.Field);
+        }
+
+        // Always add ID as a secondary sort key if it's not already the primary sort
+        var primarySortField = sortOrdersList.FirstOrDefault();
+        if (primarySortField != null)
+        {
+            var primaryFieldName = GetFieldNameFromExpression(primarySortField.Field);
+            if (primaryFieldName != "Id" && primaryFieldName != "_id")
+            {
+                // Add ID as secondary sort in ascending order for consistent pagination
+                sortDefinition = sortDefinition?.Ascending(x => x.Id) ?? Builders<T>.Sort.Ascending(x => x.Id);
+            }
         }
 
         return sortDefinition!;
