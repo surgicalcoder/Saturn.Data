@@ -2,6 +2,7 @@
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 namespace Saturn.Data.MongoDb;
@@ -96,21 +97,33 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
         );
     }
 
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
-        Expression<Func<TItem, bool>> scopePredicate = item => item.Scope == scope;
-        var combinedPredicate = predicate != null ? scopePredicate.And(predicate) : scopePredicate;
-
-        var pipeline = new BsonDocument[]
+        Expression<Func<TItem, bool>> scopeFilter = item => item.Scope == scope;
+    
+        Expression<Func<TItem, bool>> combinedPredicate;
+        if (predicate != null)
         {
-            new("$match", combinedPredicate.ToBsonDocument()),
-            new("$sample", new BsonDocument("size", count))
-        };
-
-        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
-            transaction,
-            async (collection, session) => (await collection.AggregateAsync<TItem>(session, pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable(),
-            async collection => (await collection.AggregateAsync<TItem>(pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable()
-        );
+            var parameter = Expression.Parameter(typeof(TItem), "item");
+            var scopeBody = Expression.Invoke(scopeFilter, parameter);
+            var predicateBody = Expression.Invoke(predicate, parameter);
+            var combinedBody = Expression.AndAlso(scopeBody, predicateBody);
+            combinedPredicate = Expression.Lambda<Func<TItem, bool>>(combinedBody, parameter);
+        }
+        else
+        {
+            combinedPredicate = scopeFilter;
+        }
+        
+        var collection = GetCollection<TItem>();
+        
+        var pipeline = collection.Aggregate()
+                                 .Match(combinedPredicate)
+                                 .Sample(count);
+        
+        var results = await pipeline.ToListAsync(cancellationToken);
+        return results.ToAsyncEnumerable();
     }
 }
