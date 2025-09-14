@@ -236,9 +236,7 @@ public partial class MongoDbRepository
                 map.MapProperty(e => e.Properties).SetSerializer(new DictionaryInterfaceImplementerSerializer<Dictionary<string, dynamic>>(DictionaryRepresentation.ArrayOfDocuments)).SetElementName("_p");
 
                 map.IdMemberMap.SetSerializer(new StringSerializer().WithRepresentation(BsonType.ObjectId))
-                   .SetIdGenerator(StringObjectIdGenerator.Instance)
-                   .SetIgnoreIfDefault(true)
-                   .SetDefaultValue(() => ObjectId.GenerateNewId().ToString());
+                   .SetIdGenerator(StringObjectIdGenerator.Instance);
             });
         }
     }
@@ -388,8 +386,6 @@ public partial class MongoDbRepository
 
     protected static RepositoryOptions options { get; set; } = null!;
     protected static MongoDbRepositoryOptions mongoOptions { get; set; } = null!;
-    public static bool InitRun { get; set; }
-    public static DateTime InitLastChecked { get; set; }
     protected IMongoDatabase mongoDatabase { get; set; }
     protected IMongoClient client { get; set; }
 
