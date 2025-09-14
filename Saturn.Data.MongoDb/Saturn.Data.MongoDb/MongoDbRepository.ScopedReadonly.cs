@@ -117,13 +117,24 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
             combinedPredicate = scopeFilter;
         }
         
-        var collection = GetCollection<TItem>();
-        
-        var pipeline = collection.Aggregate()
-                                 .Match(combinedPredicate)
-                                 .Sample(count);
-        
-        var results = await pipeline.ToListAsync(cancellationToken);
-        return results.ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) =>
+            {
+                var pipeline = collection.Aggregate(session)
+                                         .Match(combinedPredicate)
+                                         .Sample(count);
+                var results = await pipeline.ToListAsync(cancellationToken);
+                return results.ToAsyncEnumerable();
+            },
+            async collection =>
+            {
+                var pipeline = collection.Aggregate()
+                                         .Match(combinedPredicate)
+                                         .Sample(count);
+                var results = await pipeline.ToListAsync(cancellationToken);
+                return results.ToAsyncEnumerable();
+            }
+        );
     }
 }
