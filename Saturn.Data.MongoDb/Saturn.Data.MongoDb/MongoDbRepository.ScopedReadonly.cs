@@ -3,7 +3,6 @@ using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.MongoDb;
 
@@ -11,92 +10,59 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
 {
     public async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        if (transaction != null)
-        {
-            return (await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, e => e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
-        }
-
-        return (await GetCollection<TItem>().FindAsync(e => e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) => (await collection.FindAsync(session, e => e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable(),
+            async collection => (await collection.FindAsync(e => e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable()
+        );
     }
 
     public async Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        TItem result;
-
-        if (transaction != null)
-        {
-            result = await (await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, e => e.Id == id && e.Scope == scope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken);
-        }
-        else
-        {
-            result = await (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == scope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return result;
+        return await ExecuteWithTransaction<TItem, TItem>(
+            transaction,
+            async (collection, session) => await (await collection.FindAsync(session, e => e.Id == id && e.Scope == scope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken),
+            async collection => await (await collection.FindAsync(e => e.Id == id && e.Scope == scope, new FindOptions<TItem> { Limit = 1 }, cancellationToken)).FirstOrDefaultAsync(cancellationToken)
+        );
     }
 
     public async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        IAsyncCursor<TItem> result;
-
-        if (transaction != null)
-        {
-            result = await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken);
-        }
-        else
-        {
-            result = await GetCollection<TItem>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken);
-        }
-
-
-        return result.ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) => (await collection.FindAsync(session, e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable(),
+            async collection => (await collection.FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken)).ToAsyncEnumerable()
+        );
     }
 
     public async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-
-        long item;
-
-        if (transaction != null)
-        {
-            item = await GetCollection<TItem>().CountDocumentsAsync(((MongoDbTransactionWrapper)transaction).Session, combinedPred, cancellationToken: cancellationToken);
-        }
-        else
-        {
-            item = await GetCollection<TItem>().CountDocumentsAsync(combinedPred, cancellationToken: cancellationToken);
-        }
-
-        return item;
+        return await ExecuteWithTransaction<TItem, long>(
+            transaction,
+            async (collection, session) => await collection.CountDocumentsAsync(session, combinedPred, cancellationToken: cancellationToken),
+            async collection => await collection.CountDocumentsAsync(combinedPred, cancellationToken: cancellationToken)
+        );
     }
 
     public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
-
-        return scopedEntities;
+        return GetCollection<TItem>().AsQueryable().Where(f => f.Scope == scope);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        predicate = predicate.And(item => item.Scope == scope);
+        Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
+        var combinedPred = firstPred.And(predicate);
+        var filter = BuildFilterWithContinuation(combinedPred, continueFrom);
+        var findOptions = BuildFindOptions(sortOrders, pageSize, pageNumber, continueFrom);
 
-        var filter = Builders<TItem>.Filter.Where(predicate);
-        var findOptions = new FindOptions<TItem>();
-
-        if (sortOrders != null && sortOrders.Any())
-        {
-            var sortDefinitions = sortOrders.Select(sortOrder => sortOrder.Direction == SortDirection.Ascending
-                                                ? Builders<TItem>.Sort.Ascending(sortOrder.Field)
-                                                : Builders<TItem>.Sort.Descending(sortOrder.Field))
-                                            .ToList();
-            findOptions.Sort = Builders<TItem>.Sort.Combine(sortDefinitions);
-        }
-
-        var res = await GetCollection<TItem>().FindAsync(filter, findOptions, cancellationToken);
-
-        return res.ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) => (await collection.FindAsync(session, filter, findOptions, cancellationToken)).ToAsyncEnumerable(),
+            async collection => (await collection.FindAsync(filter, findOptions, cancellationToken)).ToAsyncEnumerable()
+        );
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
@@ -105,56 +71,29 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
         {
             ["Scope"] = scope
         };
+        var baseFilter = new BsonDocumentFilterDefinition<TItem>(new BsonDocument(scopedWhereClause));
+        var filter = BuildFilterWithContinuation(baseFilter, continueFrom);
+        var findOptions = BuildFindOptions(sortOrders, pageSize, pageNumber, continueFrom);
 
-        var where = new BsonDocument(scopedWhereClause);
-
-        var findOptions = new FindOptions<TItem>();
-
-        if (sortOrders != null && sortOrders.Any())
-        {
-            findOptions.Sort = getSortDefinition(sortOrders, null);
-        }
-
-        IAsyncCursor<TItem> res;
-
-        if (transaction != null)
-        {
-            res = await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, where, findOptions, cancellationToken);
-        }
-        else
-        {
-            res = await GetCollection<TItem>().FindAsync(where, findOptions, cancellationToken);
-        }
-
-        return res.ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) => (await collection.FindAsync(session, filter, findOptions, cancellationToken)).ToAsyncEnumerable(),
+            async collection => (await collection.FindAsync(filter, findOptions, cancellationToken)).ToAsyncEnumerable()
+        );
     }
 
     public async Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
+        var filter = BuildFilterWithContinuation(combinedPred, continueFrom);
+        var findOptions = BuildFindOptions(sortOrders, limit: 1);
 
-        var findOptions = new FindOptions<TItem> { Limit = 1 };
-
-        if (sortOrders != null && sortOrders.Any())
-        {
-            SortDefinition<TItem> sortDefinition = null;
-            sortDefinition = getSortDefinition(sortOrders, sortDefinition);
-            findOptions.Sort = sortDefinition;
-        }
-
-        IAsyncCursor<TItem> result;
-
-        if (transaction != null)
-        {
-            result = await GetCollection<TItem>().FindAsync(((MongoDbTransactionWrapper)transaction).Session, combinedPred, findOptions, cancellationToken);
-        }
-        else
-        {
-            result = await GetCollection<TItem>().FindAsync(combinedPred, findOptions, cancellationToken);
-        }
-
-        return await result.FirstOrDefaultAsync(cancellationToken);
+        return await ExecuteWithTransaction<TItem, TItem>(
+            transaction,
+            async (collection, session) => await (await collection.FindAsync(session, filter, findOptions, cancellationToken)).FirstOrDefaultAsync(cancellationToken),
+            async collection => await (await collection.FindAsync(filter, findOptions, cancellationToken)).FirstOrDefaultAsync(cancellationToken)
+        );
     }
 
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
@@ -168,17 +107,10 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
             new("$sample", new BsonDocument("size", count))
         };
 
-        IAsyncCursor<TItem> result;
-
-        if (transaction != null)
-        {
-            result = await GetCollection<TItem>().AggregateAsync<TItem>(((MongoDbTransactionWrapper)transaction).Session, pipeline, cancellationToken: cancellationToken);
-        }
-        else
-        {
-            result = await GetCollection<TItem>().AggregateAsync<TItem>(pipeline, cancellationToken: cancellationToken);
-        }
-
-        return result.ToAsyncEnumerable();
+        return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
+            transaction,
+            async (collection, session) => (await collection.AggregateAsync<TItem>(session, pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable(),
+            async collection => (await collection.AggregateAsync<TItem>(pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable()
+        );
     }
 }
