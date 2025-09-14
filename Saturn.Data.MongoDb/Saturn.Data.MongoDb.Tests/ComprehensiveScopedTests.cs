@@ -1,4 +1,5 @@
 using GoLive.Saturn.Data.Abstractions;
+using GoLive.Saturn.Data.Entities;
 using Saturn.Data.MongoDb.Tests.Entities;
 using MongoDB.Bson;
 
@@ -28,8 +29,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity1 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Entity in Scope 1" };
-        var entity2 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Entity in Scope 2" };
+        var entity1 = new ChildEntity { Id =  EntityIdGenerator.GenerateNewId(), Name = "Entity in Scope 1" };
+        var entity2 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Entity in Scope 2" };
 
         // Act
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity1);
@@ -66,14 +67,14 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         var scope1Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Entity 1 in Scope 1" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Entity 2 in Scope 1" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Entity 1 in Scope 1" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Entity 2 in Scope 1" }
         };
         
         var scope2Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Entity 1 in Scope 2" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Entity 2 in Scope 2" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Entity 1 in Scope 2" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Entity 2 in Scope 2" }
         };
 
         // Act
@@ -103,8 +104,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity1 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Original Name 1" };
-        var entity2 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Original Name 2" };
+        var entity1 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Original Name 1" };
+        var entity2 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Original Name 2" };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity1);
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, entity2);
@@ -129,7 +130,7 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Save Test Entity" };
+        var entity = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Save Test Entity" };
 
         // Act - Save to scope 1 first
         await ScopedRepo.Save<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity);
@@ -164,8 +165,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity1 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Delete Test 1" };
-        var entity2 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Delete Test 2" }; // Different ID, different scope
+        var entity1 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Delete Test 1" };
+        var entity2 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Delete Test 2" }; // Different ID, different scope
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity1);
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, entity2);
@@ -202,14 +203,14 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         var scope1Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Filter Delete Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Keep This One" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Filter Delete Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Keep This One" }
         };
         
         var scope2Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Filter Delete Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Keep This One" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Filter Delete Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Keep This One" }
         };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -242,16 +243,16 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         var scope1Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Delete 1" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Delete 2" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Keep 1" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Delete 1" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Delete 2" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Keep 1" }
         };
         
         var scope2Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Delete 1 Scope 2" }, // Different ID but similar name
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Delete 2 Scope 2" }, // Different ID but similar name
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Multi Keep 2" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Delete 1 Scope 2" }, // Different ID but similar name
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Delete 2 Scope 2" }, // Different ID but similar name
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Multi Keep 2" }
         };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -287,7 +288,7 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Original Upsert Entity" };
+        var entity = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Original Upsert Entity" };
         
         // Insert into scope 1
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity);
@@ -324,16 +325,16 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         var scope1Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Count Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Count Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Different Name" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Count Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Count Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Different Name" }
         };
         
         var scope2Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Count Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Count Test" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "Count Test" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Count Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Count Test" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "Count Test" }
         };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -362,8 +363,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         for (int i = 1; i <= 10; i++)
         {
-            scope1Entities.Add(new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = $"Many Test Scope 1 - {i}" });
-            scope2Entities.Add(new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = $"Many Test Scope 2 - {i}" });
+            scope1Entities.Add(new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = $"Many Test Scope 1 - {i}" });
+            scope2Entities.Add(new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = $"Many Test Scope 2 - {i}" });
         }
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -396,8 +397,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2 });
         
-        var entity1 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "One Test Entity" };
-        var entity2 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "One Test Entity" }; // Same name, different scope
+        var entity1 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "One Test Entity" };
+        var entity2 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "One Test Entity" }; // Same name, different scope
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity1);
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, entity2);
@@ -428,16 +429,16 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         var scope1Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 1 Scope 1" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 2 Scope 1" },
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 3 Scope 1" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 1 Scope 1" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 2 Scope 1" },
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 3 Scope 1" }
         };
         
         var scope2Entities = new List<ChildEntity>
         {
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 1 Scope 2" }, // Different ID, different scope
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 2 Scope 2" }, // Different ID, different scope
-            new() { Id = ObjectId.GenerateNewId().ToString(), Name = "ById Test 4 Scope 2" }
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 1 Scope 2" }, // Different ID, different scope
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 2 Scope 2" }, // Different ID, different scope
+            new() { Id = EntityIdGenerator.GenerateNewId(), Name = "ById Test 4 Scope 2" }
         };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -479,8 +480,8 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         
         for (int i = 1; i <= 20; i++)
         {
-            scope1Entities.Add(new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = $"Random Test Scope 1 - {i}" });
-            scope2Entities.Add(new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = $"Random Test Scope 2 - {i}" });
+            scope1Entities.Add(new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = $"Random Test Scope 1 - {i}" });
+            scope2Entities.Add(new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = $"Random Test Scope 2 - {i}" });
         }
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, scope1Entities);
@@ -511,15 +512,15 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
     public async Task Complex_Multi_Scope_Operations_Should_Maintain_Data_Integrity()
     {
         // Arrange - Create 3 scopes
-        var scope3 = new ParentScope { Id = ObjectId.GenerateNewId().ToString(), Name = "Parent Scope 3" };
+        var scope3 = new ParentScope { Id = EntityIdGenerator.GenerateNewId(), Name = "Parent Scope 3" };
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2, scope3 });
         
         // Act - Perform complex operations across multiple scopes using unique IDs
         
         // Insert entities into all 3 scopes with unique IDs
-        var entity1 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Complex Test 1" };
-        var entity2 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Complex Test 2" };
-        var entity3 = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "Complex Test 3" };
+        var entity1 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Complex Test 1" };
+        var entity2 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Complex Test 2" };
+        var entity3 = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "Complex Test 3" };
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entity1);
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, entity2);
@@ -533,7 +534,7 @@ public class ComprehensiveScopedTests(DatabaseFixture fixture) : IClassFixture<D
         await ScopedRepo.Delete<ChildEntity, ParentScope>(scope3.Id, entity3.Id);
         
         // Insert new entity into scope 3
-        var entity3New = new ChildEntity { Id = ObjectId.GenerateNewId().ToString(), Name = "New Complex Test 3" };
+        var entity3New = new ChildEntity { Id = EntityIdGenerator.GenerateNewId(), Name = "New Complex Test 3" };
         await ScopedRepo.Insert<ChildEntity, ParentScope>(scope3.Id, entity3New);
 
         // Assert - Verify each scope has correct data

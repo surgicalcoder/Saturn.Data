@@ -56,7 +56,7 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        var filter = BuildFilterWithContinuation(combinedPred, continueFrom);
+        var filter = BuildFilterWithContinuation(combinedPred, continueFrom, sortOrders);
         var findOptions = BuildFindOptions(sortOrders, pageSize, pageNumber, continueFrom);
 
         return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
@@ -87,7 +87,7 @@ public partial class MongoDbRepository : IScopedReadonlyRepository
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        var filter = BuildFilterWithContinuation(combinedPred, continueFrom);
+        var filter = BuildFilterWithContinuation(combinedPred, continueFrom, sortOrders);
         var findOptions = BuildFindOptions(sortOrders, limit: 1);
 
         return await ExecuteWithTransaction<TItem, TItem>(

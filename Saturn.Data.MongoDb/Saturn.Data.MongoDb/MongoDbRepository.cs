@@ -26,11 +26,11 @@ namespace Saturn.Data.MongoDb;
 
 public partial class MongoDbRepository
 {
-    internal MongoDbRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDbRepositoryOptions mongoRepositoryOptions = null)
+    internal MongoDbRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
         mongoOptions = mongoRepositoryOptions ?? new MongoDbRepositoryOptions();
-        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException("mongoOptions.ConnectionString");
+        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException(nameof(mongoOptions.ConnectionString));
 
         var mongoUrl = new MongoUrl(connectionString);
 
@@ -42,11 +42,11 @@ public partial class MongoDbRepository
             {
                 cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions
                 {
-                    CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
-                    ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+                    CaptureCommandText = mongoRepositoryOptions.CaptureCommandText,
+                    ShouldStartActivity = mongoRepositoryOptions.ShouldStartActivity
                 }));
 
-                if (mongoOptions is { DebugMode: true })
+                if (mongoOptions.DebugMode)
                 {
                     setupCallbacks(cb);
                 }
@@ -54,7 +54,7 @@ public partial class MongoDbRepository
         }
         else
         {
-            if (mongoOptions is { DebugMode: true })
+            if (mongoOptions.DebugMode)
             {
                 settings.ClusterConfigurator = setupCallbacks;
             }
@@ -67,12 +67,12 @@ public partial class MongoDbRepository
         RegisterConventions();
     }
 
-    public MongoDbRepository(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions mongoRepositoryOptions = null)
+    public MongoDbRepository(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
     {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
-        mongoOptions = mongoRepositoryOptions;
+        mongoOptions = mongoRepositoryOptions ?? new MongoDbRepositoryOptions();
 
-        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException("mongoOptions.ConnectionString");
+        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException(nameof(mongoOptions.ConnectionString));
 
         var mongoUrl = new MongoUrl(connectionString);
 
@@ -84,11 +84,11 @@ public partial class MongoDbRepository
             {
                 cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions
                 {
-                    CaptureCommandText = mongoRepositoryOptions?.CaptureCommandText ?? false,
-                    ShouldStartActivity = mongoRepositoryOptions?.ShouldStartActivity
+                    CaptureCommandText = mongoRepositoryOptions.CaptureCommandText,
+                    ShouldStartActivity = mongoRepositoryOptions.ShouldStartActivity
                 }));
 
-                if (mongoOptions is { DebugMode: true })
+                if (mongoOptions.DebugMode)
                 {
                     setupCallbacks(cb);
                 }
@@ -96,7 +96,7 @@ public partial class MongoDbRepository
         }
         else
         {
-            if (mongoOptions is { DebugMode: true })
+            if (mongoOptions.DebugMode)
             {
                 settings.ClusterConfigurator = setupCallbacks;
             }
@@ -126,28 +126,28 @@ public partial class MongoDbRepository
 
     protected virtual void setupCallbacks(ClusterBuilder cb)
     {
-        if (mongoOptions?.CommandStartedCallback != null)
+        if (mongoOptions.CommandStartedCallback != null)
         {
-            cb.Subscribe<CommandStartedEvent>(e => { mongoOptions?.CommandStartedCallback?.Invoke(new MongoCommandStartedEvent { Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId }); });
+            cb.Subscribe<CommandStartedEvent>(e => { mongoOptions.CommandStartedCallback.Invoke(new MongoCommandStartedEvent { Command = e.CommandName.ToJson(), CommandName = e.CommandName, RequestId = e.RequestId }); });
         }
 
-        if (mongoOptions?.CommandFailedCallback != null)
+        if (mongoOptions.CommandFailedCallback != null)
         {
-            cb.Subscribe<CommandFailedEvent>(e => { mongoOptions?.CommandFailedCallback.Invoke(new MongoCommandFailedEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Failure = e.Failure }); });
+            cb.Subscribe<CommandFailedEvent>(e => { mongoOptions.CommandFailedCallback.Invoke(new MongoCommandFailedEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Failure = e.Failure }); });
         }
 
-        if (mongoOptions?.CommandSucceededCallback != null)
+        if (mongoOptions.CommandSucceededCallback != null)
         {
-            cb.Subscribe<CommandSucceededEvent>(e => { mongoOptions?.CommandSucceededCallback.Invoke(new MongoCommandSucceededEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Duration = e.Duration }); });
+            cb.Subscribe<CommandSucceededEvent>(e => { mongoOptions.CommandSucceededCallback.Invoke(new MongoCommandSucceededEvent{ CommandName = e.CommandName, RequestId = e.RequestId, Duration = e.Duration }); });
         }
 
 
-        if (mongoOptions?.CommandSucceededCallback != null)
+        if (mongoOptions.CommandSucceededCallback != null)
         {
             cb.Subscribe<CommandSucceededEvent>(e => { Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e))); });
         }
 
-        if (mongoOptions?.CommandStartedCallback != null)
+        if (mongoOptions.CommandStartedCallback != null)
         {
             cb.Subscribe<CommandStartedEvent>(e =>
             {
@@ -156,7 +156,7 @@ public partial class MongoDbRepository
             });
         }
 
-        if (mongoOptions?.CommandFailedCallback != null)
+        if (mongoOptions.CommandFailedCallback != null)
         {
             cb.Subscribe<CommandFailedEvent>(e => { Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e))); });
         }
@@ -177,7 +177,7 @@ public partial class MongoDbRepository
 
     protected virtual string GetCollectionNameForType<T>()
     {
-        return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
+        return typeNameCache.GetOrAdd(typeof(T).FullName ?? typeof(T).Name, _ => options.GetCollectionName.Invoke(typeof(T)));
     }
 
     protected virtual void RegisterConventions()
@@ -192,7 +192,7 @@ public partial class MongoDbRepository
             new StringIdStoredAsObjectIdConvention()
         };
 
-        ConventionRegistry.Register("Custom Conventions", pack, t => true);
+        ConventionRegistry.Register("Custom Conventions", pack, _ => true);
 
         var objectSerializer = new ObjectSerializer(mongoOptions.ObjectSerializerConfiguration);
         _ = BsonSerializer.TryRegisterSerializer(objectSerializer);
@@ -200,14 +200,22 @@ public partial class MongoDbRepository
         _ = BsonSerializer.TryRegisterSerializer(typeof(Timestamp), new TimestampSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
-
         BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
         BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
+        /*// Register Ref<T> and WeakRef<T> serializers only if not already registered
+        if (!BsonSerializer.LookupSerializer(typeof(Ref<>)).GetType().Name.Contains("RefSerializer"))
+        {
+            BsonSerializer.RegisterGenericSerializerDefinition(typeof(Ref<>), typeof(RefSerializer<>));
+        }
+        if (!BsonSerializer.LookupSerializer(typeof(WeakRef<>)).GetType().Name.Contains("WeakRefSerializer"))
+        {
+            BsonSerializer.RegisterGenericSerializerDefinition(typeof(WeakRef<>), typeof(WeakRefSerializer<>));
+        }*/
 
         _ = BsonSerializer.TryRegisterSerializer(typeof(EncryptedString), new EncryptedStringSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(HashedString), new HashedStringSerializer());
 
-        if (mongoOptions?.Discriminators is { Count: > 0 })
+        if (mongoOptions.Discriminators is { Count: > 0 })
         {
             foreach (var (key, value) in mongoOptions.Discriminators)
             {
@@ -215,25 +223,25 @@ public partial class MongoDbRepository
             }
         }
 
-        if (mongoOptions?.DiscriminatorConventions != null)
+        if (mongoOptions.DiscriminatorConventions != null)
         {
-            foreach (var convention in mongoOptions?.DiscriminatorConventions)
+            foreach (var convention in mongoOptions.DiscriminatorConventions)
             {
                 BsonSerializer.RegisterDiscriminatorConvention(convention.Key, convention.Value as IDiscriminatorConvention);
             }
         }
 
-        if (mongoOptions?.GenericSerializers != null)
+        if (mongoOptions.GenericSerializers != null)
         {
-            foreach (var serializer in mongoOptions?.GenericSerializers)
+            foreach (var serializer in mongoOptions.GenericSerializers)
             {
                 BsonSerializer.RegisterGenericSerializerDefinition(serializer.Key, serializer.Value);
             }
         }
 
-        if (mongoOptions?.Serializers != null)
+        if (mongoOptions.Serializers != null)
         {
-            foreach (var serializer in mongoOptions?.Serializers)
+            foreach (var serializer in mongoOptions.Serializers)
             {
                 BsonSerializer.RegisterSerializer(serializer.Key, serializer.Value as IBsonSerializer);
             }
@@ -264,7 +272,7 @@ public partial class MongoDbRepository
     /// </summary>
     protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
         FilterDefinition<TItem> baseFilter, 
-        string continueFrom) where TItem : Entity
+        string? continueFrom) where TItem : Entity
     {
         if (string.IsNullOrEmpty(continueFrom))
             return baseFilter;
@@ -280,28 +288,51 @@ public partial class MongoDbRepository
     /// </summary>
     protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
         Expression<Func<TItem, bool>> predicate, 
-        string continueFrom) where TItem : Entity
+        string? continueFrom) where TItem : Entity
     {
         var baseFilter = Builders<TItem>.Filter.Where(predicate);
         return BuildFilterWithContinuation(baseFilter, continueFrom);
     }
 
     /// <summary>
+    /// Builds a filter definition from a predicate with optional continuation token support for composite sort keys
+    /// </summary>
+    protected static FilterDefinition<TItem> BuildFilterWithContinuation<TItem>(
+        Expression<Func<TItem, bool>> predicate,
+        string? continueFrom,
+        IEnumerable<SortOrder<TItem>>? sortOrders) where TItem : Entity
+    {
+        var baseFilter = Builders<TItem>.Filter.Where(predicate);
+        return BuildFilterWithContinuation(baseFilter, continueFrom);
+    }
+
+    // Helper to get the field name from an expression
+    private static string GetFieldName<TItem, TKey>(Expression<Func<TItem, TKey>> keySelector)
+    {
+        if (keySelector.Body is MemberExpression member)
+            return member.Member.Name;
+        if (keySelector.Body is UnaryExpression unary && unary.Operand is MemberExpression member2)
+            return member2.Member.Name;
+        throw new InvalidOperationException("Invalid key selector expression");
+    }
+
+    /// <summary>
     /// Builds FindOptions with pagination and sorting support
     /// </summary>
     protected static FindOptions<TItem> BuildFindOptions<TItem>(
-        IEnumerable<SortOrder<TItem>> sortOrders = null,
+        IEnumerable<SortOrder<TItem>>? sortOrders = null,
         int? pageSize = null,
         int? pageNumber = null,
-        string continueFrom = null,
+        string? continueFrom = null,
         int? limit = null) where TItem : Entity
     {
         var findOptions = new FindOptions<TItem>();
 
         // Handle sorting
-        if (sortOrders != null && sortOrders.Any())
+        var sortOrdersList = sortOrders?.ToList();
+        if (sortOrdersList != null && sortOrdersList.Any())
         {
-            findOptions.Sort = getSortDefinition(sortOrders, null);
+            findOptions.Sort = getSortDefinition(sortOrdersList, null!);
         }
 
         // Handle limit (takes precedence over pageSize)
@@ -323,7 +354,7 @@ public partial class MongoDbRepository
         return findOptions;
     }
 
-    protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T> sortDefinition) where T : Entity
+    protected static SortDefinition<T> getSortDefinition<T>(IEnumerable<SortOrder<T>> sortOrders, SortDefinition<T>? sortDefinition) where T : Entity
     {
         foreach (var sortOrder in sortOrders)
         {
@@ -335,7 +366,7 @@ public partial class MongoDbRepository
                     : sortDefinition.Descending(sortOrder.Field);
         }
 
-        return sortDefinition;
+        return sortDefinition!;
     }
     
     internal virtual async Task<TResult> ExecuteWithTransaction<TItem, TResult>(
@@ -372,8 +403,8 @@ public partial class MongoDbRepository
         }
     }
 
-    protected static RepositoryOptions options { get; set; }
-    protected static MongoDbRepositoryOptions mongoOptions { get; set; }
+    protected static RepositoryOptions options { get; set; } = null!;
+    protected static MongoDbRepositoryOptions mongoOptions { get; set; } = null!;
     public static bool InitRun { get; set; }
     public static DateTime InitLastChecked { get; set; }
     protected IMongoDatabase mongoDatabase { get; set; }
