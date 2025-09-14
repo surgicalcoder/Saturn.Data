@@ -353,6 +353,24 @@ public partial class MongoDbRepository
         return await withoutTransactionFunc(collection);
     }
 
+    internal virtual async Task ExecuteWithTransaction<TItem>(
+        IDatabaseTransaction transaction,
+        Func<IMongoCollection<TItem>, IClientSessionHandle, Task> withTransactionFunc,
+        Func<IMongoCollection<TItem>, Task> withoutTransactionFunc) where TItem : Entity
+    {
+        var collection = GetCollection<TItem>();
+        
+        if (transaction != null)
+        {
+            var session = ((MongoDbTransactionWrapper)transaction).Session;
+            await withTransactionFunc(collection, session);
+        }
+        else
+        {
+            await withoutTransactionFunc(collection);
+        }
+    }
+
     protected static RepositoryOptions options { get; set; }
     protected static MongoDbRepositoryOptions mongoOptions { get; set; }
     public static bool InitRun { get; set; }
