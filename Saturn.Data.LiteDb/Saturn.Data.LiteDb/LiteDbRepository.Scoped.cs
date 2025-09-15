@@ -12,7 +12,10 @@ public partial class LiteDbRepository : IScopedRepository
     {
         await GetCollection<TItem>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id));
     }
-    async Task IScopedRepository.Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    
+    public async Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         entity.Scope = scope;
         
@@ -37,7 +40,9 @@ public partial class LiteDbRepository : IScopedRepository
         await GetCollection<TItem>().InsertAsync(entities);
     }
     
-    async Task IScopedRepository.JsonUpdate<TItem, TScope>(string scope, string id, int version, string json, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    public async Task JsonUpdate<TItem, TScope>(string scope, string id, int version, string json, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         var collection = GetCollection<TItem>();
         var entity = await collection.FindOneAsync(e => e.Scope == scope && e.Id == id);
@@ -86,7 +91,9 @@ public partial class LiteDbRepository : IScopedRepository
         await Upsert(entities, transaction, cancellationToken);
     }
     
-    async Task IScopedRepository.Update<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    public async Task Update<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         entity.Scope = scope;
         await Update(entity, cancellationToken: cancellationToken);
@@ -105,7 +112,9 @@ public partial class LiteDbRepository : IScopedRepository
         await Update(entity, cancellationToken: cancellationToken);
     }
     
-    async Task IScopedRepository.Upsert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    public async Task Upsert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         entity.Scope = scope;
         await Upsert(entity, cancellationToken: cancellationToken);
@@ -120,12 +129,16 @@ public partial class LiteDbRepository : IScopedRepository
         await Upsert(entity, cancellationToken: cancellationToken);
     }
 
-    async Task IScopedRepository.Delete<TItem, TScope>(string scope, Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    public async Task Delete<TItem, TScope>(string scope, Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         await Delete(filter.And<TItem>(r=>r.Scope == scope), transaction, cancellationToken);
     }
 
-    async Task IScopedRepository.Delete<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction, CancellationToken cancellationToken)
+    public async Task Delete<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
+        where TItem : ScopedEntity<TScope>, new() 
+        where TScope : Entity, new()
     {
         await Delete<TItem>(f => f.Id == id && f.Scope == scope , cancellationToken: cancellationToken);
     }
