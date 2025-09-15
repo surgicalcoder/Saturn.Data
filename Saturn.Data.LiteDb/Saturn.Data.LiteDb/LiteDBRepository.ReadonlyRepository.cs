@@ -1,11 +1,12 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using LiteDB;
 using LiteDB.Queryable;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class LiteDBRepository : IReadonlyRepository
+public partial class LiteDbRepository : IReadonlyRepository
 {
     public virtual async Task<TItem> ById<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
@@ -19,31 +20,6 @@ public partial class LiteDBRepository : IReadonlyRepository
         return results.ToAsyncEnumerable();
     }
 
-    public virtual async Task<List<Ref<TItem>>> ByRef<TItem>(List<Ref<TItem>> items, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
-    {
-        var ids = items.Where(e => !string.IsNullOrWhiteSpace(e.Id)).Select(e => e.Id).ToList();
-        var entities = await ById<TItem>(ids, transaction, cancellationToken);
-
-        return await AsyncEnumerable.ToListAsync(entities.Select(e => new Ref<TItem>(e)), cancellationToken);
-    }
-
-    public virtual async Task<TItem> ByRef<TItem>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
-    {
-        return (string.IsNullOrWhiteSpace(item.Id) ? null : await ById<TItem>(item.Id, cancellationToken: cancellationToken))!;
-    }
-
-    public virtual async Task<Ref<TItem>> PopulateRef<TItem>(Ref<TItem> item, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity, new()
-    {
-        if (string.IsNullOrWhiteSpace(item.Id))
-        {
-            return default;
-        }
-
-        item.Item = await ById<TItem>(item.Id, cancellationToken: cancellationToken);
-
-        return item;
-    }
-
     public virtual Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         return Task.FromResult(GetCollection<TItem>().AsQueryable().ToAsyncEnumerable());
@@ -54,49 +30,18 @@ public partial class LiteDBRepository : IReadonlyRepository
         return GetCollection<TItem>().AsQueryable();
     }
 
-    public virtual async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
+        var collection = GetCollection<TItem>();
+        
+        var finalQuery = BuildQuery(collection, predicate, continueFrom);
+        finalQuery = ApplySortOrders(finalQuery, sortOrders);
 
-        if (sortOrders != null)
-        {
-            query = sortOrders.Aggregate(query, (current, sortOrder) =>
-                sortOrder.Direction == SortDirection.Ascending
-                    ? current.OrderBy(sortOrder.Field)
-                    : current.OrderByDescending(sortOrder.Field));
-        }
-
-        return await query.FirstOrDefaultAsync(cancellationToken);
+        var results = await finalQuery.ToListAsync();
+        return results.ToAsyncEnumerable();
     }
 
-    public virtual async Task<TItem> Random<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
-    {
-        var item = await GetCollection<TItem>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(1).FirstOrDefaultAsync(cancellationToken);
-
-        return item;
-    }
-
-    public virtual Task<IAsyncEnumerable<TItem>> Random<TItem>(int count, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
-    {
-        var item = GetCollection<TItem>().AsQueryable().OrderBy(e => Guid.NewGuid()).Take(count);
-
-        return Task.FromResult(item.ToAsyncEnumerable());
-    }
-
-    public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
-    {
-        var items = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
-
-        if (sortOrders != null)
-        {
-            items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
-        }
-
-        return items.ToAsyncEnumerable();
-    }
-
-
-    public virtual Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var query = GetCollection<TItem>().AsQueryable();
 
@@ -110,65 +55,43 @@ public partial class LiteDBRepository : IReadonlyRepository
             query = query.Where(lambda);
         }
 
-        if (sortOrders != null)
-        {
-            query = sortOrders.Aggregate(query, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
-        }
-
-        return Task.FromResult(query.ToAsyncEnumerable());
+        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplySortOrders(query, sortOrders);
+        query = ApplyPagination(query, pageSize);
+    
+        return query.ToAsyncEnumerable();
     }
-
-    public virtual async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
+    
+    public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        if (pageSize == 0 || pageNumber == 0)
-        {
-            return await Many(predicate, cancellationToken: cancellationToken);
-        }
+        var collection = GetCollection<TItem>();
+        
+        var finalQuery = BuildQuery(collection, predicate, continueFrom);
+        finalQuery = ApplySortOrders(finalQuery, sortOrders);
 
-        var items = GetCollection<TItem>().AsQueryable().Where(TransformRefEntityComparisons(predicate));
-
-        if (sortOrders != null)
-        {
-            items = sortOrders.Aggregate(items, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
-        }
-
-        return items.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToAsyncEnumerable();
+        return await finalQuery.FirstOrDefaultAsync();
     }
-
-    public virtual Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, int pageSize, int pageNumber, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable();
-
-        foreach (var clause in whereClause)
+        var collection = GetCollection<TItem>();
+        
+        var query = collection.Query();
+        
+        if (predicate != null)
         {
-            var parameter = Expression.Parameter(typeof(TItem), "entity");
-            var property = Expression.Property(parameter, clause.Key);
-            var constant = Expression.Constant(clause.Value);
-            var equal = Expression.Equal(property, constant);
-            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
-            query = query.Where(lambda);
+            var predExpr = BsonMapper.Global.GetExpression(predicate);
+            query = query.Where(predExpr);
         }
+        
+        var items = query.OrderBy(x => Guid.NewGuid()).Limit(count);
 
-        if (sortOrders != null)
-        {
-            query = sortOrders.Aggregate(query, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending ? current.OrderBy(sortOrder.Field) : current.OrderByDescending(sortOrder.Field));
-        }
-
-        if (pageSize > 0 && pageNumber > 0)
-        {
-            query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
-        }
-
-        return Task.FromResult(query.ToAsyncEnumerable());
+        var results = await items.ToListAsync();
+        return results.ToAsyncEnumerable();
     }
-
-    public virtual async Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    
+    public virtual async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
         return await GetCollection<TItem>().LongCountAsync(TransformRefEntityComparisons(predicate));
-    }
-
-    public virtual Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
-    {
-        throw new NotImplementedException();
     }
 }

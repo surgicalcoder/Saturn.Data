@@ -9,13 +9,13 @@ using LiteDB.Engine;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class LiteDBRepository : IRepository
+public partial class LiteDbRepository //: IRepository
 {
     protected LiteDatabaseAsync database;
     protected LiteDBRepositoryOptions liteDbOptions;
     protected RepositoryOptions options;
 
-    public LiteDBRepository(RepositoryOptions repositoryOptions, LiteDBRepositoryOptions liteDbRepositoryOptions)
+    public LiteDbRepository(RepositoryOptions repositoryOptions, LiteDBRepositoryOptions liteDbRepositoryOptions)
     {
         liteDbOptions = liteDbRepositoryOptions;
         var mapper = liteDbRepositoryOptions.Mapper;
@@ -24,7 +24,7 @@ public partial class LiteDBRepository : IRepository
 
         BsonMapper.Global = mapper;
 
-        database = new LiteDatabaseAsync(repositoryOptions.ConnectionString, mapper);
+        database = new LiteDatabaseAsync(liteDbOptions.ConnectionString, mapper);
         options = repositoryOptions;
     }
 
@@ -110,13 +110,6 @@ public partial class LiteDBRepository : IRepository
     {
         return database.GetCollection<T>(GetCollectionNameForType<T>());
     }
-
-    public async Task InitDatabase()
-    {
-        await options?.InitCallback?.Invoke(this);
-    }
-    
-    
     
     
     private Expression<Func<TItem, bool>> TransformRefEntityComparisons<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity
@@ -209,5 +202,74 @@ public partial class LiteDBRepository : IRepository
             return typeof(Entity).IsAssignableFrom(type);
         }
     }
+    
+    
+    
+    
+    
+    /// <summary>
+    /// Applies sort orders to a LiteDB async query builder
+    /// </summary>
+    internal virtual LiteDB.Async.ILiteQueryableAsync<TItem> ApplySortOrders<TItem>(LiteDB.Async.ILiteQueryableAsync<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
+    {
+        if (sortOrders == null) return query;
+
+        return sortOrders.Aggregate(query, (current, sortOrder) =>
+            sortOrder.Direction == SortDirection.Ascending
+                ? current.OrderBy(sortOrder.Field)
+                : current.OrderByDescending(sortOrder.Field));
+    }
+
+    /// <summary>
+    /// Applies sort orders to a LINQ queryable
+    /// </summary>
+    internal virtual IQueryable<TItem> ApplySortOrders<TItem>(IQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
+    {
+        if (sortOrders == null) return query;
+
+        return sortOrders.Aggregate(query, (current, sortOrder) =>
+            sortOrder.Direction == SortDirection.Ascending
+                ? current.OrderBy(sortOrder.Field)
+                : current.OrderByDescending(sortOrder.Field));
+    }
+
+    /// <summary>
+    /// Creates a LiteDB async query with predicate and continueFrom logic
+    /// </summary>
+    internal virtual LiteDB.Async.ILiteQueryableAsync<TItem> BuildQuery<TItem>(LiteDB.Async.ILiteCollectionAsync<TItem> collection, Expression<Func<TItem, bool>> predicate, string continueFrom = null) where TItem : Entity
+    {
+        var predExpr = BsonMapper.Global.GetExpression(predicate);
+        
+        if (string.IsNullOrEmpty(continueFrom))
+        {
+            return collection.Query().Where(predExpr);
+        }
+
+        var andExpr = Query.And(predExpr, Query.GT("_id", new BsonValue(new ObjectId(continueFrom))));
+        return collection.Query().Where(andExpr);
+    }
+
+    /// <summary>
+    /// Applies continueFrom logic to a LINQ queryable
+    /// </summary>
+    internal virtual IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
+    {
+        if (string.IsNullOrEmpty(continueFrom)) return query;
+        
+        return query.Where(x => string.Compare(x.Id, continueFrom) > 0);
+    }
+
+    /// <summary>
+    /// Applies pagination to a queryable
+    /// </summary>
+    internal virtual IQueryable<TItem> ApplyPagination<TItem>(IQueryable<TItem> query, int? pageSize) where TItem : Entity
+    {
+        if (pageSize is > 0)
+        {
+            return query.Take(pageSize.Value);
+        }
+        return query;
+    }
+
     
 }

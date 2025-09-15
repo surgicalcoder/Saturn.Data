@@ -5,7 +5,7 @@ using LiteDB.Queryable;
 
 namespace Saturn.Data.LiteDb;
 
-public partial class LiteDBRepository : ITransparentScopedReadonlyRepository
+public partial class LiteDBRepository //: ITransparentScopedReadonlyRepository
 {
     public virtual async Task<TItem> ById<TItem, TParent>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
