@@ -14,11 +14,12 @@ public partial class LiteDbRepository //: IRepository
     protected LiteDatabaseAsync database;
     protected LiteDBRepositoryOptions liteDbOptions;
     protected RepositoryOptions options;
+    protected BsonMapper mapper;
 
     public LiteDbRepository(RepositoryOptions repositoryOptions, LiteDBRepositoryOptions liteDbRepositoryOptions)
     {
         liteDbOptions = liteDbRepositoryOptions;
-        var mapper = liteDbRepositoryOptions.Mapper;
+        mapper = liteDbRepositoryOptions.Mapper;
 
         RegisterAllEntityRefs(mapper, liteDbRepositoryOptions.AdditionalAssembliesToScanForRefs);
 
