@@ -75,8 +75,13 @@ public partial class StellarRepository : IReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var query = collection.AsQueryable().Where(predicate);
         
-        query = ApplyContinueFrom(query, continueFrom);
+        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        // Finally apply pagination
         query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
@@ -98,8 +103,13 @@ public partial class StellarRepository : IReadonlyRepository
             query = query.Where(lambda);
         }
         
-        query = ApplyContinueFrom(query, continueFrom);
+        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        // Finally apply pagination
         query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
@@ -110,8 +120,11 @@ public partial class StellarRepository : IReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var query = collection.AsQueryable().Where(predicate);
         
-        query = ApplyContinueFrom(query, continueFrom);
+        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
         
         return query.FirstOrDefault();
     }

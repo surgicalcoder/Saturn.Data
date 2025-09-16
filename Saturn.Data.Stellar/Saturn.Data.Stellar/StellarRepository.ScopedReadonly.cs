@@ -66,8 +66,13 @@ public partial class StellarRepository: IScopedReadonlyRepository
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        query = ApplyContinueFrom(query, continueFrom);
+        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        // Finally apply pagination
         query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
@@ -75,9 +80,35 @@ public partial class StellarRepository: IScopedReadonlyRepository
     
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        var combinedWhereClause = whereClause ?? new Dictionary<string, object>();
-        combinedWhereClause["Scope"] = scope;
-        return await Many<TItem>(combinedWhereClause, continueFrom, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+        
+        // Apply scope filter first
+        query = query.Where(e => e.Scope == scope);
+        
+        // Apply where clause filters
+        foreach (var kvp in whereClause)
+        {
+            if (kvp.Key == "Scope") continue; // Skip scope as we already applied it
+            
+            var parameter = Expression.Parameter(typeof(TItem), "x");
+            var property = Expression.PropertyOrField(parameter, kvp.Key);
+            var constant = Expression.Constant(kvp.Value);
+            var equal = Expression.Equal(property, Expression.Convert(constant, property.Type));
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
+            query = query.Where(lambda);
+        }
+        
+        // Apply sorting first to establish the correct order
+        query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        // Finally apply pagination
+        query = ApplyPaging(query, pageSize, pageNumber);
+        
+        return query.ToAsyncEnumerable();
     }
     
     public async Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
@@ -87,8 +118,11 @@ public partial class StellarRepository: IScopedReadonlyRepository
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        query = ApplyContinueFrom(query, continueFrom);
+        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
+        
+        // Then apply continuation filter based on that order
+        query = ApplyContinueFrom(query, continueFrom);
         
         return query.FirstOrDefault();
     }

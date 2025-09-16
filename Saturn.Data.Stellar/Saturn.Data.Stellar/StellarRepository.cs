@@ -43,8 +43,22 @@ public partial class StellarRepository : IAsyncDisposable
     {
         if (!string.IsNullOrEmpty(continueFrom))
         {
+            // Instead of using ID-based filtering which doesn't work with custom sort orders,
+            // we'll use a different approach: skip all items until we find the continueFrom entity,
+            // then skip that entity too to avoid duplication
             var continueFromId = new EntityId(continueFrom);
-            query = query.Where(e => e.Id > continueFromId);
+            
+            // Convert to list to work with the sorted order, find the continuation point,
+            // then skip past it
+            var sortedItems = query.ToList();
+            var continueFromIndex = sortedItems.FindIndex(e => e.Id == continueFromId);
+            
+            if (continueFromIndex >= 0)
+            {
+                // Skip all items up to and including the continuation token
+                var remainingItems = sortedItems.Skip(continueFromIndex + 1);
+                return remainingItems.AsQueryable();
+            }
         }
         return query;
     }
