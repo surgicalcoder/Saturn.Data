@@ -14,7 +14,11 @@ public partial class StellarRepository: IScopedReadonlyRepository
         }
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-
+        if (!collection.ContainsKey(id))
+        {
+            return null;
+        }
+        
         var item = collection[id];
 
         if (item.Scope == scope)
