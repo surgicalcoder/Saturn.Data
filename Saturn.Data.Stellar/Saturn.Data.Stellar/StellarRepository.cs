@@ -14,7 +14,7 @@ public partial class StellarRepository : IAsyncDisposable
         options = repositoryOptions ?? new RepositoryOptions();
         var fastDbOptions = new FastDBOptions
         {
-            BaseDirectory = options.ConnectionString,
+            BaseDirectory = databaseOptions.BaseDirectory,
             BufferMode = BufferModeType.WriteParallelEnabled,
             DatabaseName = databaseOptions.DatabaseName
         };
@@ -54,5 +54,6 @@ public partial class StellarRepository : IAsyncDisposable
 
 public class StellarRepositoryOptions
 {
+    public string BaseDirectory { get; set; }
     public string DatabaseName { get; set; }
 }

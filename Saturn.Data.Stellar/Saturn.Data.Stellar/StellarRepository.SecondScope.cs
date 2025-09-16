@@ -1,10 +1,11 @@
+/*
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository : ISecondScopedRepository
+public partial class StellarRepository //: ISecondScopedRepository
 {
     public async Task<TItem> ById<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
@@ -102,3 +103,4 @@ public partial class StellarRepository : ISecondScopedRepository
         }
     }
 }
+*/

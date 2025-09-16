@@ -70,6 +70,91 @@ public partial class StellarRepository : IReadonlyRepository
         return collection.AsQueryable();
     }
 
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable().Where(predicate);
+    
+        query = ApplySort(query, sortOrders);
+    
+        return query.ToAsyncEnumerable();
+    }
+    
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+        
+        // Apply continueFrom filter first
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            var continueFromId = new EntityId(continueFrom);
+            query = query.Where(e => string.Compare(e.Id, continueFrom, StringComparison.Ordinal) > 0);
+        }
+    
+        // Apply where clause filters
+        foreach (var kvp in whereClause)
+        {
+            var parameter = Expression.Parameter(typeof(TItem), "x");
+            var property = Expression.PropertyOrField(parameter, kvp.Key);
+            var constant = Expression.Constant(kvp.Value);
+            var equal = Expression.Equal(property, Expression.Convert(constant, property.Type));
+            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
+            query = query.Where(lambda);
+        }
+    
+        query = ApplySort(query, sortOrders);
+        
+        // Apply pagination
+        if (pageNumber.HasValue && pageSize.HasValue)
+        {
+            query = query.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
+        }
+        else if (pageSize.HasValue)
+        {
+            query = query.Take(pageSize.Value);
+        }
+    
+        return query.ToAsyncEnumerable();
+    }
+    
+    public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+        
+        // Apply continueFrom filter first
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            query = query.Where(e => string.Compare(e.Id, continueFrom, StringComparison.Ordinal) > 0);
+        }
+        
+        // Apply predicate
+        query = query.Where(predicate);
+    
+        query = ApplySort(query, sortOrders);
+    
+        return query.FirstOrDefault();
+    }
+    
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable();
+        
+        // Apply predicate if provided
+        if (predicate != null)
+        {
+            query = query.Where(predicate);
+        }
+        
+        // Get all matching items and randomize
+        var items = query.ToList();
+        var randomItems = items.OrderBy(_ => Guid.NewGuid()).Take(count);
+        
+        return randomItems.ToAsyncEnumerable();
+    }
+
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
@@ -137,14 +222,9 @@ public partial class StellarRepository : IReadonlyRepository
         return query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
     }
 
-    public async Task<long> CountMany<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+    public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         return collection.AsQueryable().LongCount(predicate);
-    }
-
-    public async Task Watch<TItem>(Expression<Func<ChangedEntity<TItem>, bool>> predicate, ChangeOperation operationFilter, Action<TItem, string, ChangeOperation> callback, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
-    {
-        throw new NotImplementedException("Watch is not implemented in StellarRepository.");
     }
 }

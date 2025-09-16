@@ -1,10 +1,11 @@
+/*
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository : ITransparentScopedReadonlyRepository {
+public partial class StellarRepository //: ITransparentScopedReadonlyRepository {
     async Task<TItem> ITransparentScopedReadonlyRepository.ById<TItem, TParent>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken())
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
@@ -128,3 +129,4 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository {
         throw new NotImplementedException("Watch is not implemented in StellarRepository.");
     }
 }
+*/

@@ -6,13 +6,19 @@ namespace Saturn.Data.Stellar;
 
 public partial class StellarRepository : IRepository
 {
+    public async Task Delete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        await collection.RemoveBulkAsync(IDs.Select(id => new EntityId(id)));
+    }
+
     public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         await collection.AddAsync(entity.Id, entity);
     }
 
-    public async Task InsertMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+    public async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var entityDictionary = entities.ToDictionary(
@@ -27,16 +33,22 @@ public partial class StellarRepository : IRepository
     {
         await Upsert(entity, transaction, token);
     }
-    
-    public async Task SaveMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+
+    public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var entityList = entities.ToList();
+        await Save(entityList, token: cancellationToken);
+    }
+
+    public async Task Save<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
       var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
       
       var entitiesToUpdate = entities.Where(entity => !string.IsNullOrEmpty(entity.Id)).ToList();
       var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
 
-      await UpdateMany(entitiesToUpdate, token: token);
-      await InsertMany(entitiesToAdd, token: token);
+      await Update(entitiesToUpdate, token: token);
+      await Insert(entitiesToAdd, token: token);
 
     }
     
@@ -54,10 +66,16 @@ public partial class StellarRepository : IRepository
             await collection.UpdateAsync(item.Id, entity);
         }
     }
-    
-    public async Task UpdateMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+
+    public async Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        await SaveMany(entities, token: token);
+        var entityList = entities.ToList();
+        await Update(entityList, token: cancellationToken);
+    }
+
+    public async Task Update<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+    {
+        await Save(entities, token: token);
     }
     
     public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -72,8 +90,14 @@ public partial class StellarRepository : IRepository
             await collection.AddAsync(entity.Id, entity);
         }
     }
-    
-    public async Task UpsertMany<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
+
+    public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        var entityList = entity.ToList();
+        await Upsert(entityList, token: cancellationToken);
+    }
+
+    public async Task Upsert<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         foreach (var entity in entities)
         {

@@ -16,10 +16,10 @@ public class Basic_Tests : IDisposable
         fullPath = Path.Combine(unitTestPath, databaseName);
         repo = new StellarRepository(new RepositoryOptions()
         {
-            ConnectionString = unitTestPath,
             GetCollectionName = type => type.Name
         }, new StellarRepositoryOptions()
         {
+            BaseDirectory = unitTestPath,
             DatabaseName = databaseName
         });
     }
@@ -68,11 +68,11 @@ public class Basic_Tests : IDisposable
         };
         await repo.Save(entity);
         
-        Assert.Equal(1, await repo.CountMany<BasicEntity>(e=>true));
+        Assert.Equal(1, await repo.Count<BasicEntity>(e=>true));
         
         entity.Name = "Updated Name";
         await repo.Save(entity);
-        Assert.Equal(1, await repo.CountMany<BasicEntity>(e=>true));
+        Assert.Equal(1, await repo.Count<BasicEntity>(e=>true));
         var fetched = await repo.ById<BasicEntity>(WELL_KNOWN.Basic_Entity_1.Id);
         Assert.NotNull(fetched);
         Assert.Equal("Updated Name", fetched.Name);

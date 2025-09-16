@@ -16,10 +16,10 @@ public class Scoped_Tests : IDisposable
         fullPath = Path.Combine(unitTestPath, databaseName);
         repo = new StellarRepository(new RepositoryOptions()
         {
-            ConnectionString = unitTestPath,
             GetCollectionName = type => type.Name
         }, new StellarRepositoryOptions()
         {
+            BaseDirectory = unitTestPath,
             DatabaseName = databaseName
         });
     }
@@ -33,25 +33,25 @@ public class Scoped_Tests : IDisposable
     [Fact]
     public async Task Scoped()
     {
-        await repo.InsertMany<ParentScope>(new List<ParentScope> {WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2});
+        await repo.Insert<ParentScope>(new List<ParentScope> {WELL_KNOWN.Parent_Scope_1, WELL_KNOWN.Parent_Scope_2});
 
         var scopedRepo = (IScopedRepository)repo;
         
-        await scopedRepo.InsertMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, new List<ChildEntity>
+        await scopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, new List<ChildEntity>
         {
             WELL_KNOWN.Parent_Scope_1_Child_Entity_1,
             WELL_KNOWN.Parent_Scope_1_Child_Entity_2
         });
         
-        await scopedRepo.InsertMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, new List<ChildEntity>
+        await scopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, new List<ChildEntity>
         {
             WELL_KNOWN.Parent_Scope_2_Child_Entity_1,
             WELL_KNOWN.Parent_Scope_2_Child_Entity_2
         });
         
-        Assert.Equal(4, await repo.CountMany<ChildEntity>(e=>true));
-        Assert.Equal(2, await ((IScopedRepository)repo).CountMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, e=>true));
-        Assert.Equal(2, await ((IScopedRepository)repo).CountMany<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, e=>true));
+        Assert.Equal(4, await repo.Count<ChildEntity>(e=>true));
+        Assert.Equal(2, await ((IScopedRepository)repo).Count<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, e=>true));
+        Assert.Equal(2, await ((IScopedRepository)repo).Count<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id, e=>true));
         
         var allScoped1 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id)).ToListAsync();
         var allScoped2 = await (await scopedRepo.All<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_2.Id)).ToListAsync();
