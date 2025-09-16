@@ -39,6 +39,30 @@ public partial class StellarRepository : IAsyncDisposable
         return query;
     }
     
+    private IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
+    {
+        if (!string.IsNullOrEmpty(continueFrom))
+        {
+            var continueFromId = new EntityId(continueFrom);
+            query = query.Where(e => e.Id > continueFromId);
+        }
+        return query;
+    }
+    
+    private IQueryable<TItem> ApplyPaging<TItem>(IQueryable<TItem> query, int? pageSize, int? pageNumber) where TItem : Entity
+    {
+        if (pageNumber.HasValue && pageSize.HasValue)
+        {
+            var skip = (pageNumber.Value - 1) * pageSize.Value;
+            query = query.Skip(skip).Take(pageSize.Value);
+        }
+        else if (pageSize.HasValue)
+        {
+            query = query.Take(pageSize.Value);
+        }
+        return query;
+    }
+    
     protected static RepositoryOptions options { get; set; }
     
     public void Dispose()

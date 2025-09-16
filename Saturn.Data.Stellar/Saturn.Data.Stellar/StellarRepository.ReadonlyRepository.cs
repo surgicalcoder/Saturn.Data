@@ -74,9 +74,11 @@ public partial class StellarRepository : IReadonlyRepository
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var query = collection.AsQueryable().Where(predicate);
-    
+        
+        query = ApplyContinueFrom(query, continueFrom);
         query = ApplySort(query, sortOrders);
-    
+        query = ApplyPaging(query, pageSize, pageNumber);
+        
         return query.ToAsyncEnumerable();
     }
     
@@ -85,13 +87,6 @@ public partial class StellarRepository : IReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var query = collection.AsQueryable();
         
-        // Apply continueFrom filter first
-        if (!string.IsNullOrEmpty(continueFrom))
-        {
-            var continueFromId = new EntityId(continueFrom);
-            query = query.Where(e => string.Compare(e.Id, continueFrom, StringComparison.Ordinal) > 0);
-        }
-    
         // Apply where clause filters
         foreach (var kvp in whereClause)
         {
@@ -102,38 +97,22 @@ public partial class StellarRepository : IReadonlyRepository
             var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
             query = query.Where(lambda);
         }
-    
-        query = ApplySort(query, sortOrders);
         
-        // Apply pagination
-        if (pageNumber.HasValue && pageSize.HasValue)
-        {
-            query = query.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
-        }
-        else if (pageSize.HasValue)
-        {
-            query = query.Take(pageSize.Value);
-        }
-    
+        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplySort(query, sortOrders);
+        query = ApplyPaging(query, pageSize, pageNumber);
+        
         return query.ToAsyncEnumerable();
     }
     
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable();
+        var query = collection.AsQueryable().Where(predicate);
         
-        // Apply continueFrom filter first
-        if (!string.IsNullOrEmpty(continueFrom))
-        {
-            query = query.Where(e => string.Compare(e.Id, continueFrom, StringComparison.Ordinal) > 0);
-        }
-        
-        // Apply predicate
-        query = query.Where(predicate);
-    
+        query = ApplyContinueFrom(query, continueFrom);
         query = ApplySort(query, sortOrders);
-    
+        
         return query.FirstOrDefault();
     }
     

@@ -66,24 +66,9 @@ public partial class StellarRepository: IScopedReadonlyRepository
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        if (!string.IsNullOrEmpty(continueFrom))
-        {
-            var continueFromId = new EntityId(continueFrom);
-            query = query.Where(e => e.Id > continueFromId);
-        }
-        
+        query = ApplyContinueFrom(query, continueFrom);
         query = ApplySort(query, sortOrders);
-        
-        // Apply pagination
-        if (pageNumber.HasValue && pageSize.HasValue)
-        {
-            var skip = (pageNumber.Value - 1) * pageSize.Value;
-            query = query.Skip(skip).Take(pageSize.Value);
-        }
-        else if (pageSize.HasValue)
-        {
-            query = query.Take(pageSize.Value);
-        }
+        query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
     }
@@ -101,12 +86,10 @@ public partial class StellarRepository: IScopedReadonlyRepository
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
-        if (!string.IsNullOrEmpty(continueFrom))
-        {
-            var continueFromId = new EntityId(continueFrom);
-            query = query.Where(e => e.Id > continueFromId);
-        }
+        
+        query = ApplyContinueFrom(query, continueFrom);
         query = ApplySort(query, sortOrders);
+        
         return query.FirstOrDefault();
     }
     
