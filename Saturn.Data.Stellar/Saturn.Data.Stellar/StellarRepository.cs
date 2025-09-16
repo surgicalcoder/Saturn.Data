@@ -2,6 +2,9 @@ using System.Linq;
 using System.Collections.Concurrent;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using MessagePack;
+using MessagePack.Resolvers;
+using Saturn.Data.Stellar.Resolvers;
 using Stellar.Collections;
 
 namespace Saturn.Data.Stellar;
@@ -16,7 +19,15 @@ public partial class StellarRepository : IAsyncDisposable
         {
             BaseDirectory = databaseOptions.BaseDirectory,
             BufferMode = BufferModeType.WriteParallelEnabled,
-            DatabaseName = databaseOptions.DatabaseName
+            DatabaseName = databaseOptions.DatabaseName,
+            AddDuplicateKeyBehavior = DuplicateKeyBehaviorType.Upsert,
+            BulkAddDuplicateKeyBehavior = DuplicateKeyBehaviorType.Upsert,
+            MessagePackOptions = MessagePackSerializerOptions.Standard.WithResolver(
+                CompositeResolver.Create(
+                    CryptoStringResolver.Instance,
+                    EntityIgnoreResolver.Instance,
+                    StandardResolver.Instance
+                ))
         };
         database = new FastDB(fastDbOptions);
     }
