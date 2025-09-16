@@ -1,135 +1,86 @@
-/*
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository //: ITransparentScopedRepository
+public partial class StellarRepository : ITransparentScopedRepository
 {
-    public async Task Insert<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task Delete<TItem, TParent>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.AddAsync(entity.Id, entity);
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Delete<TItem, TParent>(scope, filter, transaction, cancellationToken);
     }
-
-    public async Task InsertMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var entityDictionary = entities.ToDictionary(
-            entity => string.IsNullOrEmpty(entity.Id) ? new EntityId() : new EntityId(entity.Id),
-            entity => entity
-        );
-        await collection.AddBulkAsync(entityDictionary);
-    }
-
-    public async Task Save<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        if (string.IsNullOrEmpty(entity.Id))
-        {
-            await collection.AddAsync(entity.Id, entity);
-        }
-        else
-        {
-            await collection.UpdateAsync(entity.Id, entity);
-        }
-    }
-
-    public async Task SaveMany<TItem, TParent>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var entitiesToUpdate = entities.Where(entity => !string.IsNullOrEmpty(entity.Id)).ToList();
-        var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
-        await UpdateMany<TItem, TParent>(entitiesToUpdate, token: token);
-        await InsertMany<TItem, TParent>(entitiesToAdd, token: token);
-    }
-
-    public async Task Update<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        await Save<TItem, TParent>(entity, token: token);
-    }
-
-    public async Task UpdateMany<TItem, TParent>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        await SaveMany<TItem, TParent>(entities, token: token);
-    }
-
-    public async Task Upsert<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        if (collection.ContainsKey(entity.Id))
-        {
-            await collection.UpdateAsync(entity.Id, entity);
-        }
-        else
-        {
-            await collection.AddAsync(entity.Id, entity);
-        }
-    }
-
-    public async Task Delete<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(entity.Id);
-    }
-
-    public async Task Delete<TItem, TParent>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var items = collection.AsQueryable().Where(filter).Select(r => new EntityId(r.Id)).ToList();
-        await collection.RemoveBulkAsync(items);
-    }
-
-    public async Task Delete<TItem, TParent>(string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(id);
-    }
-
-    public async Task DeleteMany<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(entities.Select(e => new EntityId(e.Id)));
-    }
-
-    public async Task DeleteMany<TItem, TParent>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(IDs.Select(id => new EntityId(id)));
-    }
-
-    public async Task JsonUpdate<TItem, TParent>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var entityId = new EntityId(id);
-        if (!collection.ContainsKey(id))
-        {
-            throw new KeyNotFoundException($"Entity with id {id} not found.");
-        }
     
-        var entity = collection[entityId];
-        var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
-    
-        if (updatedEntity == null)
-        {
-            throw new InvalidOperationException("Deserialization failed.");
-        }
-    
-        if (entity.Version != version)
-        {
-            throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
-        }
-        
-        await collection.UpdateAsync(id, updatedEntity);
-    }
-
-    async Task ITransparentScopedRepository.UpsertMany<TItem, TParent>(List<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken token = default)
+    public async Task Delete<TItem, TParent>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
-        foreach (var item in entity)
-        {
-            await Upsert<TItem, TParent>(item, token: token);
-        }
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Delete<TItem, TParent>(scope, id, transaction, cancellationToken);
+    }
+    
+    public async Task Delete<TItem, TParent>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Delete<TItem, TParent>(scope, IDs, transaction, cancellationToken);
+    }
+    
+    public async Task Insert<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Insert<TItem, TParent>(scope, entity, transaction, cancellationToken);
+    }
+    
+    public async Task Insert<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Insert<TItem, TParent>(scope, entities, transaction, cancellationToken);
+    }
+    
+    public async Task JsonUpdate<TItem, TParent>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await JsonUpdate<TItem, TParent>(scope, id, version, json, transaction, cancellationToken);
+    }
+    
+    public async Task Save<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Save<TItem, TParent>(scope, entity, transaction, cancellationToken);
+    }
+    
+    public async Task Save<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Save<TItem, TParent>(scope, entities, transaction, cancellationToken);
+    }
+    
+    public async Task Update<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Update<TItem, TParent>(scope, entity, transaction, cancellationToken);
+    }
+    
+    public async Task Update<TItem, TParent>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Update<TItem, TParent>(scope, conditionPredicate, entity, transaction, cancellationToken);
+    }
+    
+    public async Task Update<TItem, TParent>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Update<TItem, TParent>(scope, entities, transaction, cancellationToken);
+    }
+    
+    public async Task Upsert<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Upsert<TItem, TParent>(scope, entity, transaction, cancellationToken);
+    }
+    
+    public async Task Upsert<TItem, TParent>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    {
+        var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
+        await Upsert<TItem, TParent>(scope, entity, transaction, cancellationToken);
     }
 }
-#1#
-*/
