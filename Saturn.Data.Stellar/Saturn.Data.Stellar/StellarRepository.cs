@@ -26,7 +26,7 @@ public partial class StellarRepository : IAsyncDisposable
                 CompositeResolver.Create(
                     CryptoStringResolver.Instance,
                     EntityIgnoreResolver.Instance,
-                    StandardResolver.Instance
+                    ContractlessStandardResolver.Instance
                 ))
         };
         database = new FastDB(fastDbOptions);
