@@ -22,6 +22,10 @@ public partial class StellarRepository : IAsyncDisposable
             DatabaseName = databaseOptions.DatabaseName,
             AddDuplicateKeyBehavior = DuplicateKeyBehaviorType.Upsert,
             BulkAddDuplicateKeyBehavior = DuplicateKeyBehaviorType.Upsert,
+            IsCompressionEnabled = databaseOptions.IsCompressed,
+            IsEncryptionEnabled = databaseOptions.IsEncrypted,
+            EncryptionPassword = databaseOptions.EncryptionKey,
+            MaxDegreeOfParallelism = databaseOptions.MaxDegreeOfParallelism,
             MessagePackOptions = MessagePackSerializerOptions.Standard.WithResolver(
                 CompositeResolver.Create(
                     CryptoStringResolver.Instance,
@@ -109,4 +113,8 @@ public class StellarRepositoryOptions
 {
     public string BaseDirectory { get; set; }
     public string DatabaseName { get; set; }
+    public bool IsCompressed { get; set; }
+    public bool IsEncrypted { get; set; }
+    public string EncryptionKey { get; set; }
+    public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 }
