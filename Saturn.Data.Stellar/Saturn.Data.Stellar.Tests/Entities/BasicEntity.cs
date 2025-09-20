@@ -8,6 +8,13 @@ public class BasicEntity : Entity
     public string Name { get; set; }
 }
 
+[System.Diagnostics.DebuggerDisplay("Name = {Name}")]
+public class RefEntity : Entity
+{
+    public string Name { get; set; }
+    public Ref<BasicEntity> BasicEntityItem { get; set; }
+}
+
 
 [System.Diagnostics.DebuggerDisplay("Name = {Name}")]
 public class ParentScope : Entity
