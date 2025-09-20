@@ -1,4 +1,4 @@
-name: LiteDb
+name: StellarDb
 on:
   workflow_dispatch:
 
