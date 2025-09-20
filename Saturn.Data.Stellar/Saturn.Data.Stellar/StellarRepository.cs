@@ -30,8 +30,6 @@ public partial class StellarRepository : IAsyncDisposable
                 CompositeResolver.Create(
                     CryptoStringResolver.Instance,
                     EntityIgnoreResolver.Instance,
-                    EncryptedStringResolver.Instance,
-                    HashedStringResolver.Instance,
                     RefResolver.Instance,
                     WeakRefResolver.Instance,
                     ContractlessStandardResolver.Instance
