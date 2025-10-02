@@ -29,10 +29,10 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
         return await ById<TItem, TParent>(scope, IDs, transaction, cancellationToken);
     }
     
-    public async Task<long> Count<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task<long> Count<TItem, TParent>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = GetTransparentScope<TParent>();
-        return await Count<TItem, TParent>(scope, predicate, transaction, cancellationToken);
+        return await Count<TItem, TParent>(scope, predicate, continueFrom, transaction, cancellationToken);
     }
     
     public IQueryable<TItem> IQueryable<TItem, TParent>() where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -59,9 +59,9 @@ public partial class StellarRepository : ITransparentScopedReadonlyRepository
         return await One<TItem, TParent>(scope, predicate, continueFrom, sortOrders, transaction, cancellationToken);
     }
     
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = GetTransparentScope<TParent>();
-        return await Random<TItem, TParent>(scope, predicate, count, transaction, cancellationToken);
+        return await Random<TItem, TParent>(scope, predicate, continueFrom, count, transaction, cancellationToken);
     }
 }

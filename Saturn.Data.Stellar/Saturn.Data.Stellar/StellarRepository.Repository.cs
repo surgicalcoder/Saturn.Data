@@ -152,7 +152,6 @@ public partial class StellarRepository : IRepository
             throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
         }
     
-        // Update entity from json
         var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
         if (updatedEntity == null)
         {

@@ -50,7 +50,7 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
         return collection.AsQueryable().Where(e => IDs.Contains(e.Id) && e.Scope == Scope && e.SecondScope == secondScope).ToAsyncEnumerable();
     }
     
-    public async Task<long> Count<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
+    public async Task<long> Count<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
         if (Scope == null || secondScope == null)
         {
@@ -60,7 +60,11 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == Scope && item.SecondScope == secondScope;
         var combinedPred = scopePred.And(predicate);
-        return collection.AsQueryable().LongCount(combinedPred);
+        var query = collection.AsQueryable().Where(combinedPred);
+        
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        return query.LongCount();
     }
     
     public IQueryable<TItem> IQueryable<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
@@ -76,13 +80,10 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
         
-        // Then apply continuation filter based on that order
         query = ApplyContinueFrom(query, continueFrom);
         
-        // Finally apply pagination
         query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
@@ -93,13 +94,11 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
         var query = collection.AsQueryable();
         
-        // Apply scope filters first
         query = query.Where(e => e.Scope == Scope && e.SecondScope == secondScope);
         
-        // Apply where clause filters
         foreach (var kvp in whereClause)
         {
-            if (kvp.Key is "Scope" or "SecondScope") continue; // Skip scopes as we already applied them
+            if (kvp.Key is "Scope" or "SecondScope") continue;
             
             var parameter = Expression.Parameter(typeof(TItem), "x");
             var property = Expression.PropertyOrField(parameter, kvp.Key);
@@ -109,13 +108,10 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
             query = query.Where(lambda);
         }
         
-        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
         
-        // Then apply continuation filter based on that order
         query = ApplyContinueFrom(query, continueFrom);
         
-        // Finally apply pagination
         query = ApplyPaging(query, pageSize, pageNumber);
         
         return query.ToAsyncEnumerable();
@@ -128,21 +124,23 @@ public partial class StellarRepository : ISecondScopedReadonlyRepository
         var combinedPred = scopePred.And(predicate);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
         
-        // Then apply continuation filter based on that order
         query = ApplyContinueFrom(query, continueFrom);
         
         return query.FirstOrDefault();
     }
     
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == Scope && item.SecondScope == secondScope;
         var combinedPred = predicate != null ? scopePred.And(predicate) : scopePred;
-        var filteredItems = collection.AsQueryable().Where(combinedPred).ToList();
+        var query = collection.AsQueryable().Where(combinedPred);
+        
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        var filteredItems = query.ToList();
         
         if (filteredItems.Count == 0)
             return AsyncEnumerable.Empty<TItem>();

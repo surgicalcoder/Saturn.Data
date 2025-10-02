@@ -127,12 +127,16 @@ public partial class StellarRepository: IScopedReadonlyRepository
         return query.FirstOrDefault();
     }
     
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
         var combinedPred = predicate != null ? scopePred.And(predicate) : scopePred;
-        var filteredItems = collection.AsQueryable().Where(combinedPred).ToList();
+        var query = collection.AsQueryable().Where(combinedPred);
+        
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        var filteredItems = query.ToList();
         
         if (filteredItems.Count == 0)
             return AsyncEnumerable.Empty<TItem>();
@@ -151,7 +155,7 @@ public partial class StellarRepository: IScopedReadonlyRepository
         return selectedItems.ToAsyncEnumerable();
     }
 
-    public virtual async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    public virtual async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -161,6 +165,10 @@ public partial class StellarRepository: IScopedReadonlyRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        return collection.AsQueryable().LongCount(combinedPred);
+        var query = collection.AsQueryable().Where(combinedPred);
+        
+        query = ApplyContinueFrom(query, continueFrom);
+        
+        return query.LongCount();
     }
 }
