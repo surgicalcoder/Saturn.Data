@@ -45,10 +45,11 @@ public partial class MongoDbRepository : IReadonlyRepository
     
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
+        var filter = BuildFilterWithContinuation(predicate, continueFrom);
         return await ExecuteWithTransaction<TItem, long>(
             transaction,
-            (collection, session) => collection.CountDocumentsAsync(session, predicate, cancellationToken: cancellationToken),
-            collection => collection.CountDocumentsAsync(predicate, cancellationToken: cancellationToken)
+            (collection, session) => collection.CountDocumentsAsync(session, filter, cancellationToken: cancellationToken),
+            collection => collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken)
         );
     }
     
@@ -106,6 +107,23 @@ public partial class MongoDbRepository : IReadonlyRepository
         var aggregate = transaction != null
             ? GetCollection<TItem>().Aggregate(((MongoDbTransactionWrapper)transaction).Session)
             : GetCollection<TItem>().Aggregate();
+        
+        if (predicate != null || !string.IsNullOrEmpty(continueFrom))
+        {
+            FilterDefinition<TItem> filter;
+            
+            if (predicate != null)
+            {
+                filter = BuildFilterWithContinuation(predicate, continueFrom);
+            }
+            else
+            {
+                // If only continueFrom is provided without a predicate, create a filter for continuation
+                filter = BuildFilterWithContinuation(Builders<TItem>.Filter.Empty, continueFrom);
+            }
+            
+            aggregate = aggregate.Match(filter);
+        }
 
         var result = aggregate.AppendStage<TItem>(new BsonDocument("$sample", new BsonDocument("size", count)));
 

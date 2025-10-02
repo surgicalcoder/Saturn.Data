@@ -46,11 +46,12 @@ public partial class MongoDbRepository : ITransparentScopedReadonlyRepository
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
+        var filter = BuildFilterWithContinuation(combinedPred, continueFrom);
         
         return await ExecuteWithTransaction<TItem, long>(
             transaction,
-            async (collection, session) => await collection.CountDocumentsAsync(session, combinedPred, cancellationToken: cancellationToken),
-            async collection => await collection.CountDocumentsAsync(combinedPred, cancellationToken: cancellationToken)
+            async (collection, session) => await collection.CountDocumentsAsync(session, filter, cancellationToken: cancellationToken),
+            async collection => await collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken)
         );
     }
 
@@ -114,18 +115,48 @@ public partial class MongoDbRepository : ITransparentScopedReadonlyRepository
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
         Expression<Func<TItem, bool>> scopePredicate = item => item.Scope == scope;
-        var combinedPredicate = predicate != null ? scopePredicate.And(predicate) : scopePredicate;
+        FilterDefinition<TItem> filter;
         
-        var pipeline = new BsonDocument[]
+        if (predicate != null)
         {
-            new("$match", combinedPredicate.ToBsonDocument()),
-            new("$sample", new BsonDocument("size", count))
-        };
+            var combinedPredicate = scopePredicate.And(predicate);
+            filter = BuildFilterWithContinuation(combinedPredicate, continueFrom);
+        }
+        else
+        {
+            filter = BuildFilterWithContinuation(scopePredicate, continueFrom);
+        }
 
         return await ExecuteWithTransaction<TItem, IAsyncEnumerable<TItem>>(
             transaction,
-            async (collection, session) => (await collection.AggregateAsync<TItem>(session, pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable(),
-            async collection => (await collection.AggregateAsync<TItem>(pipeline, cancellationToken: cancellationToken)).ToAsyncEnumerable()
+            async (collection, session) =>
+            {
+                var aggregate = collection.Aggregate(session);
+                if (predicate != null || !string.IsNullOrEmpty(continueFrom))
+                {
+                    aggregate = aggregate.Match(filter);
+                }
+                else
+                {
+                    aggregate = aggregate.Match(scopePredicate);
+                }
+                var pipeline = aggregate.AppendStage<TItem>(new BsonDocument("$sample", new BsonDocument("size", count)));
+                return pipeline.ToAsyncEnumerable();
+            },
+            async collection =>
+            {
+                var aggregate = collection.Aggregate();
+                if (predicate != null || !string.IsNullOrEmpty(continueFrom))
+                {
+                    aggregate = aggregate.Match(filter);
+                }
+                else
+                {
+                    aggregate = aggregate.Match(scopePredicate);
+                }
+                var pipeline = aggregate.AppendStage<TItem>(new BsonDocument("$sample", new BsonDocument("size", count)));
+                return pipeline.ToAsyncEnumerable();
+            }
         );
     }
 }
