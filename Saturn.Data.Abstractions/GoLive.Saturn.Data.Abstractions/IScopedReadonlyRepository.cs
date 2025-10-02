@@ -22,7 +22,7 @@ public interface IScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
-    Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
@@ -42,7 +42,7 @@ public interface IScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TScope>, new()
         where TScope : Entity, new();
 }

@@ -22,7 +22,7 @@ public interface ITransparentScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TParent>, new()
         where TParent : Entity, new();
 
-    Task<long> Count<TItem, TParent>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<long> Count<TItem, TParent>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TParent>, new()
         where TParent : Entity, new();
 
@@ -42,7 +42,7 @@ public interface ITransparentScopedReadonlyRepository : IDisposable
         where TItem : ScopedEntity<TParent>, new()
         where TParent : Entity, new();
 
-    Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
+    Task<IAsyncEnumerable<TItem>> Random<TItem, TParent>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : ScopedEntity<TParent>, new()
         where TParent : Entity, new();
 }
