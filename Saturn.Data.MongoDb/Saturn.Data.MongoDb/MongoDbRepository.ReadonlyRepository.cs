@@ -43,7 +43,7 @@ public partial class MongoDbRepository : IReadonlyRepository
         return result.ToAsyncEnumerable();
     }
     
-    public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         return await ExecuteWithTransaction<TItem, long>(
             transaction,
@@ -101,7 +101,7 @@ public partial class MongoDbRepository : IReadonlyRepository
         return await result.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
     }
     
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var aggregate = transaction != null
             ? GetCollection<TItem>().Aggregate(((MongoDbTransactionWrapper)transaction).Session)
