@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <PackageId>GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher</PackageId>
@@ -21,7 +21,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="HarmonyX" Version="2.15.0" />
+      <PackageReference Include="HarmonyX" Version="2.16.0" />
     </ItemGroup>
 
 </Project>

@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Data.MongoDb.EntitySerializers/GoLive.Saturn.Data.MongoDb.EntitySerializers.slnx'
-     BUILD_VER : '5.0'
+     BUILD_VER : '6.0'
     name: build, pack & publish
     runs-on: windows-latest
     steps:
