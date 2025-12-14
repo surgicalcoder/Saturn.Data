@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
      SOLUTION: 'Saturn.Data.MongoDb/Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj'
-     BUILD_VER : '5.0'
+     BUILD_VER : '6.0'
     name: build, pack & publish
     runs-on: windows-latest
     steps:
