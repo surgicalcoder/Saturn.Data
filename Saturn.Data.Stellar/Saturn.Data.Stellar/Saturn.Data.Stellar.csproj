@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <PackageId>GoLive.Saturn.Data.Stellar</PackageId>
@@ -21,10 +21,9 @@
 
     <ItemGroup>
       <PackageReference Include="GoLive.Saturn.Crypto" Version="1.0.15" />
-      <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="5.1.37" />
+      <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="6.0.38" />
       <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.27" />
-      <PackageReference Include="Stellar.FastDB" Version="1.0.8" />
-      <PackageReference Include="System.Linq.Async" Version="6.0.3" />
+      <PackageReference Include="Stellar.FastDB" Version="1.1.1" />
     </ItemGroup>
 
 </Project>

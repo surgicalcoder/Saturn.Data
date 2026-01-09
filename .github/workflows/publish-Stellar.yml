@@ -6,7 +6,7 @@ jobs:
   publish:
     env:
       SOLUTION: 'Saturn.Data.Stellar/Saturn.Data.Stellar.slnx'
-      BUILD_VER: '5.0'
+      BUILD_VER: '6.0'
     name: build, pack & publish
     runs-on: windows-latest
     steps:
@@ -14,7 +14,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
       - name: Setup NuGet
         uses: nuget/setup-nuget@v2
         with:
