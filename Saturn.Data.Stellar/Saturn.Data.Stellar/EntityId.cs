@@ -198,6 +198,16 @@ public record struct EntityId : IComparable<EntityId>, IEquatable<EntityId>, ICo
     {
         return lhs.CompareTo(rhs) <= 0;
     }
+    
+    /// <summary>
+    /// Implicitly converts an EntityId to a string.
+    /// </summary>
+    /// <param name="value">The EntityId value.</param>
+    /// <returns>A string representation of the EntityId.</returns>
+    public static implicit operator string(EntityId value)
+    {
+        return value.ToString();
+    }
 
     /// <summary>
     /// Compares two ObjectIds.
