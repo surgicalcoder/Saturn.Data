@@ -42,6 +42,11 @@ public partial class StellarRepository : ISecondScopedRepository
     
     public async Task Insert<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+        
         entity.Scope = Scope;
         entity.SecondScope = secondScope;
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
@@ -51,7 +56,16 @@ public partial class StellarRepository : ISecondScopedRepository
     public async Task Insert<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var entityDictionary = entity.Select(e => { e.Scope = Scope; e.SecondScope = secondScope; return e; })
+        var entityDictionary = entity.Select(e => { 
+                                         e.Scope = Scope; 
+                                         e.SecondScope = secondScope;
+                                         
+                                         if (string.IsNullOrWhiteSpace(e.Id))
+                                         {
+                                             e.Id = EntityId.GenerateNewId();
+                                         }
+                                         
+                                         return e; })
             .ToDictionary(e => string.IsNullOrEmpty(e.Id) ? new EntityId() : new EntityId(e.Id), e => e);
         await collection.AddBulkAsync(entityDictionary);
     }
@@ -141,6 +155,10 @@ public partial class StellarRepository : ISecondScopedRepository
     
     public async Task Upsert<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
         entity.Scope = Scope;
         entity.SecondScope = secondScope;
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());

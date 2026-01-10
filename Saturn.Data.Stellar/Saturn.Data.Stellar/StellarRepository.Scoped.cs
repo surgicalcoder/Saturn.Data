@@ -25,6 +25,10 @@ public partial class StellarRepository : IScopedRepository
 
     public async Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
         entity.Scope = scope;
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         await collection.AddAsync(entity.Id, entity);
@@ -33,7 +37,16 @@ public partial class StellarRepository : IScopedRepository
     public async Task Insert<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var entityDictionary = entities.Select(e => { e.Scope = scope; return e; })
+        var entityDictionary = entities.Select(e =>
+                                       {
+                                           e.Scope = scope;
+
+                                           if (string.IsNullOrWhiteSpace(e.Id))
+                                           {
+                                               e.Id = EntityId.GenerateNewId();
+                                           }
+                                           return e;
+                                       })
             .ToDictionary(entity => string.IsNullOrEmpty(entity.Id) ? new EntityId() : new EntityId(entity.Id), entity => entity);
         await collection.AddBulkAsync(entityDictionary);
     }
@@ -79,16 +92,6 @@ public partial class StellarRepository : IScopedRepository
         await Task.WhenAll(updateTasks);
     }
 
-    public async Task Update<TItem, TScope>(string scope, List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        foreach (var entity in entities)
-        {
-            entity.Scope = scope;
-            await collection.UpdateAsync(entity.Id, entity);
-        }
-    }
-
     public async Task JsonUpdate<TItem, TScope>(string scope, string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
@@ -128,7 +131,12 @@ public partial class StellarRepository : IScopedRepository
     }
 
     public async Task Upsert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
-    {
+    {        
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+        
         entity.Scope = scope;
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         if (collection.ContainsKey(entity.Id))
@@ -165,29 +173,5 @@ public partial class StellarRepository : IScopedRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var items = collection.AsQueryable().Where(e => e.Scope == scope).Where(filter).Select(r => new EntityId(r.Id)).ToList();
         await collection.RemoveBulkAsync(items);
-    }
-
-    public async Task DeleteMany<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var validEntities = entities.Where(e => e.Scope == scope);
-        await collection.RemoveBulkAsync(validEntities.Select(e => new EntityId(e.Id)));
-    }
-
-    public async Task DeleteMany<TItem, TScope>(string scope, List<string> ids, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : ScopedEntity<TScope> where TScope : Entity, new()
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var validIds = new List<EntityId>();
-        
-        foreach (var id in ids)
-        {
-            var entity = collection.AsQueryable().FirstOrDefault(e => e.Id == id && e.Scope == scope);
-            if (entity != null)
-            {
-                validIds.Add(new EntityId(id));
-            }
-        }
-        
-        await collection.RemoveBulkAsync(validIds);
     }
 }

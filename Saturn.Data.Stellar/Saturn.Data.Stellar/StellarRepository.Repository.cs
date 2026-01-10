@@ -14,6 +14,10 @@ public partial class StellarRepository : IRepository
 
     public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         await collection.AddAsync(entity.Id, entity);
     }
@@ -81,6 +85,12 @@ public partial class StellarRepository : IRepository
     public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+        
         if (collection.ContainsKey(entity.Id))
         {
             await collection.UpdateAsync(entity.Id, entity);
@@ -105,12 +115,6 @@ public partial class StellarRepository : IRepository
         }
     }
     
-    public async Task Delete<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(entity.Id);
-    }
-    
     public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
@@ -122,19 +126,6 @@ public partial class StellarRepository : IRepository
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         await collection.RemoveAsync(id);
-    }
-    
-    public async Task DeleteMany<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        
-        await collection.RemoveBulkAsync(entities.Select(e => new EntityId(e.Id)));
-    }
-    
-    public async Task DeleteMany<TItem>(List<string> IDs, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
-    {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(IDs.Select(id => new EntityId(id)));
     }
     
     public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity

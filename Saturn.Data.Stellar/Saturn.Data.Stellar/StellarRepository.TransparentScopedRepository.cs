@@ -6,7 +6,7 @@ namespace Saturn.Data.Stellar;
 
 public partial class StellarRepository : ITransparentScopedReadonlyRepository 
 {
-    internal protected virtual string GetTransparentScope<TParent>() where TParent : Entity, new()
+    protected virtual string GetTransparentScope<TParent>() where TParent : Entity, new()
     {
         return options.TransparentScopeProvider.Invoke(typeof(TParent));
     }

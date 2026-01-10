@@ -28,6 +28,15 @@ public class BasicTests(DatabaseFixture fixture) : IClassFixture<DatabaseFixture
     }
     
     [Fact]
+    public async Task AddGeneratesId()
+    {
+        var item = new BasicEntity();
+        item.Name = "Test item with empty id";
+        await repo.Insert(item);
+        Assert.False(string.IsNullOrWhiteSpace(item.Id));
+    }
+    
+    [Fact]
     public async Task Update()
     {
         // No longer need to clear at the start of each test
