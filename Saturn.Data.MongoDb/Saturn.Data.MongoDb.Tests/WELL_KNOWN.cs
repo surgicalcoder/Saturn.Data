@@ -1,4 +1,4 @@
-﻿using Saturn.Data.MongoDb.Tests.Entities;
+﻿﻿using Saturn.Data.MongoDb.Tests.Entities;
 
 namespace Saturn.Data.MongoDb.Tests;
 
@@ -38,4 +38,10 @@ public static class WELL_KNOWN
     public static readonly ChildEntity Parent_Scope_2_Child_Entity_1 = new() { Id = "68bdd5525324ff2610c4362f", Name = "Child Entity 1 of Parent Scope 2", Scope = Parent_Scope_2.Id };
     public static readonly ChildEntity Parent_Scope_2_Child_Entity_2 = new() { Id = "68bdd5525324ff2610c43630", Name = "Child Entity 2 of Parent Scope 2", Scope = Parent_Scope_2.Id };
     
+    // WorkflowTask test entities
+    public static readonly WorkflowTask WorkflowTask_Pending = new() { Id = "68bdd5525324ff2610c43641", Name = "Pending Task", Status = WorkflowTaskStatus.Pending };
+    public static readonly WorkflowTask WorkflowTask_InProgress = new() { Id = "68bdd5525324ff2610c43642", Name = "In Progress Task", Status = WorkflowTaskStatus.InProgress };
+    public static readonly WorkflowTask WorkflowTask_Completed = new() { Id = "68bdd5525324ff2610c43643", Name = "Completed Task", Status = WorkflowTaskStatus.Completed };
+    public static readonly WorkflowTask WorkflowTask_RequiresApproval = new() { Id = "68bdd5525324ff2610c43644", Name = "Requires Approval Task", Status = WorkflowTaskStatus.RequiresApproval };
+    public static readonly WorkflowTask WorkflowTask_WaitingOnDependencies = new() { Id = "68bdd5525324ff2610c43645", Name = "Waiting Task", Status = WorkflowTaskStatus.WaitingOnDependencies };
 }

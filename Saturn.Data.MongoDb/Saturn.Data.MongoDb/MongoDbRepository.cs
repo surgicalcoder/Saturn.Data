@@ -173,7 +173,8 @@ public partial class MongoDbRepository
             new IgnoreExtraElementsConvention(true),
             new NamedIdMemberConvention("Id"),
             new IgnoreEmptyStringsConvention(),
-            new StringIdStoredAsObjectIdConvention()
+            new StringIdStoredAsObjectIdConvention(),
+            new AlwaysSerializeEnumsConvention() // Must be after IgnoreIfDefaultConvention to override default behavior for enums
         };
 
         ConventionRegistry.Register("Custom Conventions", pack, _ => true);
