@@ -29,16 +29,17 @@ public class RefCountQueryTests(DatabaseFixture fixture) : IClassFixture<Databas
 
         var completedTask = WELL_KNOWN.BackgroundTask_Completed;
 
-        // Act & Assert: This should not throw InvalidCastException
-        var exception = await Record.ExceptionAsync(async () =>
-        {
-            var dependentTasks = await repo.Many<BackgroundTask>(
-                t => t.Status == BackgroundTaskStatus.WaitingOnDependencies &&
-                     t.DependentTasks.Count(d => d.Id == completedTask.Id) > 0);
-        });
+        // Act: This should not throw InvalidCastException
+        var dependentTasks = await repo.Many<BackgroundTask>(
+            t => t.Status == BackgroundTaskStatus.WaitingOnDependencies &&
+                 t.DependentTasks.Count(d => d.Id == completedTask.Id) > 0);
 
-        // The query should execute without throwing InvalidCastException
-        Assert.Null(exception);
+        // Materialize to list
+        var dependentTasksList = await dependentTasks.ToListAsync();
+
+        // Assert: Should find the waiting task
+        Assert.Single(dependentTasksList);
+        Assert.Equal(WELL_KNOWN.BackgroundTask_WaitingOnDependency.Id, dependentTasksList[0].Id);
     }
 
     [Fact]
@@ -55,9 +56,12 @@ public class RefCountQueryTests(DatabaseFixture fixture) : IClassFixture<Databas
             t => t.Status == BackgroundTaskStatus.WaitingOnDependencies &&
                  t.DependentTasks.Any(d => d.Id == completedTask.Id));
 
+        // Materialize to list to avoid double enumeration
+        var dependentTasksList = await dependentTasks.ToListAsync();
+
         // Assert: Should find the waiting task
-        Assert.Single(dependentTasks);
-        Assert.Equal(WELL_KNOWN.BackgroundTask_WaitingOnDependency.Id, (await dependentTasks.FirstAsync()).Id);
+        Assert.Single(dependentTasksList);
+        Assert.Equal(WELL_KNOWN.BackgroundTask_WaitingOnDependency.Id, dependentTasksList[0].Id);
     }
 }
 

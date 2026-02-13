@@ -16,6 +16,7 @@ using MongoDB.Driver.Core.Events;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using Saturn.Data.MongoDb.Callbacks;
 using Saturn.Data.MongoDb.Conventions;
+using Saturn.Data.MongoDb.ExpressionRewriters;
 using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 [assembly: InternalsVisibleTo("GoLive.Saturn.Data.MongoDb.Benchmarks")]
@@ -265,7 +266,7 @@ public partial class MongoDbRepository
         Expression<Func<TItem, bool>> predicate, 
         string? continueFrom) where TItem : Entity
     {
-        var baseFilter = Builders<TItem>.Filter.Where(predicate);
+        var baseFilter = Builders<TItem>.Filter.Where(predicate.NormalizeForRef());
         return BuildFilterWithContinuation(baseFilter, continueFrom);
     }
 
