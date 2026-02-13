@@ -1,4 +1,5 @@
-﻿﻿using Saturn.Data.MongoDb.Tests.Entities;
+﻿﻿﻿using GoLive.Saturn.Data.Entities;
+  using Saturn.Data.MongoDb.Tests.Entities;
 
 namespace Saturn.Data.MongoDb.Tests;
 
@@ -44,4 +45,8 @@ public static class WELL_KNOWN
     public static readonly WorkflowTask WorkflowTask_Completed = new() { Id = "68bdd5525324ff2610c43643", Name = "Completed Task", Status = WorkflowTaskStatus.Completed };
     public static readonly WorkflowTask WorkflowTask_RequiresApproval = new() { Id = "68bdd5525324ff2610c43644", Name = "Requires Approval Task", Status = WorkflowTaskStatus.RequiresApproval };
     public static readonly WorkflowTask WorkflowTask_WaitingOnDependencies = new() { Id = "68bdd5525324ff2610c43645", Name = "Waiting Task", Status = WorkflowTaskStatus.WaitingOnDependencies };
+    
+    // BackgroundTask test entities
+    public static readonly BackgroundTask BackgroundTask_Completed = new() { Id = "68bdd5525324ff2610c43651", Name = "Completed Background Task", Status = BackgroundTaskStatus.Completed };
+    public static readonly BackgroundTask BackgroundTask_WaitingOnDependency = new() { Id = "68bdd5525324ff2610c43652", Name = "Waiting Background Task", Status = BackgroundTaskStatus.WaitingOnDependencies, DependentTasks = new() { new Ref<BackgroundTask>("68bdd5525324ff2610c43651") } };
 }
