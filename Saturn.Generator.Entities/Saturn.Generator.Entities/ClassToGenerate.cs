@@ -16,4 +16,8 @@ public class ClassToGenerate
     public bool HasInitMethod { get; set; }
 
     public List<LimitedViewParentItemToGenerate> ParentItemToGenerate { get; set; }
+    
+    public bool InheritsParentLimitedViews { get; set; }
+    public bool FlattenParentLimitedViews { get; set; }
+    public string ParentClassName { get; set; }
 }

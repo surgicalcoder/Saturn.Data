@@ -18,6 +18,7 @@ public static class Scanner
     private const string ATTRIBUTES_ReadOnly = $"{ATTRIBUTE_NAMESPACE}.ReadonlyAttribute";
     private const string ATTRIBUTE_AddToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddToLimitedViewAttribute";
     private const string ATTRIBUTE_AddParentItemToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddParentItemToLimitedViewAttribute";
+    private const string ATTRIBUTE_AddParentItemsLimitedViews = $"{ATTRIBUTE_NAMESPACE}.AddParentItemsLimitedViews";
     private const string ATTRIBUTE_NAMESPACE = "GoLive.Saturn.Generator.Entities.Resources";
 
     public static bool CanBeEntity(SyntaxNode node)
@@ -60,6 +61,28 @@ public static class Scanner
         retr.ParentItemToGenerate = GetParentItemsToGenerate(input.symbol, input.syntax).ToList();
         retr.HasInitMethod = input.symbol.GetMembers().OfType<IMethodSymbol>().Any(m => m.Name == "_init" && m.DeclaredAccessibility == Accessibility.Private);
         
+        if (input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews))
+        {
+            var addParentAttr = input.symbol.GetAttributes().First(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews);
+            var flatten = addParentAttr.NamedArguments.Any(a => a.Key == "Flatten") && (bool)addParentAttr.NamedArguments.First(a => a.Key == "Flatten").Value.Value;
+            // Also support positional bool constructor argument
+            if (!flatten && addParentAttr.ConstructorArguments.Any(a => a is { Type: { SpecialType: SpecialType.System_Boolean } }))
+            {
+                flatten = (bool)addParentAttr.ConstructorArguments.First(a => a is { Type: { SpecialType: SpecialType.System_Boolean } }).Value;
+            }
+
+            retr.InheritsParentLimitedViews = true;
+            retr.FlattenParentLimitedViews = flatten;
+            retr.ParentClassName = input.symbol.BaseType?.Name;
+
+            if (flatten)
+            {
+                // Collect parent members that participate in limited views and merge them in
+                var parentMembers = CollectParentMembersWithLimitedViews(input.symbol);
+                retr.Members.InsertRange(0, parentMembers);
+            }
+        }
+        
         return retr;
     }
 
@@ -67,54 +90,100 @@ public static class Scanner
     {
         var attrs = classSymbol.GetAttributes();
 
+        // If AddParentItemsLimitedViews is present, collect AddParentItemToLimitedView from all base types
+        if (attrs.Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews))
+        {
+            var baseType = classSymbol.BaseType;
+            while (baseType != null)
+            {
+                var baseAttrs = baseType.GetAttributes()
+                    .Where(f => f.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemToLimitedView);
 
+                foreach (var attributeData in baseAttrs)
+                {
+                    foreach (var item in ParseParentItemToGenerate(baseType, attributeData))
+                    {
+                        yield return item;
+                    }
+                }
+
+                baseType = baseType.BaseType;
+            }
+        }
 
         if (attrs.Any(e => e.AttributeClass.ToString() == ATTRIBUTE_AddParentItemToLimitedView))
         {
             foreach (var attributeData in attrs.Where(f => f.AttributeClass.ToString() == ATTRIBUTE_AddParentItemToLimitedView))
             {
-                LimitedViewParentItemToGenerate retr = new();
-
-                retr.ViewName = attributeData.ConstructorArguments.FirstOrDefault(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
-                retr.PropertyName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Skip(1).FirstOrDefault().Value as string;
-                retr.Property = GetMember(classSymbol, retr.PropertyName) as IPropertySymbol;
-
-                if (attributeData.NamedArguments.Any())
+                foreach (var item in ParseParentItemToGenerate(classSymbol, attributeData))
                 {
-                    foreach (var namedArg in attributeData.NamedArguments)
-                    {
-                        switch (namedArg.Key)
-                        {
-                            case "LimitedViewType":
-                                string typeName = namedArg.Value.Value.ToString().Split('(').Last().Split(')').First();
-                                retr.OverrideReturnTypeToUseLimitedView = typeName;
-                                break;
-                            case "ChildField":
-                                retr.ChildPropertyName = namedArg.Value.Value.ToString();
-                                break;
-                            case "TwoWay":
-                                retr.TwoWay = (bool)namedArg.Value.Value;
-                                break;
-                            case "InheritFromIUniquelyIdentifiable":
-                                retr.InheritFromIUniquelyIdentifiable = (bool)namedArg.Value.Value;
-                                break;
-                        }
-                    }
+                    yield return item;
                 }
-
-                if (string.IsNullOrWhiteSpace(retr.ChildPropertyName))
-                {
-                    retr.ChildPropertyName = retr.PropertyName;
-                }
-
-                yield return retr;
             }
         }
     }
 
-
-    private static ISymbol GetMember(INamedTypeSymbol classDeclaration, string Name)
+    private static IEnumerable<LimitedViewParentItemToGenerate> ParseParentItemToGenerate(INamedTypeSymbol classSymbol, AttributeData attributeData)
     {
+        LimitedViewParentItemToGenerate retr = new();
+
+        retr.ViewName = attributeData.ConstructorArguments.FirstOrDefault(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string;
+        retr.PropertyName = attributeData.ConstructorArguments.Where(e => e is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Skip(1).FirstOrDefault().Value as string;
+        retr.Property = GetMember(classSymbol, retr.PropertyName) as IPropertySymbol;
+
+        if (attributeData.NamedArguments.Any())
+        {
+            foreach (var namedArg in attributeData.NamedArguments)
+            {
+                switch (namedArg.Key)
+                {
+                    case "LimitedViewType":
+                        string typeName = namedArg.Value.Value.ToString().Split('(').Last().Split(')').First();
+                        retr.OverrideReturnTypeToUseLimitedView = typeName;
+                        break;
+                    case "ChildField":
+                        retr.ChildPropertyName = namedArg.Value.Value.ToString();
+                        break;
+                    case "TwoWay":
+                        retr.TwoWay = (bool)namedArg.Value.Value;
+                        break;
+                    case "InheritFromIUniquelyIdentifiable":
+                        retr.InheritFromIUniquelyIdentifiable = (bool)namedArg.Value.Value;
+                        break;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(retr.ChildPropertyName))
+        {
+            retr.ChildPropertyName = retr.PropertyName;
+        }
+
+        yield return retr;
+    }
+
+
+    private static List<MemberToGenerate> CollectParentMembersWithLimitedViews(INamedTypeSymbol classSymbol)
+    {
+        var result = new List<MemberToGenerate>();
+        var baseType = classSymbol.BaseType;
+
+        while (baseType != null && baseType.SpecialType == SpecialType.None)
+        {
+            var parentMembers = ConvertToMembers(baseType)
+                .Where(m => m.LimitedViews.Any())
+                .ToList();
+
+            // Insert at beginning so higher-level base class members come first
+            result.InsertRange(0, parentMembers);
+
+            baseType = baseType.BaseType;
+        }
+
+        return result;
+    }
+
+    private static ISymbol GetMember(INamedTypeSymbol classDeclaration, string Name)    {
         var currentDeclared = classDeclaration;
 
         while (currentDeclared.BaseType != null)

@@ -110,14 +110,23 @@ public static class SourceCodeGenerator
                      .SelectMany(f => f.LimitedViews.Select(r => new { classDef = f, LimitedView = r }))
                      .GroupBy(e => e.LimitedView.Name))
         {
-            source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
+            if (classToGen.InheritsParentLimitedViews && !classToGen.FlattenParentLimitedViews && !string.IsNullOrWhiteSpace(classToGen.ParentClassName))
+            {
+                // Inherit from parent view class; parent already implements IUpdatableFrom<ParentClass>/ICreatableFrom<ParentClass>
+                source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : {classToGen.ParentClassName}_{item.Key}, IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
+            }
+            else
+            {
+                source.AppendLine($"public partial class {classToGen.Name}_{item.Key} : IUpdatableFrom<{classToGen.Name}>, ICreatableFrom<{classToGen.Name}>");
+            }
 
             if (item.Any(e => e.LimitedView.TwoWay))
             {
                 source.AppendLine($", IUpdatableFrom<{classToGen.Name}_{item.Key}>");
             }
 
-            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
+            // Emit IUniquelyIdentifiable for non-inherit, or flatten (both are flat view classes)
+            if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews) && classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
             {
                 var addedUniquelyIdentifiable = false;
 
@@ -176,7 +185,7 @@ public static class SourceCodeGenerator
                 }
             }
 
-            if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
+            if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews) && classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == item.Key) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
             {
                 source.AppendLine(2);
 
@@ -263,6 +272,12 @@ public static class SourceCodeGenerator
         source.AppendOpenCurlyBracketLine();
         source.AppendLine("OnUpdateFromStart(source);");
 
+        if (classToGen.InheritsParentLimitedViews && !classToGen.FlattenParentLimitedViews && !string.IsNullOrWhiteSpace(classToGen.ParentClassName))
+        {
+            // Call the parent view's UpdateFrom, casting to parent type
+            source.AppendLine($"base.UpdateFrom(({classToGen.ParentClassName})source);");
+        }
+
         foreach (var v1 in item)
         {
             var strBuilder = new StringBuilder();
@@ -284,7 +299,7 @@ public static class SourceCodeGenerator
             source.AppendLine(strBuilder.ToString());
         }
 
-        if (classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
+        if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews) && classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
         {
             source.AppendLine(2);
 
@@ -308,7 +323,8 @@ public static class SourceCodeGenerator
     {
         source.AppendLine($"protected virtual void OnGenerateStart({classToGen.Name} source, {classToGen.Name}_{itemKey} result) {{ }}");
         source.AppendLine($"protected virtual void OnGenerateEnd({classToGen.Name} source, {classToGen.Name}_{itemKey} result) {{ }}");
-        source.AppendLine($"public static {classToGen.Name}_{itemKey} Generate({classToGen.Name} source)");
+        var newKeyword = (classToGen.InheritsParentLimitedViews && !classToGen.FlattenParentLimitedViews) ? "new " : string.Empty;
+        source.AppendLine($"public static {newKeyword}{classToGen.Name}_{itemKey} Generate({classToGen.Name} source)");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"var retr = new {classToGen.Name.FirstCharToUpper()}_{itemKey}();");
         source.AppendLine("retr.OnGenerateStart(source, retr);");
