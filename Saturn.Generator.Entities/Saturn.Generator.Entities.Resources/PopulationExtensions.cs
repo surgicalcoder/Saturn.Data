@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Entities;
@@ -51,5 +52,45 @@ public static class PopulationExtensions
         }
 
         item.Item = TMainItem.Create(items.FirstOrDefault(e => e.Id == item.Id)) as TMainItem;
+    }
+
+    /// <summary>
+    /// Populates a list of Ref items from a list of view items, matched by a key selector.
+    /// Use this when the view type does not implement IUniquelyIdentifiable.
+    /// </summary>
+    public static async Task Populate<TItem, TShowItem>(this IList<Ref<TItem>> item, IList<TShowItem> items, Func<TShowItem, string> keySelector)
+        where TItem : Entity, IUpdatableFrom<TShowItem>, new()
+        where TShowItem : ICreatableFrom<TItem>
+    {
+        if (item == null || item.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var f in item)
+        {
+            f.Item ??= new TItem();
+            f.Item.UpdateFrom(items.FirstOrDefault(e => keySelector(e) == f.Id));
+            f.Item.Id = f.Id;
+        }
+    }
+
+    /// <summary>
+    /// Populates a list of entity items from a list of view items, matched by a key selector.
+    /// Use this when the view type does not implement IUniquelyIdentifiable.
+    /// </summary>
+    public static async Task Populate<TItem, TShowItem>(this IList<TItem> item, IList<TShowItem> items, Func<TShowItem, string> keySelector)
+        where TItem : Entity, IUpdatableFrom<TShowItem>, new()
+        where TShowItem : ICreatableFrom<TItem>
+    {
+        if (item == null || item.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var f in item)
+        {
+            f.UpdateFrom(items.FirstOrDefault(e => keySelector(e) == f.Id));
+        }
     }
 }

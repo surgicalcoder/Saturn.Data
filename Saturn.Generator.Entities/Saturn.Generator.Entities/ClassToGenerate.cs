@@ -20,4 +20,10 @@ public class ClassToGenerate
     public bool InheritsParentLimitedViews { get; set; }
     public bool FlattenParentLimitedViews { get; set; }
     public string ParentClassName { get; set; }
+
+    /// <summary>
+    /// View names that exist on the parent class but have no members added by this child class.
+    /// Used to generate To_ViewName() delegation methods on the child.
+    /// </summary>
+    public List<string> ParentOnlyViewNames { get; set; } = new();
 }

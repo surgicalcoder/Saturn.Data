@@ -19,6 +19,8 @@ public static class Scanner
     private const string ATTRIBUTE_AddToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddToLimitedViewAttribute";
     private const string ATTRIBUTE_AddParentItemToLimitedView = $"{ATTRIBUTE_NAMESPACE}.AddParentItemToLimitedViewAttribute";
     private const string ATTRIBUTE_AddParentItemsLimitedViews = $"{ATTRIBUTE_NAMESPACE}.AddParentItemsLimitedViews";
+    private const string ATTRIBUTE_ExcludeFromLimitedView = $"{ATTRIBUTE_NAMESPACE}.ExcludeFromLimitedViewAttribute";
+    private const string ATTRIBUTE_ReadonlyInView = $"{ATTRIBUTE_NAMESPACE}.ReadonlyInViewAttribute";
     private const string ATTRIBUTE_NAMESPACE = "GoLive.Saturn.Generator.Entities.Resources";
 
     public static bool CanBeEntity(SyntaxNode node)
@@ -81,8 +83,57 @@ public static class Scanner
                 var parentMembers = CollectParentMembersWithLimitedViews(input.symbol);
                 retr.Members.InsertRange(0, parentMembers);
             }
+            else
+            {
+                // Feature 1: find view names from the parent that this child doesn't add any members to
+                var parentViewNames = CollectParentViewNames(input.symbol);
+                var childViewNames = retr.Members.SelectMany(m => m.LimitedViews.Select(lv => lv.Name));
+                retr.ParentOnlyViewNames = parentViewNames.Where(v => !childViewNames.Contains(v)).ToList();
+            }
         }
-        
+
+        // Feature 3: deduplicate ParentItemToGenerate entries (same ViewName + ChildPropertyName)
+        retr.ParentItemToGenerate = retr.ParentItemToGenerate
+            .GroupBy(r => (r.ViewName, r.ChildPropertyName))
+            .Select(g => g.First())
+            .ToList();
+
+        // Feature 4: expand wildcard [AddToLimitedView("*")] — replace with one entry per known view name
+        var allViewNames = retr.Members
+            .SelectMany(m => m.LimitedViews.Select(lv => lv.Name))
+            .Where(n => n != "*")
+            .Distinct()
+            .ToList();
+
+        foreach (var member in retr.Members)
+        {
+            var wildcardViews = member.LimitedViews.Where(lv => lv.Name == "*").ToList();
+            if (!wildcardViews.Any()) continue;
+
+            member.LimitedViews.RemoveAll(lv => lv.Name == "*");
+
+            foreach (var wildcard in wildcardViews)
+            {
+                foreach (var viewName in allViewNames)
+                {
+                    // Only add if not already explicitly registered for this view
+                    if (!member.LimitedViews.Any(lv => lv.Name == viewName))
+                    {
+                        member.LimitedViews.Add(new LimitedViewToGenerate
+                        {
+                            Name = viewName,
+                            OverrideReturnTypeToUseLimitedView = wildcard.OverrideReturnTypeToUseLimitedView,
+                            TwoWay = wildcard.TwoWay,
+                            Initializer = wildcard.Initializer,
+                            ComputedProperty = wildcard.ComputedProperty,
+                            DisableComputedPropertyDefault = wildcard.DisableComputedPropertyDefault,
+                            ReadOnly = wildcard.ReadOnly,
+                        });
+                    }
+                }
+            }
+        }
+
         return retr;
     }
 
@@ -172,6 +223,13 @@ public static class Scanner
         {
             var parentMembers = ConvertToMembers(baseType)
                 .Where(m => m.LimitedViews.Any())
+                .Select(m =>
+                {
+                    // Mark as view-only so the child class doesn't try to re-declare
+                    // properties that reference private backing fields from the parent
+                    m.UseOnlyForLimited = true;
+                    return m;
+                })
                 .ToList();
 
             // Insert at beginning so higher-level base class members come first
@@ -181,6 +239,27 @@ public static class Scanner
         }
 
         return result;
+    }
+
+    private static List<string> CollectParentViewNames(INamedTypeSymbol classSymbol)
+    {
+        var result = new HashSet<string>();
+        var baseType = classSymbol.BaseType;
+
+        while (baseType != null && baseType.SpecialType == SpecialType.None)
+        {
+            foreach (var member in ConvertToMembers(baseType))
+            {
+                foreach (var view in member.LimitedViews)
+                {
+                    result.Add(view.Name);
+                }
+            }
+
+            baseType = baseType.BaseType;
+        }
+
+        return result.ToList();
     }
 
     private static ISymbol GetMember(INamedTypeSymbol classDeclaration, string Name)    {
@@ -414,6 +493,43 @@ public static class Scanner
 
                     return retr;
                 }).ToList();
+        }
+
+        // Feature 7: apply ReadonlyInView — mark matching LimitedViews as read-only
+        if (attr.Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_ReadonlyInView))
+        {
+            var readonlyViewNames = attr
+                .Where(e => e.AttributeClass?.ToString() == ATTRIBUTE_ReadonlyInView)
+                .Select(e => e.ConstructorArguments.FirstOrDefault(r => r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string)
+                .Where(n => n != null)
+                ;
+
+            foreach (var lv in memberToGenerate.LimitedViews)
+            {
+                if (readonlyViewNames.Contains("*") || readonlyViewNames.Contains(lv.Name))
+                {
+                    lv.ReadOnly = true;
+                }
+            }
+        }
+
+        // Feature 2: apply ExcludeFromLimitedView — remove matching LimitedViews
+        if (attr.Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_ExcludeFromLimitedView))
+        {
+            var excludedViewNames = attr
+                .Where(e => e.AttributeClass?.ToString() == ATTRIBUTE_ExcludeFromLimitedView)
+                .Select(e => e.ConstructorArguments.FirstOrDefault(r => r is { Type: { SpecialType: SpecialType.System_String }, Value: not null }).Value as string)
+                .Where(n => n != null)
+                ;
+
+            if (excludedViewNames.Contains("*"))
+            {
+                memberToGenerate.LimitedViews.Clear();
+            }
+            else
+            {
+                memberToGenerate.LimitedViews.RemoveAll(lv => excludedViewNames.Contains(lv.Name));
+            }
         }
     }
 

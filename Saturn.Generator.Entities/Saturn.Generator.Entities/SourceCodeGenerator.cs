@@ -99,6 +99,12 @@ public static class SourceCodeGenerator
             source.AppendLine($"public {classToGen.Name}_{item.Key} To_{item.Key}() => {classToGen.Name}_{item.Key}.Generate(this);");
         }
 
+        // Feature 1: emit To_ViewName() for views that exist only on the parent (no child members added)
+        foreach (var viewName in classToGen.ParentOnlyViewNames)
+        {
+            source.AppendLine($"public {classToGen.ParentClassName}_{viewName} To_{viewName}() => {classToGen.ParentClassName}_{viewName}.Generate(this);");
+        }
+
 
         source.AppendLine("}");
 
@@ -174,14 +180,15 @@ public static class SourceCodeGenerator
                 outputAttributes(source, classDef);
 
                 var initString = string.IsNullOrWhiteSpace(v1.LimitedView.Initializer) ? string.Empty : $" = {v1.LimitedView.Initializer};";
+                var accessors = v1.LimitedView.ReadOnly ? "{get;}" : "{get;set;}";
 
                 if (string.IsNullOrWhiteSpace(v1.LimitedView.OverrideReturnTypeToUseLimitedView))
                 {
-                    source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
+                    source.AppendLine($"public {classDef.Type} {classDef.Name.FirstCharToUpper()} {accessors} {initString}");
                 }
                 else
                 {
-                    source.AppendLine($"public {v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {{get;set;}} {initString}");
+                    source.AppendLine($"public {v1.LimitedView.OverrideReturnTypeToUseLimitedView} {classDef.Name.FirstCharToUpper()} {accessors} {initString}");
                 }
             }
 
