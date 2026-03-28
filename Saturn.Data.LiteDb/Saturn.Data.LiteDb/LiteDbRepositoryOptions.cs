@@ -1,6 +1,6 @@
 using System.Reflection;
 using GoLive.Saturn.Data.Abstractions;
-using LiteDB;
+using LiteDbX;
 
 namespace Saturn.Data.LiteDb;
 

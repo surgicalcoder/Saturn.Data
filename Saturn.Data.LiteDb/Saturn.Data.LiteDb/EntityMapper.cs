@@ -1,49 +1,59 @@
 using System.Reflection;
 using GoLive.Saturn.Data.Entities;
-using LiteDB;
+using LiteDbX;
 
 namespace Saturn.Data.LiteDb;
+
+internal class EmptyRefForMapping : Entity { };
 
 public class CustomEntityMapper : BsonMapper
 {
     public CustomEntityMapper(Func<Type, object>? customTypeInstantiator = null, ITypeNameBinder? typeNameBinder = null) : base(customTypeInstantiator, typeNameBinder)
     {
-        RegisterType<string>(
-            serialize: value =>
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    return BsonValue.Null;
-                }
+        Inheritance<Entity>()
+            .Id(e => e.Id, BsonType.ObjectId, false)
+            .Ignore(e => e.EnableChangeTracking)
+            .Ignore(e => e.Changes)
+            .Ignore(e => e.Properties);
+        
+        RegisterOpenGenericType(
+            typeof(Ref<>),
+            serializeFactory: type =>
+        {
+                var idProperty = type.GetProperty(nameof(Ref<EmptyRefForMapping>.Id))
+                               ?? throw new InvalidOperationException($"Id property was not found on {type.FullName}.");
 
-                if (GoLive.Saturn.Data.Entities.Entity.TryParseId(value, out var output) && output is {} output1)
+                return (o, mapper) =>
                 {
-                    return new BsonValue(new ObjectId(output));
-                }
-                else
-                {
-                    return new BsonValue(value);
-                }
+                    if (o == null)
+                    {
+                        return BsonValue.Null;
+                    }
+        
+                    var id = idProperty.GetValue(o);
+                    return id == null ? BsonValue.Null : new BsonValue(new ObjectId(id as string));
+                };
             },
-            deserialize: bson =>
+            deserializeFactory: type =>
             {
-                if (bson == null || bson.IsNull)
+                var idProperty = type.GetProperty(nameof(Ref<EmptyRefForMapping>.Id))
+                                 ?? throw new InvalidOperationException($"Id property was not found on {type.FullName}.");
+
+                return (bson, mapper) =>
                 {
-                    return null;
-                }
-                
-                if (bson.IsObjectId)
-                {
-                    return bson.AsObjectId.ToString();
-                }
-                
-                if (bson.IsString)
-                {
-                    return bson.AsString;
-                }
-                
-                return bson.ToString();
-            });
+                    if (bson == null || bson.IsNull)
+                    {
+                        return null;
+                    }
+        
+                    var instance = Activator.CreateInstance(type)
+                                   ?? throw new InvalidOperationException($"Could not create instance of {type.FullName}.");
+        
+                    idProperty.SetValue(instance, mapper.Deserialize(idProperty.PropertyType, bson));
+                    return instance;
+                };
+        });
+        
 
         RegisterType<HashedString>(
             serialize: value =>
@@ -168,22 +178,5 @@ public class CustomEntityMapper : BsonMapper
                 
                 return item;
             });
-    }
-
-    protected override IEnumerable<MemberInfo> GetTypeMembers(Type type)
-    {
-        if (type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Ref<>) || type.GetGenericTypeDefinition() == typeof(WeakRef<>)))
-        {
-            return type
-                   .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                   .Where(p => p.Name == nameof(GoLive.Saturn.Data.Entities.Entity.Id));
-        }
-
-        
-        return base.GetTypeMembers(type)
-                   .Where(m => !m.IsDefined(typeof(NonSerializedAttribute), true) &&
-                               m.Name != "_shortId" &&
-                               m.Name != "Changes" &&
-                               m.Name != "EnableChangeTracking");
     }
 }

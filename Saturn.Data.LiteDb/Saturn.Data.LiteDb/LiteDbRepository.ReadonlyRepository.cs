@@ -1,8 +1,7 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
-using LiteDB;
-using LiteDB.Queryable;
+using LiteDbX;
 
 namespace Saturn.Data.LiteDb;
 
@@ -10,14 +9,19 @@ public partial class LiteDbRepository : IReadonlyRepository
 {
     public virtual async Task<TItem> ById<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return await GetCollection<TItem>().FindByIdAsync(id);
+        return await GetCollection<TItem>().FindById(id, cancellationToken);
     }
 
     public virtual async Task<IAsyncEnumerable<TItem>> ById<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var results = await GetCollection<TItem>().FindAsync(entity => IDs.Contains(entity.Id));
+        var results = GetCollection<TItem>().Find(entity => IDs.Contains(entity.Id), cancellationToken: cancellationToken);
 
-        return results.ToAsyncEnumerable();
+        return results;
+    }
+
+    public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    {
+        return await GetCollection<TItem>().LongCount(TransformRefEntityComparisons(predicate), cancellationToken);
     }
 
     public virtual Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -30,15 +34,14 @@ public partial class LiteDbRepository : IReadonlyRepository
         return GetCollection<TItem>().AsQueryable();
     }
 
-    public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
+    public Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var collection = GetCollection<TItem>();
         
         var finalQuery = BuildQuery(collection, predicate, continueFrom);
         finalQuery = ApplySortOrders(finalQuery, sortOrders);
 
-        var results = await finalQuery.ToListAsync();
-        return results.ToAsyncEnumerable();
+        return Task.FromResult(finalQuery.ToEnumerable(cancellationToken));
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -69,10 +72,10 @@ public partial class LiteDbRepository : IReadonlyRepository
         var finalQuery = BuildQuery(collection, predicate, continueFrom);
         finalQuery = ApplySortOrders(finalQuery, sortOrders);
 
-        return await finalQuery.FirstOrDefaultAsync();
+        return await finalQuery.FirstOrDefault(cancellationToken);
     }
-    
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
         var collection = GetCollection<TItem>();
         
@@ -86,12 +89,7 @@ public partial class LiteDbRepository : IReadonlyRepository
         
         var items = query.OrderBy(x => Guid.NewGuid()).Limit(count);
 
-        var results = await items.ToListAsync();
-        return results.ToAsyncEnumerable();
+        return items.ToEnumerable(cancellationToken);
     }
     
-    public virtual async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
-    {
-        return await GetCollection<TItem>().LongCountAsync(TransformRefEntityComparisons(predicate));
-    }
 }

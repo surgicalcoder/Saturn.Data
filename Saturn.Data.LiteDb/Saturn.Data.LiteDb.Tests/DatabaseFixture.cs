@@ -8,13 +8,13 @@ public class DatabaseFixture : IDisposable
 
     public DatabaseFixture()
     {
-        Saturn.Data.LiteDb.RuntimePatcher.Patcher.PatchLiteDB();
+//        Saturn.Data.LiteDb.RuntimePatcher.Patcher.PatchLiteDB();
         Repository = new UnitTestableLiteDb(new RepositoryOptions()
         {
             GetCollectionName = type => type.Name
         }, new ()
         {
-            ConnectionString = "Filename=\"e:\\_scratch\\litedb-unit-tests.db\";Connection=Shared",
+            ConnectionString = "Filename=\"e:\\_scratch\\litedb-unit-tests.db\";Connection=LockFile",
         });
         
         // Initialize database once
@@ -23,6 +23,6 @@ public class DatabaseFixture : IDisposable
 
     public void Dispose()
     {
-        Repository.DropRecreateDatabase();
+     //   Repository.DropRecreateDatabase();
     }
 }

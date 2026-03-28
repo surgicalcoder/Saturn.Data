@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
-using LiteDB;
+using LiteDbX;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Saturn.Data.LiteDb;
@@ -10,7 +10,7 @@ public partial class LiteDbRepository : IScopedRepository
 {
     public async Task Delete<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        await GetCollection<TItem>().DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id));
+        await GetCollection<TItem>().DeleteMany(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken);
     }
     
     public async Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
@@ -24,7 +24,7 @@ public partial class LiteDbRepository : IScopedRepository
             entity.Id = ObjectId.NewObjectId().ToString();
         }
 
-        await GetCollection<TItem>().InsertAsync(entity);
+        await GetCollection<TItem>().Insert(entity, cancellationToken);
     }
     public async Task Insert<TItem, TScope>(string scope, IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
@@ -37,7 +37,7 @@ public partial class LiteDbRepository : IScopedRepository
                 scopedEntity.Id = ObjectId.NewObjectId().ToString();
             }
         }
-        await GetCollection<TItem>().InsertAsync(entities);
+        await GetCollection<TItem>().Insert(entities, cancellationToken);
     }
     
     public async Task JsonUpdate<TItem, TScope>(string scope, string id, int version, string json, IDatabaseTransaction transaction, CancellationToken cancellationToken) 
@@ -45,7 +45,7 @@ public partial class LiteDbRepository : IScopedRepository
         where TScope : Entity, new()
     {
         var collection = GetCollection<TItem>();
-        var entity = await collection.FindOneAsync(e => e.Scope == scope && e.Id == id);
+        var entity = await collection.FindOne(e => e.Scope == scope && e.Id == id, cancellationToken);
 
         if (entity == null)
         {
@@ -56,7 +56,7 @@ public partial class LiteDbRepository : IScopedRepository
 
         entity.Version = version;
 
-        var updateResult = await collection.UpdateAsync(entity);
+        var updateResult = await collection.Update(entity, cancellationToken);
 
         if (!updateResult)
         {

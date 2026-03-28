@@ -1,7 +1,6 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
-using LiteDB.Queryable;
 using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.LiteDb;
@@ -15,7 +14,7 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
             return null;
         }
 
-        return await GetCollection<TItem>().FindOneAsync(e => e.Id == id && e.Scope == scope);
+        return await GetCollection<TItem>().FindOne(e => e.Id == id && e.Scope == scope, cancellationToken);
     }
 
     public async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
@@ -25,9 +24,9 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
             return null;
         }
 
-        var result = await GetCollection<TItem>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == scope);
+        var result = GetCollection<TItem>().Find(e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken);
 
-        return result.ToAsyncEnumerable();
+        return result;
     }
 
 
@@ -65,13 +64,8 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
         var combinedPredicate = predicate.And<TItem>(e => e.Scope == scope);
         return await One<TItem>(combinedPredicate, continueFrom, sortOrders, transaction, cancellationToken);
     }
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
-    {
-        var combinedPredicate = predicate == null ? (item => item.Scope == scope) : predicate.And<TItem>(e => e.Scope == scope);
-        return await Random<TItem>(combinedPredicate, count, transaction, cancellationToken);
-    }
-
-    public virtual async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    
+    public async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -81,6 +75,12 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
 
-        return await GetCollection<TItem>().LongCountAsync(combinedPred);
+        return await GetCollection<TItem>().LongCount(combinedPred, cancellationToken);
+    }
+    
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
+        var combinedPredicate = predicate == null ? (item => item.Scope == scope) : predicate.And<TItem>(e => e.Scope == scope);
+        return await Random<TItem>(combinedPredicate, continueFrom, count, transaction, cancellationToken);
     }
 }

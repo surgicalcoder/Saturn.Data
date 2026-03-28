@@ -1,7 +1,6 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
-using LiteDB.Queryable;
 
 namespace Saturn.Data.LiteDb;
 
@@ -12,16 +11,16 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
         where TSecondScope : Entity, new()
         where TPrimaryScope : Entity, new()
     {
-        var result = (await GetCollection<TItem>().FindAsync(e => e.Id == id && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id)).FirstOrDefault();
+        var result = GetCollection<TItem>().FindOne(e => e.Id == id && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id, cancellationToken: cancellationToken);
 
-        return result;
+        return await result;
     }
 
-    public async Task<IAsyncEnumerable<TItem>> ById<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
+    public Task<IAsyncEnumerable<TItem>> ById<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        var result = await GetCollection<TItem>().FindAsync(e => IDs.Contains(e.Id) && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id);
+        var result = GetCollection<TItem>().Find(e => IDs.Contains(e.Id) && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id, cancellationToken: cancellationToken);
 
-        return result.ToAsyncEnumerable();
+        return Task.FromResult(result);
     }
 
     public virtual Task<IAsyncEnumerable<TItem>> All<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -54,18 +53,21 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
         combinedWhereClause["SecondScope"] = secondScope.Id;
         return await Many<TItem>(combinedWhereClause, continueFrom, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
     }
+    
     public async Task<TItem> One<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
         var combinedPredicate = predicate.And<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id);
         var results = await Many<TItem>(combinedPredicate, continueFrom, 1, null, sortOrders, transaction, cancellationToken);
         return await results.FirstOrDefaultAsync(cancellationToken);
     }
+    
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
         var combinedPredicate = predicate == null ? (Expression<Func<TItem, bool>>)(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id) : predicate.And<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id);
         var results = await Many<TItem>(combinedPredicate, null, count, null, null, transaction, cancellationToken);
         return results;
     }
+    
     public virtual async Task<long> Count<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
         where TSecondScope : Entity, new()
@@ -74,6 +76,16 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
         var combinedPred = firstPred.And(TransformRefEntityComparisons(predicate));
 
-        return await GetCollection<TItem>().LongCountAsync(combinedPred);
+        return await GetCollection<TItem>().LongCount(combinedPred, cancellationToken);
+    }
+    
+    
+    public async Task<long> Count<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
+    {
+        throw new NotImplementedException();
+    }
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
+    {
+        throw new NotImplementedException();
     }
 }
