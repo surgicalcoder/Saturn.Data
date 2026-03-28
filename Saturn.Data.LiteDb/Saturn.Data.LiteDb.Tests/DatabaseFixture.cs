@@ -23,6 +23,6 @@ public class DatabaseFixture : IDisposable
 
     public void Dispose()
     {
-     //   Repository.DropRecreateDatabase();
+        Repository.DropRecreateDatabase();
     }
 }
