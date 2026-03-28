@@ -6498,6 +6498,11 @@
             Limit resultset
             </summary>
         </member>
+        <member name="P:LiteDbX.Engine.QueryPlan.IsEmptyResult">
+            <summary>
+            Query WHERE clause is known to be unsatisfiable, so execution can return no rows immediately.
+            </summary>
+        </member>
         <member name="P:LiteDbX.Engine.QueryPlan.Offset">
             <summary>
             Skip documents before returns

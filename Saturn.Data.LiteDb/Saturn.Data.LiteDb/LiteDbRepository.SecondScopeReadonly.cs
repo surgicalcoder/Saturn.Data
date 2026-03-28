@@ -61,31 +61,18 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
         return await results.FirstOrDefaultAsync(cancellationToken);
     }
     
-    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
-    {
-        var combinedPredicate = predicate == null ? (Expression<Func<TItem, bool>>)(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id) : predicate.And<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id);
-        var results = await Many<TItem>(combinedPredicate, null, count, null, null, transaction, cancellationToken);
-        return results;
-    }
     
-    public virtual async Task<long> Count<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
-        where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new()
-        where TSecondScope : Entity, new()
-        where TPrimaryScope : Entity, new()
+    public async Task<long> Count<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == primaryScope.Id && item.SecondScope == secondScope.Id;
         var combinedPred = firstPred.And(TransformRefEntityComparisons(predicate));
 
         return await GetCollection<TItem>().LongCount(combinedPred, cancellationToken);
     }
-    
-    
-    public async Task<long> Count<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
-    {
-        throw new NotImplementedException();
-    }
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        throw new NotImplementedException();
+        var combinedPredicate = predicate == null ? (Expression<Func<TItem, bool>>)(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id) : predicate.And<TItem>(e => e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id);
+        var results = await Many<TItem>(combinedPredicate, null, count, null, null, transaction, cancellationToken);
+        return results;
     }
 }
