@@ -55,6 +55,7 @@ public partial class LiteDbRepository //: IRepository
     }
     
     
+    /*
     private Expression<Func<TItem, bool>> TransformRefEntityComparisons<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity
     {
         return (Expression<Func<TItem, bool>>)new RefEqualityExpressionVisitor().Visit(predicate);
@@ -130,7 +131,7 @@ public partial class LiteDbRepository //: IRepository
             // No transformation needed
             if (left != node.Left || right != node.Right)
                 return Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull, node.Method);
-                */
+                #1#
                 
             return node;
         }
@@ -145,6 +146,7 @@ public partial class LiteDbRepository //: IRepository
             return typeof(Entity).IsAssignableFrom(type);
         }
     }
+    */
     
     
     

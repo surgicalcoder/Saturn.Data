@@ -21,12 +21,12 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        return await GetCollection<TItem>().LongCount(TransformRefEntityComparisons(predicate), cancellationToken);
+        return await GetCollection<TItem>().LongCount(ApplyContinueFrom(predicate, continueFrom), cancellationToken);
     }
 
-    public virtual Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public virtual async Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Task.FromResult(GetCollection<TItem>().AsQueryable().ToAsyncEnumerable());
+        return GetCollection<TItem>().FindAll(cancellationToken);
     }
 
     public virtual IQueryable<TItem> IQueryable<TItem>() where TItem : Entity
