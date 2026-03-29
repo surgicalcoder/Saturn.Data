@@ -185,9 +185,14 @@ public partial class LiteDbRepository //: IRepository
     /// </summary>
     internal virtual ILiteQueryable<TItem> BuildQuery<TItem>(ILiteCollection<TItem> collection, Expression<Func<TItem, bool>> predicate, string? continueFrom = null) where TItem : Entity
     {
-        var predExpr = BuildExpressionWithContinuation(predicate, continueFrom);
+        var query = collection.Query().Where(BsonMapper.Global.GetExpression(predicate));
 
-        return collection.Query().Where(predExpr);
+        if (!TryNormalizeContinuationToken(continueFrom, out var continuationToken, out _))
+        {
+            return query;
+        }
+
+        return query.Where(Query.GT("_id", new BsonValue(continuationToken)));
     }
 
     /// <summary>
@@ -196,14 +201,7 @@ public partial class LiteDbRepository //: IRepository
     /// </summary>
     internal virtual BsonExpression BuildExpressionWithContinuation<TItem>(Expression<Func<TItem, bool>> predicate, string? continueFrom = null) where TItem : Entity
     {
-        var predExpr = BsonMapper.Global.GetExpression(predicate);
-
-        if (!TryNormalizeContinuationToken(continueFrom, out var continuationToken, out _))
-        {
-            return predExpr;
-        }
-
-        return Query.And(predExpr, Query.GT("_id", new BsonValue(continuationToken)));
+        return BsonMapper.Global.GetExpression(predicate);
     }
 
     /// <summary>
