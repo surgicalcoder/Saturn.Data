@@ -21,7 +21,10 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        return await GetCollection<TItem>().LongCount(ApplyContinueFrom(predicate, continueFrom), cancellationToken);
+        var collection = GetCollection<TItem>();
+        var finalQuery = BuildQuery(collection, predicate, continueFrom);
+
+        return await finalQuery.LongCount(cancellationToken);
     }
 
     public virtual async Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -40,8 +43,9 @@ public partial class LiteDbRepository : IReadonlyRepository
         
         var finalQuery = BuildQuery(collection, predicate, continueFrom);
         finalQuery = ApplySortOrders(finalQuery, sortOrders);
+        var pagedQuery = ApplyPagination(finalQuery, pageSize, pageNumber);
 
-        return Task.FromResult(finalQuery.ToEnumerable(cancellationToken));
+        return Task.FromResult(pagedQuery.ToEnumerable(cancellationToken));
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -60,7 +64,7 @@ public partial class LiteDbRepository : IReadonlyRepository
 
         query = ApplyContinueFrom(query, continueFrom);
         query = ApplySortOrders(query, sortOrders);
-        query = ApplyPagination(query, pageSize);
+        query = ApplyPagination(query, pageSize, pageNumber);
     
         return query.ToAsyncEnumerable();
     }

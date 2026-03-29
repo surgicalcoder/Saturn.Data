@@ -146,7 +146,7 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
     }
 
     [Fact]
-    public async Task Many_With_Invalid_ContinueFrom_Should_Handle_Gracefully()
+    public async Task Many_With_Malformed_ContinueFrom_Should_Behave_Like_No_Cursor()
     {
         // Arrange
         await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1 });
@@ -163,16 +163,57 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entities);
 
-        // Act - Use non-existent continuation token
-        var nonExistentToken = EntityIdGenerator.GenerateNewId();
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
+
+        // Act - Use malformed continuation token
+        var expectedWithoutCursor = await (await ScopedReadonlyRepo.Many<ChildEntity, ParentScope>(
+            WELL_KNOWN.Parent_Scope_1.Id,
+            e => true,
+            pageSize: 5,
+            sortOrders: sortOrders)).ToListAsync();
+
+        var malformedTokenResults = await (await ScopedReadonlyRepo.Many<ChildEntity, ParentScope>(
+            WELL_KNOWN.Parent_Scope_1.Id,
+            e => true,
+            continueFrom: "not-a-valid-object-id",
+            pageSize: 5,
+            sortOrders: sortOrders)).ToListAsync();
+
+        // Assert - Malformed tokens are ignored so results should match the uncursored query
+        Assert.Equal(expectedWithoutCursor.Select(e => e.Id), malformedTokenResults.Select(e => e.Id));
+        Assert.All(malformedTokenResults, e => Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, e.Scope));
+    }
+
+    [Fact]
+    public async Task Many_With_Valid_But_Missing_ContinueFrom_Should_Apply_Id_Boundary()
+    {
+        // Arrange
+        await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1 });
+        
+        var entities = new List<ChildEntity>();
+        for (int i = 1; i <= 5; i++)
+        {
+            entities.Add(new ChildEntity 
+            { 
+                Id = EntityIdGenerator.GenerateNewId(), 
+                Name = $"TestEntity{i}" 
+            });
+        }
+        
+        await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entities);
+
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
+
+        // Act - Use a valid canonical ObjectId that is beyond all generated IDs in this test data
         var results = await (await ScopedReadonlyRepo.Many<ChildEntity, ParentScope>(
             WELL_KNOWN.Parent_Scope_1.Id,
             e => true,
-            continueFrom: nonExistentToken,
-            pageSize: 10)).ToListAsync();
+            continueFrom: "ffffffffffffffffffffffff",
+            pageSize: 10,
+            sortOrders: sortOrders)).ToListAsync();
 
-        // Assert - Should return results (as continuation filtering should handle gracefully)
-        Assert.All(results, e => Assert.Equal(WELL_KNOWN.Parent_Scope_1.Id, e.Scope));
+        // Assert - A valid but missing token still acts as an ID boundary
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -319,6 +360,37 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Count_With_ContinueFrom_Should_Respect_Id_Boundary_Within_Scope()
+    {
+        // Arrange
+        await repo.Insert(new List<ParentScope> { WELL_KNOWN.Parent_Scope_1 });
+
+        var entities = new List<ChildEntity>();
+        for (int i = 1; i <= 10; i++)
+        {
+            entities.Add(new ChildEntity
+            {
+                Id = EntityIdGenerator.GenerateNewId(),
+                Name = $"Entity{i:D2}"
+            });
+        }
+
+        await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entities);
+
+        var orderedIds = entities.Select(e => e.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        var continueFromToken = orderedIds[4];
+
+        // Act
+        var count = await ScopedReadonlyRepo.Count<ChildEntity, ParentScope>(
+            WELL_KNOWN.Parent_Scope_1.Id,
+            e => true,
+            continueFrom: continueFromToken);
+
+        // Assert
+        Assert.Equal(orderedIds.Count(id => string.Compare(id, continueFromToken, StringComparison.Ordinal) > 0), count);
+    }
+
+    [Fact]
     public async Task Many_With_ContinueFrom_Should_Work_With_Complex_Filters()
     {
         // Arrange
@@ -396,7 +468,8 @@ public class ScopedReadonlyContinuationTests(DatabaseFixture fixture) : IClassFi
         
         await ScopedRepo.Insert<ChildEntity, ParentScope>(WELL_KNOWN.Parent_Scope_1.Id, entities);
 
-        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Name, SortDirection.Ascending) };
+        // Continuation tokens are ID-based, so deterministic paging assertions require ID ordering.
+        var sortOrders = new[] { new SortOrder<ChildEntity>(e => e.Id, SortDirection.Ascending) };
 
         // Act - Get first page using dictionary where clause - use simple string matching instead of regex
         var whereClause = new Dictionary<string, object>();

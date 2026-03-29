@@ -179,41 +179,108 @@ public partial class LiteDbRepository //: IRepository
     }
 
     /// <summary>
-    /// Creates a LiteDB async query with predicate and continueFrom logic
+    /// Creates a LiteDB async query with predicate and continueFrom logic.
+    /// Continuation tokens are always interpreted as canonical ObjectId-based entity IDs.
+    /// Paging remains stable only when the caller sorts by <c>Id</c> ascending.
     /// </summary>
-    internal virtual ILiteQueryable<TItem> BuildQuery<TItem>(ILiteCollection<TItem> collection, Expression<Func<TItem, bool>> predicate, string continueFrom = null) where TItem : Entity
+    internal virtual ILiteQueryable<TItem> BuildQuery<TItem>(ILiteCollection<TItem> collection, Expression<Func<TItem, bool>> predicate, string? continueFrom = null) where TItem : Entity
+    {
+        var predExpr = BuildExpressionWithContinuation(predicate, continueFrom);
+
+        return collection.Query().Where(predExpr);
+    }
+
+    /// <summary>
+    /// Builds a predicate expression with optional continuation token support.
+    /// Invalid continuation tokens are ignored so callers can handle them gracefully.
+    /// </summary>
+    internal virtual BsonExpression BuildExpressionWithContinuation<TItem>(Expression<Func<TItem, bool>> predicate, string? continueFrom = null) where TItem : Entity
     {
         var predExpr = BsonMapper.Global.GetExpression(predicate);
-        
-        if (string.IsNullOrEmpty(continueFrom))
+
+        if (!TryNormalizeContinuationToken(continueFrom, out var continuationToken, out _))
         {
-            return collection.Query().Where(predExpr);
+            return predExpr;
         }
 
-        var andExpr = Query.And(predExpr, Query.GT("_id", new BsonValue(new ObjectId(continueFrom))));
-        return collection.Query().Where(andExpr);
+        return Query.And(predExpr, Query.GT("_id", new BsonValue(continuationToken)));
     }
 
     /// <summary>
-    /// Applies continueFrom logic to a LINQ queryable
+    /// Applies continueFrom logic to a LINQ queryable.
+    /// Continuation tokens are compared using their canonical ObjectId hex string representation.
     /// </summary>
-    internal virtual IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
+    internal virtual IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string? continueFrom) where TItem : Entity
     {
-        if (string.IsNullOrEmpty(continueFrom)) return query;
-        
-        return query.Where(x => string.Compare(x.Id, continueFrom) > 0);
+        if (!TryNormalizeContinuationToken(continueFrom, out _, out var normalizedContinuationToken))
+        {
+            return query;
+        }
+
+        return query.Where(x => string.Compare(x.Id, normalizedContinuationToken) > 0);
     }
 
     /// <summary>
-    /// Applies pagination to a queryable
+    /// Applies pagination to a LiteDB query.
+    /// <paramref name="pageNumber"/> is 1-based when supplied together with <paramref name="pageSize"/>.
     /// </summary>
-    internal virtual IQueryable<TItem> ApplyPagination<TItem>(IQueryable<TItem> query, int? pageSize) where TItem : Entity
+    internal virtual ILiteQueryableResult<TItem> ApplyPagination<TItem>(ILiteQueryable<TItem> query, int? pageSize, int? pageNumber = null) where TItem : Entity
     {
-        if (pageSize is > 0)
+        if (pageSize is not > 0)
         {
-            return query.Take(pageSize.Value);
+            return query;
         }
-        return query;
+
+        if (pageNumber is > 1)
+        {
+            return query.Offset((pageNumber.Value - 1) * pageSize.Value).Limit(pageSize.Value);
+        }
+
+        return query.Limit(pageSize.Value);
+    }
+
+    /// <summary>
+    /// Applies pagination to a queryable.
+    /// <paramref name="pageNumber"/> is 1-based when supplied together with <paramref name="pageSize"/>.
+    /// </summary>
+    internal virtual IQueryable<TItem> ApplyPagination<TItem>(IQueryable<TItem> query, int? pageSize, int? pageNumber = null) where TItem : Entity
+    {
+        if (pageSize is not > 0)
+        {
+            return query;
+        }
+
+        if (pageNumber is > 1)
+        {
+            query = query.Skip((pageNumber.Value - 1) * pageSize.Value);
+        }
+
+        return query.Take(pageSize.Value);
+    }
+
+    /// <summary>
+    /// Tries to normalize a continuation token into the canonical ObjectId hex string used by entity IDs.
+    /// </summary>
+    internal virtual bool TryNormalizeContinuationToken(string? continueFrom, out ObjectId continuationToken, out string? normalizedContinuationToken)
+    {
+        continuationToken = ObjectId.Empty;
+        normalizedContinuationToken = null;
+
+        if (string.IsNullOrWhiteSpace(continueFrom))
+        {
+            return false;
+        }
+
+        try
+        {
+            continuationToken = new ObjectId(continueFrom);
+            normalizedContinuationToken = continuationToken.ToString();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     

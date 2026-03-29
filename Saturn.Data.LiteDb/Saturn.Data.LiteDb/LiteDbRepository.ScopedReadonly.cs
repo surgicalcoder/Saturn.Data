@@ -83,7 +83,8 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
 
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
         var combinedPred = firstPred.And(predicate);
-        return await GetCollection<TItem>().LongCount(combinedPred, cancellationToken);
+
+        return await Count<TItem>(combinedPred, continueFrom, transaction, cancellationToken);
     }
     
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
