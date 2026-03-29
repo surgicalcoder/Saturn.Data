@@ -21,10 +21,10 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var collection = GetCollection<TItem>();
-        var finalQuery = BuildQuery(collection, predicate, continueFrom);
+        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
+        query = ApplyContinueFrom(query, continueFrom);
 
-        return await finalQuery.LongCount(cancellationToken);
+        return await query.ToAsyncEnumerable().LongCountAsync(cancellationToken);
     }
 
     public virtual async Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -39,13 +39,12 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var collection = GetCollection<TItem>();
-        
-        var finalQuery = BuildQuery(collection, predicate, continueFrom);
-        finalQuery = ApplySortOrders(finalQuery, sortOrders);
-        var pagedQuery = ApplyPagination(finalQuery, pageSize, pageNumber);
+        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
+        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplySortOrders(query, sortOrders);
+        query = ApplyPagination(query, pageSize, pageNumber);
 
-        return Task.FromResult(pagedQuery.ToEnumerable(cancellationToken));
+        return Task.FromResult(query.ToAsyncEnumerable());
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -54,11 +53,7 @@ public partial class LiteDbRepository : IReadonlyRepository
 
         foreach (var clause in whereClause)
         {
-            var parameter = Expression.Parameter(typeof(TItem), "entity");
-            var property = Expression.Property(parameter, clause.Key);
-            var constant = Expression.Constant(clause.Value);
-            var equal = Expression.Equal(property, constant);
-            var lambda = Expression.Lambda<Func<TItem, bool>>(equal, parameter);
+            var lambda = BuildWhereClausePredicate<TItem>(clause.Key, clause.Value);
             query = query.Where(lambda);
         }
 
@@ -71,12 +66,54 @@ public partial class LiteDbRepository : IReadonlyRepository
     
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var collection = GetCollection<TItem>();
-        
-        var finalQuery = BuildQuery(collection, predicate, continueFrom);
-        finalQuery = ApplySortOrders(finalQuery, sortOrders);
+        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
+        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplySortOrders(query, sortOrders);
 
-        return await finalQuery.FirstOrDefault(cancellationToken);
+        return await query.ToAsyncEnumerable().FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private static Expression<Func<TItem, bool>> BuildWhereClausePredicate<TItem>(string propertyName, object value) where TItem : Entity
+    {
+        var parameter = Expression.Parameter(typeof(TItem), "entity");
+        Expression property = Expression.Property(parameter, propertyName);
+        object comparisonValue = value;
+
+        var propertyType = property.Type;
+
+        if (TryGetEntityIdProperty(propertyType, out var idProperty) && value is string)
+        {
+            property = Expression.Property(property, idProperty);
+            propertyType = property.Type;
+        }
+
+        if (comparisonValue != null && propertyType != comparisonValue.GetType())
+        {
+            comparisonValue = Convert.ChangeType(comparisonValue, Nullable.GetUnderlyingType(propertyType) ?? propertyType);
+        }
+
+        var constant = Expression.Constant(comparisonValue, propertyType);
+        var equal = Expression.Equal(property, constant);
+        return Expression.Lambda<Func<TItem, bool>>(equal, parameter);
+    }
+
+    private static bool TryGetEntityIdProperty(Type type, out string idProperty)
+    {
+        idProperty = null;
+
+        if (typeof(Entity).IsAssignableFrom(type))
+        {
+            idProperty = "Id";
+            return true;
+        }
+
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Ref<>))
+        {
+            idProperty = "Id";
+            return true;
+        }
+
+        return false;
     }
 
     public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
