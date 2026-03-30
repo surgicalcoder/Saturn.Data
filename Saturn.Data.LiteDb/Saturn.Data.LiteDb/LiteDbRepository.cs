@@ -195,6 +195,26 @@ public partial class LiteDbRepository //: IRepository
         return query.Where(Query.GT("_id", new BsonValue(continuationToken)));
     }
 
+    internal virtual bool CanApplyContinuation<TItem>(IEnumerable<SortOrder<TItem>>? sortOrders) where TItem : Entity
+    {
+        if (sortOrders == null)
+        {
+            return true;
+        }
+
+        using var enumerator = sortOrders.GetEnumerator();
+
+        if (!enumerator.MoveNext())
+        {
+            return true;
+        }
+
+        var firstSort = enumerator.Current;
+
+        return firstSort.Direction == SortDirection.Ascending &&
+               TryGetMemberName(firstSort.Field.Body) == nameof(Entity.Id);
+    }
+
     /// <summary>
     /// Builds a predicate expression with optional continuation token support.
     /// Invalid continuation tokens are ignored so callers can handle them gracefully.
@@ -279,6 +299,41 @@ public partial class LiteDbRepository //: IRepository
         {
             return false;
         }
+    }
+
+    internal virtual List<BsonValue> NormalizeEntityIds(IEnumerable<string>? ids)
+    {
+        var normalizedIds = new List<BsonValue>();
+
+        if (ids == null)
+        {
+            return normalizedIds;
+        }
+
+        foreach (var id in ids.Distinct(StringComparer.Ordinal))
+        {
+            if (TryNormalizeContinuationToken(id, out var objectId, out _))
+            {
+                normalizedIds.Add(new BsonValue(objectId));
+            }
+        }
+
+        return normalizedIds;
+    }
+
+    internal static async IAsyncEnumerable<TItem> EmptyAsyncEnumerable<TItem>()
+    {
+        yield break;
+    }
+
+    private static string? TryGetMemberName(Expression expression)
+    {
+        if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unaryExpression)
+        {
+            return TryGetMemberName(unaryExpression.Operand);
+        }
+
+        return expression is MemberExpression memberExpression ? memberExpression.Member.Name : null;
     }
 
     

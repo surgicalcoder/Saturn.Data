@@ -14,17 +14,27 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public virtual async Task<IAsyncEnumerable<TItem>> ById<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var results = GetCollection<TItem>().Find(entity => IDs.Contains(entity.Id), cancellationToken: cancellationToken);
+        var normalizedIds = NormalizeEntityIds(IDs);
+
+        if (normalizedIds.Count == 0)
+        {
+            return EmptyAsyncEnumerable<TItem>();
+        }
+
+        var results = GetCollection<TItem>()
+            .Query()
+            .Where(Query.In("_id", normalizedIds))
+            .ToEnumerable(cancellationToken);
 
         return results;
     }
 
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
-        query = ApplyContinueFrom(query, continueFrom);
+        var collection = GetCollection<TItem>();
+        var query = BuildQuery(collection, predicate, continueFrom);
 
-        return await query.ToAsyncEnumerable().LongCountAsync(cancellationToken);
+        return await query.LongCount(cancellationToken);
     }
 
     public virtual async Task<IAsyncEnumerable<TItem>> All<TItem>(IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -39,38 +49,34 @@ public partial class LiteDbRepository : IReadonlyRepository
 
     public Task<IAsyncEnumerable<TItem>> Many<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
-        query = ApplyContinueFrom(query, continueFrom);
-        query = ApplySortOrders(query, sortOrders);
-        query = ApplyPagination(query, pageSize, pageNumber);
+        var collection = GetCollection<TItem>();
+        var effectiveContinueFrom = CanApplyContinuation(sortOrders) ? continueFrom : null;
 
-        return Task.FromResult(query.ToAsyncEnumerable());
+        var query = BuildQuery(collection, predicate, effectiveContinueFrom);
+        query = ApplySortOrders(query, sortOrders);
+        var finalQuery = ApplyPagination(query, pageSize, pageNumber);
+
+        return Task.FromResult(finalQuery.ToEnumerable(cancellationToken));
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem>(Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable();
+        Expression<Func<TItem, bool>> predicate = entity => true;
 
         foreach (var clause in whereClause)
         {
-            var lambda = BuildWhereClausePredicate<TItem>(clause.Key, clause.Value);
-            query = query.Where(lambda);
+            predicate = predicate.And(BuildWhereClausePredicate<TItem>(clause.Key, clause.Value));
         }
 
-        query = ApplyContinueFrom(query, continueFrom);
-        query = ApplySortOrders(query, sortOrders);
-        query = ApplyPagination(query, pageSize, pageNumber);
-    
-        return query.ToAsyncEnumerable();
+        return await Many(predicate, continueFrom, pageSize, pageNumber, sortOrders, transaction, cancellationToken);
     }
     
     public async Task<TItem> One<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var query = GetCollection<TItem>().AsQueryable().Where(predicate);
-        query = ApplyContinueFrom(query, continueFrom);
-        query = ApplySortOrders(query, sortOrders);
+        var effectiveContinueFrom = CanApplyContinuation(sortOrders) ? continueFrom : null;
+        var results = await Many(predicate, effectiveContinueFrom, 1, null, sortOrders, transaction, cancellationToken);
 
-        return await query.ToAsyncEnumerable().FirstOrDefaultAsync(cancellationToken);
+        return await results.FirstOrDefaultAsync(cancellationToken);
     }
 
     private static Expression<Func<TItem, bool>> BuildWhereClausePredicate<TItem>(string propertyName, object value) where TItem : Entity

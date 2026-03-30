@@ -20,7 +20,12 @@ public partial class LiteDbRepository : ISecondScopedRepository
     
     public async Task Delete<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        await GetCollection<TItem>().DeleteMany(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id && IDs.Contains(f.Id), cancellationToken);
+        var matchingEntities = await ById<TItem, TSecondScope, TPrimaryScope>(primaryScope, secondScope, IDs, transaction, cancellationToken);
+
+        await foreach (var entity in matchingEntities.WithCancellation(cancellationToken))
+        {
+            await GetCollection<TItem>().Delete(entity.Id, cancellationToken);
+        }
     }
     
     public async Task Insert<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()

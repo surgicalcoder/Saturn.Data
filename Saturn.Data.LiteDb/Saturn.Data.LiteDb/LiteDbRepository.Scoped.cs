@@ -10,7 +10,12 @@ public partial class LiteDbRepository : IScopedRepository
 {
     public async Task Delete<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
-        await GetCollection<TItem>().DeleteMany(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken);
+        var matchingEntities = await ById<TItem, TScope>(scope, IDs, transaction, cancellationToken);
+
+        await foreach (var entity in matchingEntities.WithCancellation(cancellationToken))
+        {
+            await GetCollection<TItem>().Delete(entity.Id, cancellationToken);
+        }
     }
     
     public async Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction, CancellationToken cancellationToken) 

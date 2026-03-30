@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using LiteDbX;
 
 namespace Saturn.Data.LiteDb;
 
@@ -18,7 +19,20 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
 
     public Task<IAsyncEnumerable<TItem>> ById<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TPrimaryScope>, new() where TSecondScope : Entity, new() where TPrimaryScope : Entity, new()
     {
-        var result = GetCollection<TItem>().Find(e => IDs.Contains(e.Id) && e.Scope == primaryScope.Id && e.SecondScope == secondScope.Id, cancellationToken: cancellationToken);
+        var normalizedIds = NormalizeEntityIds(IDs);
+
+        if (normalizedIds.Count == 0)
+        {
+            return Task.FromResult(EmptyAsyncEnumerable<TItem>());
+        }
+
+        Expression<Func<TItem, bool>> scopePredicate = entity => entity.Scope == primaryScope.Id && entity.SecondScope == secondScope.Id;
+
+        var result = GetCollection<TItem>()
+            .Query()
+            .Where(BsonMapper.Global.GetExpression(scopePredicate))
+            .Where(Query.In("_id", normalizedIds))
+            .ToEnumerable(cancellationToken);
 
         return Task.FromResult(result);
     }

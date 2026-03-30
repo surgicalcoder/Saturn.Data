@@ -29,7 +29,20 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
             return null;
         }
 
-        var result = GetCollection<TItem>().Find(e => IDs.Contains(e.Id) && e.Scope == scope, cancellationToken: cancellationToken);
+        var normalizedIds = NormalizeEntityIds(IDs);
+
+        if (normalizedIds.Count == 0)
+        {
+            return EmptyAsyncEnumerable<TItem>();
+        }
+
+        Expression<Func<TItem, bool>> scopePredicate = entity => entity.Scope == scope;
+
+        var result = GetCollection<TItem>()
+            .Query()
+            .Where(BsonMapper.Global.GetExpression(scopePredicate))
+            .Where(Query.In("_id", normalizedIds))
+            .ToEnumerable(cancellationToken);
 
         return result;
     }
