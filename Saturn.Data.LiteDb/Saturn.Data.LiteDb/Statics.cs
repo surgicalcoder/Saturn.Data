@@ -9,14 +9,7 @@ public static class Statics
     {
         ReadOnlySpan<byte> span;
 
-        if (BitConverter.IsLittleEndian)
-        {
-            span = "`\0"u8;
-        }
-        else
-        {
-            span = "\0`"u8;
-        }
+        span = BitConverter.IsLittleEndian ? "`\0"u8 : "\0`"u8;
 
         return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<byte, char>(ref MemoryMarshal.GetReference(span)), 1);
     }

@@ -13,8 +13,9 @@ public class UnitTestableLiteDb(RepositoryOptions repositoryOptions, LiteDBRepos
 
     public void DropRecreateDatabase()
     {
-        database.Dispose();
+        database.DisposeAsync().AsTask().Wait();
+
         File.Delete("e:\\_scratch\\litedb-unit-tests.db");
-        database = new LiteDatabase(liteDbOptions.ConnectionString, mapper);
+        database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper).Result;
     }
 };

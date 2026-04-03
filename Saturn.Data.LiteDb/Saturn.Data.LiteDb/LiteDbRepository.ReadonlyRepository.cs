@@ -107,13 +107,7 @@ public partial class LiteDbRepository : IReadonlyRepository
     {
         idProperty = null;
 
-        if (typeof(Entity).IsAssignableFrom(type))
-        {
-            idProperty = "Id";
-            return true;
-        }
-
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Ref<>))
+        if (typeof(Entity).IsAssignableFrom(type) || type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Ref<>))
         {
             idProperty = "Id";
             return true;
