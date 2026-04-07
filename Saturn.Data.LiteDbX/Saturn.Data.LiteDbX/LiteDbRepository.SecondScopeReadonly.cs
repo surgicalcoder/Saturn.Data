@@ -44,7 +44,7 @@ public partial class LiteDbRepository : ISecondScopedReadonlyRepository
     {
         var scopedEntities = GetCollection<TItem>().AsQueryable().Where(f => f.Scope == primaryScope.Id && f.SecondScope == secondScope.Id);
 
-        return Task.FromResult(scopedEntities.ToAsyncEnumerable());
+        return Task.FromResult(scopedEntities.ToAsyncEnumerable(cancellationToken: cancellationToken));
     }
 
     public virtual IQueryable<TItem> IQueryable<TItem, TSecondScope, TPrimaryScope>(Ref<TPrimaryScope> primaryScope, Ref<TSecondScope> secondScope)

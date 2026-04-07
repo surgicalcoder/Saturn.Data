@@ -57,7 +57,7 @@ public partial class LiteDbRepository : IScopedReadonlyRepository
         Expression<Func<TItem, bool>> pred = f => f.Scope == scope;
 
         var scopedEntities = GetCollection<TItem>().AsQueryable().Where(pred);
-        return Task.FromResult(scopedEntities.ToAsyncEnumerable());
+        return Task.FromResult(scopedEntities.ToAsyncEnumerable(cancellationToken: cancellationToken));
     }
 
     public virtual IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
