@@ -181,8 +181,10 @@ public partial class MongoDbRepository
         ConventionRegistry.Register("Custom Conventions", pack, _ => true);
 
         var objectSerializer = new ObjectSerializer(mongoOptions.ObjectSerializerConfiguration);
+        
         _ = BsonSerializer.TryRegisterSerializer(objectSerializer);
 
+        _ = BsonSerializer.TryRegisterSerializer(typeof(WeakRef), new WeakRefSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(Timestamp), new TimestampSerializer());
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
         _ = BsonSerializer.TryRegisterSerializer(typeof(decimal?), new NullableSerializer<decimal>(new DecimalSerializer(BsonType.Decimal128)));
