@@ -20,7 +20,7 @@ public class CustomEntityMapper : BsonMapper
             typeof(Ref<>),
             serializeFactory: type =>
         {
-                var idProperty = type.GetProperty(nameof(Ref<EmptyRefForMapping>.Id))
+                var idProperty = type.GetProperty(nameof(Ref<>.Id))
                                ?? throw new InvalidOperationException($"Id property was not found on {type.FullName}.");
 
                 return (o, mapper) =>
@@ -36,7 +36,7 @@ public class CustomEntityMapper : BsonMapper
             },
             deserializeFactory: type =>
             {
-                var idProperty = type.GetProperty(nameof(Ref<EmptyRefForMapping>.Id))
+                var idProperty = type.GetProperty(nameof(Ref<>.Id))
                                  ?? throw new InvalidOperationException($"Id property was not found on {type.FullName}.");
 
                 return (bson, mapper) =>
