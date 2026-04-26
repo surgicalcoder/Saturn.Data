@@ -1,0 +1,25 @@
+﻿<Solution>
+  <Folder Name="/LiteDbX/">
+    <Project Path="Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.Playground\Saturn.Data.LiteDbX.Playground.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.Tests\Saturn.Data.LiteDbX.Tests.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.LiteDbX\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/MongoDb/">
+    <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.Json\GoLive.Saturn.Data.MongoDb.EntitySerializers.Json.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft\GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher\GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.MongoDb\Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.Tests.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.MongoDb\Saturn.Data.MongoDb\Saturn.Data.MongoDb.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/StellarDb/">
+    <Project Path="Saturn.Data.Stellar\Saturn.Data.Stellar.Tests\Saturn.Data.Stellar.Tests.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.Stellar\Saturn.Data.Stellar\Saturn.Data.Stellar.csproj" Type="Classic C#" />
+  </Folder>
+  <Project Path="Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions.csproj" Type="Classic C#" />
+  <Project Path="Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" Type="Classic C#" />
+  <Project Path="Saturn.Data.Entities\Saturn.Data.Entities.JsonConverters\Saturn.Data.Entities.JsonConverters.csproj" Type="Classic C#" />
+  <Project Path="Saturn.Generator.Entities\Saturn.Generator.Entities.Playground\Saturn.Generator.Entities.Playground.csproj" Type="Classic C#" />
+  <Project Path="Saturn.Generator.Entities\Saturn.Generator.Entities.Resources\Saturn.Generator.Entities.Resources.csproj" Type="Classic C#" />
+  <Project Path="Saturn.Generator.Entities\Saturn.Generator.Entities\Saturn.Generator.Entities.csproj" Type="Classic C#" />
+</Solution>

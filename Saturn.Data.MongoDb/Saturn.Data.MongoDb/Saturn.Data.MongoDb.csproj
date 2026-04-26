@@ -24,8 +24,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="6.0.38" />
-      <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.28" />
+      <ProjectReference Include="..\..\Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions.csproj" />
+      <ProjectReference Include="..\..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
       <PackageReference Include="GoLive.Saturn.Data.MongoDb.EntitySerializers" Version="6.0.3" />
       <PackageReference Include="MongoDB.Bson" Version="3.7.1" />
       <PackageReference Include="MongoDB.Driver" Version="3.7.1" />
@@ -35,6 +35,13 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="MongoDbRepository.WeakScoped.cs" />
+      <Compile Remove="MongoDbRepository.WeakScopedReadonly.cs" />
+      <Compile Remove="MongoDbRepository.WeakSecondScoped.cs" />
+      <Compile Remove="MongoDbRepository.WeakSecondScopedReadonly.cs" />
     </ItemGroup>
 
 </Project>

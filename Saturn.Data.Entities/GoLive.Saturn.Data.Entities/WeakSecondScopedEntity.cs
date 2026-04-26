@@ -1,12 +1,12 @@
-﻿namespace GoLive.Saturn.Data.Entities;
+namespace GoLive.Saturn.Data.Entities;
 
-public abstract class SecondScopedEntity<TSecondScope, TPrimaryScope> : MultiscopedEntity<TPrimaryScope>, ISecondScopedById
-    where TSecondScope : Entity, new() 
-    where TPrimaryScope : Entity, new()
+public abstract class WeakSecondScopedEntity<TSecondScope, TPrimaryScope> : WeakMultiscopedEntity<TPrimaryScope>, ISecondScopedById
+    where TSecondScope : Entity
+    where TPrimaryScope : Entity
 {
-    private Ref<TSecondScope> secondScope;
-    
-    public virtual Ref<TSecondScope> SecondScope
+    private WeakRef<TSecondScope> secondScope;
+
+    public virtual WeakRef<TSecondScope> SecondScope
     {
         get => secondScope;
         set
@@ -23,15 +23,16 @@ public abstract class SecondScopedEntity<TSecondScope, TPrimaryScope> : Multisco
                     Scopes.Add(value.Id);
                 }
 
-                SetField(ref secondScope, value.Id);
+                secondScope = value;
             }
             else
             {
                 if (secondScope != null && !string.IsNullOrWhiteSpace(secondScope.Id) && Scopes.Contains(secondScope.Id))
                 {
                     Scopes.Remove(secondScope.Id);
-                    SetField(ref secondScope, string.Empty);
                 }
+
+                secondScope = null;
             }
         }
     }
@@ -39,6 +40,7 @@ public abstract class SecondScopedEntity<TSecondScope, TPrimaryScope> : Multisco
     public virtual string SecondScopeId
     {
         get => SecondScope?.Id;
-        set => SecondScope = string.IsNullOrWhiteSpace(value) ? null : value;
+        set => SecondScope = string.IsNullOrWhiteSpace(value) ? null : new WeakRef<TSecondScope>(value);
     }
 }
+
