@@ -2,6 +2,7 @@ using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Saturn.Data.MongoDb.Tests.Entities;
+using Xunit.Abstractions;
 
 namespace Saturn.Data.MongoDb.Tests;
 
@@ -23,7 +24,7 @@ namespace Saturn.Data.MongoDb.Tests;
 /// therefore expected to FAIL – that is the point. They are the "red" half of the pair.
 /// The *_With_Normalization twins of each test are the "green" half and must pass.
 /// </summary>
-public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<DatabaseFixture>, IAsyncLifetime
+public class RefIdSerializationTests(DatabaseFixture fixture, ITestOutputHelper output) : IClassFixture<DatabaseFixture>, IAsyncLifetime
 {
     private readonly UnitTestableMongoDbRepository repo = fixture.Repository;
 
@@ -32,6 +33,8 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
     public async Task DisposeAsync()
     {
         await repo.Delete<BackgroundTask>(e => true);
+        await repo.Delete<RefEntity>(e => true);
+        await repo.Delete<BasicEntity>(e => true);
     }
 
     // -------------------------------------------------------------------------
@@ -205,5 +208,85 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
 
         string storedId = element.AsObjectId.ToString();
         Assert.Equal(dep.Id, storedId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Single Ref<T> field – raw BSON shape assertions
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Verifies that a single (non-list) Ref&lt;T&gt; field with a populated Id is stored as a
+    /// plain ObjectId in MongoDB, not as a sub-document.
+    /// </summary>
+    [Fact]
+    public async Task Single_Ref_With_Id_Is_Serialized_As_Plain_ObjectId()
+    {
+        const string basicId = "68bdd5525324ff2610c44020";
+        const string refId   = "68bdd5525324ff2610c44021";
+
+        var basic = new BasicEntity { Id = basicId, Name = "Basic" };
+        var refEntity = new RefEntity { Id = refId, Name = "WithRef", BasicEntityItem = new Ref<BasicEntity>(basicId) };
+
+        await repo.Insert(basic);
+        await repo.Insert(refEntity);
+
+        var rawCollection = repo.GetRawCollection<RefEntity>();
+        var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(refId));
+        var rawDoc = await rawCollection.Find(filter).FirstOrDefaultAsync();
+
+        Assert.NotNull(rawDoc);
+
+        output.WriteLine("Serialized BSON document (JSON representation):");
+        output.WriteLine(rawDoc.ToJson());
+
+        var element = rawDoc["BasicEntityItem"];
+        string bsonTypeName = element.BsonType.ToString();
+        output.WriteLine($"BasicEntityItem BSON type: {bsonTypeName}");
+
+        Assert.True(element.BsonType == BsonType.ObjectId,
+            $"Expected BasicEntityItem to be a plain ObjectId, but was {bsonTypeName}. " +
+            "If this is a sub-document, the serializer is broken.");
+
+        Assert.Equal(basicId, element.AsObjectId.ToString());
+
+        // Round-trip: deserialize back and verify Id is preserved, Item is not populated
+        var retrieved = await repo.ById<RefEntity>(refId);
+        Assert.NotNull(retrieved);
+        Assert.Equal(basicId, retrieved.BasicEntityItem.Id);
+        Assert.Null(retrieved.BasicEntityItem.Item);
+    }
+
+    /// <summary>
+    /// Verifies that a null Ref&lt;T&gt; field is stored as BsonNull (not a sub-document or missing key).
+    /// </summary>
+    [Fact]
+    public async Task Single_Null_Ref_Is_Serialized_As_BsonNull()
+    {
+        const string refId = "68bdd5525324ff2610c44022";
+
+        var refEntity = new RefEntity { Id = refId, Name = "NullRef", BasicEntityItem = null! };
+
+        await repo.Insert(refEntity);
+
+        var rawCollection = repo.GetRawCollection<RefEntity>();
+        var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(refId));
+        var rawDoc = await rawCollection.Find(filter).FirstOrDefaultAsync();
+
+        Assert.NotNull(rawDoc);
+
+        output.WriteLine("Serialized BSON document (JSON representation):");
+        output.WriteLine(rawDoc.ToJson());
+
+        var element = rawDoc["BasicEntityItem"];
+        string bsonTypeName = element.BsonType.ToString();
+        output.WriteLine($"Null BasicEntityItem BSON type: {bsonTypeName}");
+
+        Assert.True(element.BsonType == BsonType.Null,
+            $"Expected null Ref to be stored as BsonNull, but was {bsonTypeName}.");
+
+        // Round-trip: deserialize back and verify the field comes back as null
+        var retrieved = await repo.ById<RefEntity>(refId);
+        Assert.NotNull(retrieved);
+        Assert.Null(retrieved.BasicEntityItem);
     }
 }

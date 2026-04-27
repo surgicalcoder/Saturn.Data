@@ -2,6 +2,7 @@
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Driver;
+using Saturn.Data.MongoDb.ExpressionRewriters;
 
 namespace Saturn.Data.MongoDb;
 
@@ -9,10 +10,11 @@ public partial class MongoDbRepository : IRepository
 {
     public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
+        var normalizedFilter = filter.NormalizeForRef();
         await ExecuteWithTransaction<TItem>(
             transaction,
-            (collection, session) => collection.DeleteManyAsync(session, filter, cancellationToken: cancellationToken),
-            collection => collection.DeleteManyAsync(filter, cancellationToken: cancellationToken)
+            (collection, session) => collection.DeleteManyAsync(session, normalizedFilter, cancellationToken: cancellationToken),
+            collection => collection.DeleteManyAsync(normalizedFilter, cancellationToken: cancellationToken)
         );
     }
     
@@ -109,7 +111,7 @@ public partial class MongoDbRepository : IRepository
     
     public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var pred = conditionPredicate.And(e => e.Id == entity.Id);
+        var pred = conditionPredicate.NormalizeForRef().And(e => e.Id == entity.Id);
 
         var updateResult = await ExecuteWithTransaction<TItem, ReplaceOneResult>(
             transaction,

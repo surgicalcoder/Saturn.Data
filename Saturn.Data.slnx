@@ -7,7 +7,6 @@
   <Folder Name="/MongoDb/">
     <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.Json\GoLive.Saturn.Data.MongoDb.EntitySerializers.Json.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft\GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft.csproj" Type="Classic C#" />
-    <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher\GoLive.Saturn.Data.MongoDb.EntitySerializers.RuntimePatcher.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers\GoLive.Saturn.Data.MongoDb.EntitySerializers.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.MongoDb\Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.Tests.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.MongoDb\Saturn.Data.MongoDb\Saturn.Data.MongoDb.csproj" Type="Classic C#" />

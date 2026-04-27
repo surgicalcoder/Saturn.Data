@@ -34,4 +34,13 @@ public class UnitTestableMongoDbRepository(RepositoryOptions repositoryOptions, 
         var cursor = await GetCollection<T>().FindAsync(filter);
         return await cursor.ToListAsync();
     }
+
+    /// <summary>
+    /// Deletes directly against MongoDB WITHOUT the NormalizeForRef() rewriter.
+    /// Used to prove that Ref&lt;T&gt;.Id comparisons on the delete path fail without the fix.
+    /// </summary>
+    public async Task DeleteWithoutNormalization<T>(Expression<Func<T, bool>> predicate) where T : Entity
+    {
+        await GetCollection<T>().DeleteManyAsync(predicate);
+    }
 }
