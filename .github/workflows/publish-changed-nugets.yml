@@ -1,0 +1,218 @@
+﻿name: Publish Changed NuGets
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish packages after build/pack"
+        required: false
+        type: boolean
+        default: true
+      version_bump:
+        description: "Automatic bump level for changed packages"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      commit_version_changes:
+        description: "Commit bumped versions back to the branch"
+        required: false
+        type: boolean
+        default: true
+      base_ref:
+        description: "Optional git base ref/SHA for manual diff"
+        required: false
+        type: string
+      head_ref:
+        description: "Optional git head ref/SHA for manual diff"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  detect:
+    name: Detect changed projects
+    runs-on: ubuntu-latest
+    outputs:
+      build_projects_json: ${{ steps.detect.outputs.build_projects_json }}
+      publish_projects_json: ${{ steps.detect.outputs.publish_projects_json }}
+      build_count: ${{ steps.detect.outputs.build_count }}
+      publish_count: ${{ steps.detect.outputs.publish_count }}
+      changed_count: ${{ steps.detect.outputs.changed_count }}
+      base_sha: ${{ steps.detect.outputs.base_sha }}
+      head_sha: ${{ steps.detect.outputs.head_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes and project impact
+        id: detect
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $scriptPath = Join-Path '${{ github.workspace }}' 'scripts/detect-changed-projects.ps1'
+          if (-not (Test-Path -LiteralPath $scriptPath)) {
+            throw "Missing detection script: $scriptPath"
+          }
+
+          $params = @{
+            RepoRoot = '${{ github.workspace }}'
+            EventName = '${{ github.event_name }}'
+            HeadSha = '${{ github.sha }}'
+            BeforeSha = '${{ github.event.before }}'
+            PrBaseRef = '${{ github.base_ref }}'
+            PrBaseSha = '${{ github.event.pull_request.base.sha }}'
+            AsJson = $true
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.base_ref }}')) {
+            $params.BaseSha = '${{ inputs.base_ref }}'
+          }
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.head_ref }}')) {
+            $params.HeadSha = '${{ inputs.head_ref }}'
+          }
+
+          $result = (& $scriptPath @params | ConvertFrom-Json)
+
+          "base_sha=$($result.BaseSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "head_sha=$($result.HeadSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "changed_count=$($result.ChangedFileCount)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "build_count=$($result.BuildProjectCount)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "publish_count=$($result.PublishProjectCount)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "build_projects_json=$($result.BuildProjects | ConvertTo-Json -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "publish_projects_json=$($result.PublishProjects | ConvertTo-Json -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Change detection"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Base SHA: $($result.BaseSha)"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Head SHA: $($result.HeadSha)"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Changed files: $($result.ChangedFileCount)"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Projects to build: $($result.BuildProjectCount)"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Projects to publish: $($result.PublishProjectCount)"
+
+          if ($result.PublishProjectCount -gt 0) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Publish candidates"
+            foreach ($p in $result.PublishProjects) {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- $p"
+            }
+          }
+
+  build_pack_publish:
+    name: Build, pack, and publish
+    needs: detect
+    runs-on: ubuntu-latest
+    if: needs.detect.outputs.build_count != '0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Auto bump versions for changed packages
+        if: needs.detect.outputs.publish_count != '0'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $projects = @('${{ needs.detect.outputs.publish_projects_json }}' | ConvertFrom-Json)
+
+          $scriptPath = Join-Path '${{ github.workspace }}' 'scripts/auto-bump-versions.ps1'
+          if (-not (Test-Path -LiteralPath $scriptPath)) {
+            throw "Missing auto bump script: $scriptPath"
+          }
+
+          & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}'
+
+      - name: Build impacted projects
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $projects = @('${{ needs.detect.outputs.build_projects_json }}' | ConvertFrom-Json)
+
+          foreach ($project in $projects) {
+            Write-Host "BUILD: $project"
+            dotnet build "$project" -c Release -clp:ErrorsOnly
+          }
+
+      - name: Pack changed packable projects
+        if: needs.detect.outputs.publish_count != '0'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outputDir = Join-Path '${{ github.workspace }}' '_packages'
+          if (Test-Path $outputDir) {
+            Remove-Item -Path $outputDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $outputDir | Out-Null
+
+          $projects = @('${{ needs.detect.outputs.publish_projects_json }}' | ConvertFrom-Json)
+          foreach ($project in $projects) {
+            Write-Host "PACK: $project"
+            dotnet pack "$project" -c Release --no-build --output "$outputDir" -clp:ErrorsOnly
+          }
+
+
+      - name: Upload package artifacts
+        if: needs.detect.outputs.publish_count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: changed-nugets
+          path: _packages/*.nupkg
+          if-no-files-found: error
+
+      - name: Publish packages
+        if: needs.detect.outputs.publish_count != '0' && inputs.publish
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            throw 'Secret NUGET_KEY is required to publish packages.'
+          }
+
+          $packages = Get-ChildItem -Path '_packages' -Filter '*.nupkg' |
+            Where-Object { $_.Name -notlike '*.symbols.nupkg' }
+
+          foreach ($package in $packages) {
+            Write-Host "PUSH: $($package.Name)"
+            dotnet nuget push "$($package.FullName)" --source "https://api.nuget.org/v3/index.json" --api-key "$env:NUGET_API_KEY" --skip-duplicate
+          }
+
+      - name: Commit version updates
+        if: needs.detect.outputs.publish_count != '0' && inputs.publish && inputs.commit_version_changes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -u
+
+          $hasChanges = git diff --cached --name-only
+          if ([string]::IsNullOrWhiteSpace($hasChanges)) {
+            Write-Host "No version file changes to commit."
+            exit 0
+          }
+
+          git commit -m "chore: auto-bump package versions [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: No publish candidates
+        if: needs.detect.outputs.publish_count == '0'
+        run: echo "No packable changed projects detected."
+

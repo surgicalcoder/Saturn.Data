@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
+        <IsPublishable>false</IsPublishable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -34,11 +35,5 @@
       <ProjectReference Include="..\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.csproj" />
       <ProjectReference Include="..\..\Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj" />
     </ItemGroup>
-
-<!--    <ItemGroup>
-      <Reference Include="LiteDbX">
-        <HintPath>..\_deps\LiteDbX.dll</HintPath>
-      </Reference>
-    </ItemGroup>-->
 
 </Project>

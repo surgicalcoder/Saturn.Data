@@ -15,6 +15,9 @@
     <Project Path="Saturn.Data.Stellar\Saturn.Data.Stellar.Tests\Saturn.Data.Stellar.Tests.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.Stellar\Saturn.Data.Stellar\Saturn.Data.Stellar.csproj" Type="Classic C#" />
   </Folder>
+  <Folder Name="/_misc/">
+    <File Path="build.csx" />
+  </Folder>
   <Project Path="Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions.csproj" Type="Classic C#" />
   <Project Path="Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" Type="Classic C#" />
   <Project Path="Saturn.Data.Entities\Saturn.Data.Entities.JsonConverters\Saturn.Data.Entities.JsonConverters.csproj" Type="Classic C#" />
