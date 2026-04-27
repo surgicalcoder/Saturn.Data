@@ -149,9 +149,11 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
     {
         var targetTask = new BackgroundTask  { Id = "68bdd5525324ff2610c44005", Name = "Target",    Status = BackgroundTaskStatus.Completed };
         var referringTask = new BackgroundTask { Id = "68bdd5525324ff2610c44006", Name = "Referring", Status = BackgroundTaskStatus.WaitingOnDependencies,
-                                                  DependentTasks = new List<Ref<BackgroundTask>> { new(targetTask.Id) } };
+                                                  DependentTasks = [new(targetTask.Id)]
+        };
         var unrelatedTask = new BackgroundTask { Id = "68bdd5525324ff2610c44007", Name = "Unrelated", Status = BackgroundTaskStatus.WaitingOnDependencies,
-                                                  DependentTasks = new List<Ref<BackgroundTask>> { new("68bdd5525324ff2610c44099") } };
+                                                  DependentTasks = [new("68bdd5525324ff2610c44099")]
+        };
 
         await repo.Insert(targetTask);
         await repo.Insert(referringTask);

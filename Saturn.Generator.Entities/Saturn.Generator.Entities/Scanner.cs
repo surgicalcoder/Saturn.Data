@@ -423,8 +423,6 @@ public static class Scanner
             {
                 switch (memberToGenerate.Type)
                 {
-                    case INamedTypeSymbol s2 when s2.OriginalDefinition.ToString() == "FastMember.TypeAccessor":
-                        continue;
                     case INamedTypeSymbol s1 when s1.OriginalDefinition.ToString() == "ObservableCollections.ObservableList<T>":
                         memberToGenerate.IsCollection = true;
                         memberToGenerate.CollectionType = s1.TypeArguments.FirstOrDefault();

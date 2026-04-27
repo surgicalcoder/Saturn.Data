@@ -41,7 +41,7 @@ ConnectionString = "mongodb://localhost/ReferenceTests",
 GetCollectionName = type => type.Name
 };
 
-var repo = new Repository(options);
+var repo = new MongoDBRepository(options);
 
 var scope = new ReferenceTestScope();
 scope.Name = $"Test scope created at {DateTime.UtcNow:f}";
