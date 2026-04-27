@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.9.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions.csproj" />
+    <ProjectReference Include="..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
+  </ItemGroup>
+
+</Project>
+

@@ -1,8 +1,9 @@
 using GoLive.Saturn.Data.Abstractions;
+using Saturn.Data.Testing.Shared;
 
 namespace Saturn.Data.LiteDbX.Tests;
 
-public class DatabaseFixture : IDisposable
+public class DatabaseFixture : IDisposable, IRepositoryTestFixture<UnitTestableLiteDb>
 {
     public UnitTestableLiteDb Repository { get; }
 

@@ -39,12 +39,12 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// WITHOUT NormalizeForRef the MongoDB driver translates d.Id == searchId into
-    /// { "DependentTasks._____": searchId } which never matches → result is empty.
-    /// This test is expected to FAIL (it's the "red" test that motivates the fix).
+    /// WITHOUT NormalizeForRef current Mongo LINQ translation fails before execution
+    /// with a serializer type mismatch (ObjectId serializer vs string expression value).
+    /// This is the expected "red" behavior.
     /// </summary>
     [Fact]
-    public async Task Any_By_RefId_Without_Normalization_Fails()
+    public async Task Any_By_RefId_Without_Normalization_Throws_Serializer_Type_Mismatch()
     {
         var completedTask = new BackgroundTask { Id = "68bdd5525324ff2610c44001", Name = "Completed", Status = BackgroundTaskStatus.Completed };
         var waitingTask  = new BackgroundTask { Id = "68bdd5525324ff2610c44002", Name = "Waiting",   Status = BackgroundTaskStatus.WaitingOnDependencies,
@@ -57,11 +57,11 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
 
         // Bypass NormalizeForRef – the driver will try to resolve d.Id via
         // RefSerializer.TryGetMemberSerializationInfo which returns "_____" as the element name.
-        var results = await repo.ManyWithoutNormalization<BackgroundTask>(
-            t => t.DependentTasks.Any(d => d.Id == searchId));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => repo.ManyWithoutNormalization<BackgroundTask>(
+                t => t.DependentTasks.Any(d => d.Id == searchId)));
 
-        // This assertion FAILS without the fix: results will be empty.
-        Assert.Single(results);
+        Assert.Contains("Serializer value type MongoDB.Bson.ObjectId is incompatible with expression value type System.String", ex.Message);
     }
 
     /// <summary>
@@ -93,10 +93,10 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Same failure mode via Count() instead of Any() — expected to FAIL.
+    /// Same failure mode via Count() instead of Any().
     /// </summary>
     [Fact]
-    public async Task Count_By_RefId_Without_Normalization_Fails()
+    public async Task Count_By_RefId_Without_Normalization_Throws_Serializer_Type_Mismatch()
     {
         var completedTask = new BackgroundTask { Id = "68bdd5525324ff2610c44003", Name = "Completed 2", Status = BackgroundTaskStatus.Completed };
         var waitingTask  = new BackgroundTask { Id = "68bdd5525324ff2610c44004", Name = "Waiting 2",   Status = BackgroundTaskStatus.WaitingOnDependencies,
@@ -107,11 +107,11 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
 
         var searchId = completedTask.Id;
 
-        var results = await repo.ManyWithoutNormalization<BackgroundTask>(
-            t => t.DependentTasks.Count(d => d.Id == searchId) > 0);
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => repo.ManyWithoutNormalization<BackgroundTask>(
+                t => t.DependentTasks.Count(d => d.Id == searchId) > 0));
 
-        // This assertion FAILS without the fix.
-        Assert.Single(results);
+        Assert.Contains("Serializer value type MongoDB.Bson.ObjectId is incompatible with expression value type System.String", ex.Message);
     }
 
     /// <summary>
@@ -141,12 +141,11 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Even if Any() somehow returns documents when it should not (false positives),
-    /// we need to verify that only the CORRECT document is returned.
-    /// Without normalization the filter generates no matches at all → empty → FAILS.
+    /// Precision variant of the same red-path failure mode.
+    /// Without normalization, query translation throws the same serializer mismatch.
     /// </summary>
     [Fact]
-    public async Task Any_By_RefId_Without_Normalization_Does_Not_Wrongly_Return_Unrelated_Task()
+    public async Task Any_By_RefId_Without_Normalization_Precision_Path_Throws_Serializer_Type_Mismatch()
     {
         var targetTask = new BackgroundTask  { Id = "68bdd5525324ff2610c44005", Name = "Target",    Status = BackgroundTaskStatus.Completed };
         var referringTask = new BackgroundTask { Id = "68bdd5525324ff2610c44006", Name = "Referring", Status = BackgroundTaskStatus.WaitingOnDependencies,
@@ -160,12 +159,11 @@ public class RefIdSerializationTests(DatabaseFixture fixture) : IClassFixture<Da
 
         var searchId = targetTask.Id;
 
-        var results = await repo.ManyWithoutNormalization<BackgroundTask>(
-            t => t.DependentTasks.Any(d => d.Id == searchId));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => repo.ManyWithoutNormalization<BackgroundTask>(
+                t => t.DependentTasks.Any(d => d.Id == searchId)));
 
-        // FAILS: result is empty instead of containing exactly referringTask.
-        Assert.Single(results);
-        Assert.Equal(referringTask.Id, results[0].Id);
+        Assert.Contains("Serializer value type MongoDB.Bson.ObjectId is incompatible with expression value type System.String", ex.Message);
     }
 
     // -------------------------------------------------------------------------

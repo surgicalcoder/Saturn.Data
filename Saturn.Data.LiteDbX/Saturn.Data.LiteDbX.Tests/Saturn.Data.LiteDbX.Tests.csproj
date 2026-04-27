@@ -12,8 +12,6 @@
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="6.0.38" />
-        <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.27" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
@@ -34,6 +32,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.csproj" />
+      <ProjectReference Include="..\..\Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj" />
     </ItemGroup>
 
 <!--    <ItemGroup>

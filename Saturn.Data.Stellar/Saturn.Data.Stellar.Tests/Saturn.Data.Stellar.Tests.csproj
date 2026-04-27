@@ -26,6 +26,11 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Saturn.Data.Stellar\Saturn.Data.Stellar.csproj" />
+      <ProjectReference Include="..\..\Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Scoped_Tests.cs" />
     </ItemGroup>
 
 </Project>

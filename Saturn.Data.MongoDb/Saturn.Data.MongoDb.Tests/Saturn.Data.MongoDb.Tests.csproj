@@ -27,6 +27,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Saturn.Data.MongoDb\Saturn.Data.MongoDb.csproj" />
+      <ProjectReference Include="..\..\Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj" />
     </ItemGroup>
 
 </Project>
