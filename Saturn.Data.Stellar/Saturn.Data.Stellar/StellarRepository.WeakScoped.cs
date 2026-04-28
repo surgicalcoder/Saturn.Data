@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using FastExpressionCompiler;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
@@ -10,7 +11,7 @@ public partial class StellarRepository : IWeakScopedRepository
         where TItem : Entity, IScopedById, new()
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope).Compile();
+        var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope).CompileFast();
         var validIds = new List<EntityId>();
 
         foreach (var id in IDs)

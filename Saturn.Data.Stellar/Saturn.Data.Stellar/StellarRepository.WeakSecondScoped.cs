@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using FastExpressionCompiler;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
@@ -34,7 +35,7 @@ public partial class StellarRepository : IWeakSecondScopedRepository
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var combinedScope = ScopeModelHelper.BuildScopePredicate<TItem>(primaryScope)
             .And(ScopeModelHelper.BuildSecondScopePredicate<TItem>(secondScope))
-            .Compile();
+            .CompileFast();
 
         var validIds = new List<EntityId>();
         foreach (var id in IDs)

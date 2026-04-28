@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using FastExpressionCompiler;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
@@ -17,7 +18,7 @@ public partial class StellarRepository : IWeakScopedReadonlyRepository
 
         var item = collection[id];
         var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope);
-        return scopePredicate.Compile()(item) ? item : null;
+        return scopePredicate.CompileFast()(item) ? item : null;
     }
 
     public async Task<IAsyncEnumerable<TItem>> ById<TItem>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)

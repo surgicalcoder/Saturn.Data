@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using FastExpressionCompiler;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
@@ -25,7 +26,7 @@ public partial class StellarRepository : IWeakSecondScopedReadonlyRepository
 
         var item = collection[id];
         var combined = ScopeModelHelper.BuildScopePredicate<TItem>(primaryScope).And(ScopeModelHelper.BuildSecondScopePredicate<TItem>(secondScope));
-        return combined.Compile()(item) ? item : null;
+        return combined.CompileFast()(item) ? item : null;
     }
 
     public async Task<IAsyncEnumerable<TItem>> ById<TItem>(string primaryScope, string secondScope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null,
