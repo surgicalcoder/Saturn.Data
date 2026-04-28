@@ -37,11 +37,5 @@
         </PackageReference>
     </ItemGroup>
 
-    <ItemGroup>
-      <Compile Remove="MongoDbRepository.WeakScoped.cs" />
-      <Compile Remove="MongoDbRepository.WeakScopedReadonly.cs" />
-      <Compile Remove="MongoDbRepository.WeakSecondScoped.cs" />
-      <Compile Remove="MongoDbRepository.WeakSecondScopedReadonly.cs" />
-    </ItemGroup>
 
 </Project>
