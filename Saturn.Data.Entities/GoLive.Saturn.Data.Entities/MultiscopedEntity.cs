@@ -7,7 +7,7 @@ public abstract class MultiscopedEntity<T> : ScopedEntity<T> where T : Entity, n
 
     protected MultiscopedEntity()
     {
-        Scopes = new();
+        Scopes = [];
     }
 
     public override Ref<T> Scope

@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.28" />
-    <PackageReference Include="MongoDB.Bson" Version="3.8.0" />
-    <PackageReference Include="System.Text.Json" Version="10.0.7" />
+    <PackageReference Include="MongoDB.Bson" Version="3.8.1" />
+    <PackageReference Include="System.Text.Json" Version="10.0.8" />
   </ItemGroup>
 
 </Project>

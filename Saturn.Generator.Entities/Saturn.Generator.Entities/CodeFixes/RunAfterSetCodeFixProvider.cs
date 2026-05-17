@@ -17,7 +17,7 @@ public class RunAfterSetCodeFixProvider : CodeFixProvider
 {
     private const string Title = "Create Method that runs after set";
 
-    public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(RunAfterSetAnalyzer.DiagnosticId);
+    public sealed override ImmutableArray<string> FixableDiagnosticIds => [RunAfterSetAnalyzer.DiagnosticId];
 
     public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 

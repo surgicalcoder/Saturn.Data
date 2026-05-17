@@ -19,7 +19,7 @@ public partial class LiteDbRepository //: IRepository
         liteDbOptions = liteDbRepositoryOptions;
         mapper = liteDbRepositoryOptions.Mapper;
         BsonMapper.Global = mapper;
-        database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper).Result;
+        database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper);
         options = repositoryOptions;
     }
 

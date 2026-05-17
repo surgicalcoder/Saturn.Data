@@ -17,7 +17,7 @@ public class FieldToPartialPropertyCodeFixProvider : CodeFixProvider
 {
     private const string Title = "Convert to Partial Property";
 
-    public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(FieldToPartialPropertyAnalyzer.DiagnosticId);
+    public sealed override ImmutableArray<string> FixableDiagnosticIds => [FieldToPartialPropertyAnalyzer.DiagnosticId];
 
     public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 

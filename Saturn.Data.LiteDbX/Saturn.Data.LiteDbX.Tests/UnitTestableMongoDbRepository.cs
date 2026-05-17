@@ -16,6 +16,6 @@ public class UnitTestableLiteDb(RepositoryOptions repositoryOptions, LiteDBRepos
         database.DisposeAsync().AsTask().Wait();
 
         File.Delete("e:\\_scratch\\litedb-unit-tests.db");
-        database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper).Result;
+        database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper);
     }
 };

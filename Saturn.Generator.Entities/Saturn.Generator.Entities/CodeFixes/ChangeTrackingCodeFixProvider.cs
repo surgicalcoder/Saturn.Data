@@ -20,7 +20,7 @@ public class ChangeTrackingCodeFixProvider : CodeFixProvider
     private const string TitleMakePartial = "Make property partial";
     private const string TitleAddException = "Add exception comment";
 
-    public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(ChangeTrackingAnalyzer.DiagnosticId);
+    public sealed override ImmutableArray<string> FixableDiagnosticIds => [ChangeTrackingAnalyzer.DiagnosticId];
 
     public sealed override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 

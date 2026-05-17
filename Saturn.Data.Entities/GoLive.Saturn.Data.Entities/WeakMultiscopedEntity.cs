@@ -8,7 +8,7 @@ public abstract class WeakMultiscopedEntity<TScope> : WeakScopedEntity<TScope> w
 
     protected WeakMultiscopedEntity()
     {
-        Scopes = new();
+        Scopes = [];
     }
 
     public override WeakRef<TScope> Scope

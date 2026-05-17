@@ -20,4 +20,4 @@ public class EntityIdComparer : IEqualityComparer<Entity>
     }
 
     public static IEqualityComparer<Entity> Default = new EntityIdComparer();
-}
+}   

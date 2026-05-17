@@ -2,7 +2,7 @@
 
 using LiteDbX;
 
-var database = await LiteDatabase.Open("");
+var database = LiteDatabase.Open("");
 var collections = database.GetCollectionNames();
 await foreach (var collection in collections)
 {
