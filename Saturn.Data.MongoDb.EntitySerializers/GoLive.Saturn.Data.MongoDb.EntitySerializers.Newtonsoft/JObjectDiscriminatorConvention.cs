@@ -5,20 +5,19 @@ using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 
-namespace GoLive.Saturn.Data.EntitySerializers.Newtonsoft
+namespace GoLive.Saturn.Data.EntitySerializers.Newtonsoft;
+
+public class JObjectDiscriminatorConvention : IDiscriminatorConvention
 {
-    public class JObjectDiscriminatorConvention : IDiscriminatorConvention
+    public Type GetActualType(IBsonReader bsonReader, Type nominalType)
     {
-        public Type GetActualType(IBsonReader bsonReader, Type nominalType)
-        {
-            return typeof(ExpandoObject);
-        }
-
-        public BsonValue GetDiscriminator(Type nominalType, Type actualType)
-        {
-            return null;
-        }
-
-        public string ElementName => null;
+        return typeof(ExpandoObject);
     }
+
+    public BsonValue GetDiscriminator(Type nominalType, Type actualType)
+    {
+        return null;
+    }
+
+    public string ElementName => null;
 }

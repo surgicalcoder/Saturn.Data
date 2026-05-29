@@ -1,56 +1,68 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GoLive.Saturn.Data.Abstractions;
 
 public static class SyncHelper
 {
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> ReadablePropsCache = new();
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritablePropsCache = new();
 
-    private static void CopyPropertiesTo<T, TU>(this T source, TU dest)
+    internal static void CopyPropertiesTo<T, TU>(this T source, TU dest)
     {
-        var sourceProps = typeof(T).GetProperties().Where(x => x.CanRead).Where(f => f.Name != "Id").ToList();
-        var destProps = typeof(TU).GetProperties().Where(x => x.CanWrite).Where(f => f.Name != "Id" ).ToList();
+        var sourceProps = ReadablePropsCache.GetOrAdd(typeof(T), t =>
+            t.GetProperties().Where(x => x.CanRead && x.Name != "Id").ToArray());
+        var destProps = WritablePropsCache.GetOrAdd(typeof(TU), t =>
+            t.GetProperties().Where(x => x.CanWrite && x.Name != "Id").ToArray());
 
         foreach (var sourceProp in sourceProps)
         {
-            if (destProps.Any(x => x.Name == sourceProp.Name))
-            {
-                var p = destProps.First(x => x.Name == sourceProp.Name);
-                p.SetValue(dest, sourceProp.GetValue(source, null), null);
-            }
+            var destProp = destProps.FirstOrDefault(x => x.Name == sourceProp.Name);
+            if (destProp == null) continue;
+            if (!destProp.PropertyType.IsAssignableFrom(sourceProp.PropertyType)) continue;
 
+            destProp.SetValue(dest, sourceProp.GetValue(source, null), null);
         }
-
     }
+
     public static async Task<List<TLocal>> SyncFrom<TLocal, TRemote>(
-        this List<TLocal> Local,
-        List<TRemote> Remote,
-        Func<TLocal, TRemote, bool> Identifier,
-        Func<TLocal, TRemote, TLocal> PerformAssignments,
-        Func<List<TLocal>, Task> ItemsToDeleteFunc,
-        Func<List<TLocal>, Task> ItemsToUpdateFunc,
-        Func<List<TLocal>, Task> ItemsToAddFunc
+        this List<TLocal> local,
+        List<TRemote> remote,
+        Func<TLocal, TRemote, bool> identifier,
+        Func<TLocal, TRemote, TLocal> performAssignments,
+        Func<List<TLocal>, Task> itemsToDeleteFunc,
+        Func<List<TLocal>, Task> itemsToUpdateFunc,
+        Func<List<TLocal>, Task> itemsToAddFunc,
+        CancellationToken ct = default
     ) where TLocal : new()
     {
+        ArgumentNullException.ThrowIfNull(local);
+        ArgumentNullException.ThrowIfNull(remote);
+
         var actualList = new List<TLocal>();
         var itemsAdded = new List<TLocal>();
 
-        foreach (TRemote remoteItem in Remote)
+        foreach (TRemote remoteItem in remote)
         {
-            var item = Local.FirstOrDefault(f => Identifier(f, remoteItem));
+            ct.ThrowIfCancellationRequested();
+
+            var item = local.FirstOrDefault(f => f != null && identifier(f, remoteItem));
             bool itemAdded = false;
-                
+
             if (item == null)
             {
                 item = new TLocal();
                 itemAdded = true;
             }
 
-            if (PerformAssignments != null)
+            if (performAssignments != null)
             {
-                item = PerformAssignments(item, remoteItem);
+                item = performAssignments(item, remoteItem) ?? item;
             }
             else
             {
@@ -58,32 +70,20 @@ public static class SyncHelper
             }
 
             if (itemAdded)
-            {
                 itemsAdded.Add(item);
-            }
             else
-            {
                 actualList.Add(item);
-            }
         }
 
-        var toDelete = Local.Except(actualList).ToList();
+        var toDelete = local.Except(actualList).Except(itemsAdded).ToList();
 
-        if (ItemsToDeleteFunc != null)
-        {
-            await ItemsToDeleteFunc(toDelete);
-        }
+        var tasks = new List<Task>();
+        if (itemsToDeleteFunc != null) tasks.Add(itemsToDeleteFunc(toDelete));
+        if (itemsToUpdateFunc != null) tasks.Add(itemsToUpdateFunc(actualList));
+        if (itemsToAddFunc != null) tasks.Add(itemsToAddFunc(itemsAdded));
 
-        if (ItemsToUpdateFunc != null)
-        {
-            await ItemsToUpdateFunc(actualList);
-        }
+        await Task.WhenAll(tasks);
 
-        if (ItemsToAddFunc != null)
-        {
-            await ItemsToAddFunc(itemsAdded);
-        }
-            
-        return Local;
+        return actualList.Concat(itemsAdded).ToList();
     }
 }

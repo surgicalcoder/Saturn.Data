@@ -122,6 +122,7 @@ foreach ($projectRelativePath in $ProjectPaths) {
     $publishedCore = Get-SemVerCore $publishedVersionText
 
     $baseCore = $null
+    $isFirstVersion = $false
     if ($null -ne $currentCore -and $null -ne $publishedCore) {
         $baseCore = if ((Compare-SemVerCore -A $currentCore -B $publishedCore) -ge 0) { $currentCore } else { $publishedCore }
     } elseif ($null -ne $currentCore) {
@@ -129,10 +130,15 @@ foreach ($projectRelativePath in $ProjectPaths) {
     } elseif ($null -ne $publishedCore) {
         $baseCore = $publishedCore
     } else {
-        $baseCore = [PSCustomObject]@{ Major = 0; Minor = 0; Patch = 0 }
+        $baseCore = [PSCustomObject]@{ Major = 7; Minor = 0; Patch = 0 }
+        $isFirstVersion = $true
     }
 
-    $nextCore = Bump-SemVerCore -Base $baseCore -BumpLevel $Bump
+    $nextCore = if ($isFirstVersion) {
+        $baseCore
+    } else {
+        Bump-SemVerCore -Base $baseCore -BumpLevel $Bump
+    }
     $nextVersion = Format-SemVerCore $nextCore
 
     if ($null -eq $versionNode) {

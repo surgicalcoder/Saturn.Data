@@ -27,8 +27,8 @@
       <ProjectReference Include="..\..\Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions\GoLive.Saturn.Data.Abstractions.csproj" />
       <ProjectReference Include="..\..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
       <PackageReference Include="GoLive.Saturn.Data.MongoDb.EntitySerializers" Version="6.0.3" />
-      <PackageReference Include="MongoDB.Bson" Version="3.8.1" />
-      <PackageReference Include="MongoDB.Driver" Version="3.8.1" />
+      <PackageReference Include="MongoDB.Bson" Version="3.9.0" />
+      <PackageReference Include="MongoDB.Driver" Version="3.9.0" />
       <PackageReference Include="MongoDB.Driver.Core.Extensions.DiagnosticSources" Version="3.0.0" />
       <PackageReference Include="MongoDB.Driver.Core.Extensions.OpenTelemetry" Version="1.0.0" />
         <PackageReference Include="ServiceScan.SourceGenerator" Version="3.1.4">

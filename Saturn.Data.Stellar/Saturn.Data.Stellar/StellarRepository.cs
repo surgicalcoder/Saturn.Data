@@ -45,7 +45,7 @@ public partial class StellarRepository : IAsyncDisposable
     
     protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
     
-    private IQueryable<TItem> ApplySort<TItem>(IQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
+    protected virtual IQueryable<TItem> ApplySort<TItem>(IQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
     {
         if (sortOrders != null && sortOrders.Any())
         {
@@ -56,7 +56,7 @@ public partial class StellarRepository : IAsyncDisposable
         return query;
     }
     
-    private IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
+    protected virtual IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
     {
         if (!string.IsNullOrEmpty(continueFrom))
         {
@@ -80,7 +80,7 @@ public partial class StellarRepository : IAsyncDisposable
         return query;
     }
     
-    private IQueryable<TItem> ApplyPaging<TItem>(IQueryable<TItem> query, int? pageSize, int? pageNumber) where TItem : Entity
+    protected virtual IQueryable<TItem> ApplyPaging<TItem>(IQueryable<TItem> query, int? pageSize, int? pageNumber) where TItem : Entity
     {
         if (pageNumber.HasValue && pageSize.HasValue)
         {
@@ -105,14 +105,4 @@ public partial class StellarRepository : IAsyncDisposable
     {
         await database.DisposeAsync();
     }
-}
-
-public class StellarRepositoryOptions
-{
-    public string BaseDirectory { get; set; }
-    public string DatabaseName { get; set; }
-    public bool IsCompressed { get; set; }
-    public bool IsEncrypted { get; set; }
-    public string EncryptionKey { get; set; }
-    public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 }
