@@ -21,18 +21,18 @@ public partial class MongoDbRepository : ITransparentScopedRepository
 
     public async Task Delete<TItem, TParent>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {        
-        if (!IDs.Any())
+        var ids = IDs.ToList();
+
+        if (!ids.Any())
         {
             return;
         }
         
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-        
-        await ExecuteWithTransaction<TItem>(
-            transaction,
-            async (collection, session) => await collection.DeleteManyAsync(session, f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken: cancellationToken),
-            async collection => await collection.DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken: cancellationToken)
-        );
+        var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope);
+        Expression<Func<TItem, bool>> idPredicate = item => ids.Contains(item.Id);
+
+        await Delete(scopePredicate.And(idPredicate), transaction, cancellationToken);
     }
 
     public async Task Insert<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
@@ -57,7 +57,23 @@ public partial class MongoDbRepository : ITransparentScopedRepository
     public async Task JsonUpdate<TItem, TParent>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()
     {
         var scope = options.TransparentScopeProvider.Invoke(typeof(TParent));
-        await JsonUpdate<TItem, TParent>(scope, id, version, json, transaction, cancellationToken);
+        var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope);
+        Expression<Func<TItem, bool>> idPredicate = item => item.Id == id;
+        var filter = scopePredicate.And(idPredicate).And(e => (e.Version.HasValue && e.Version <= version) || !e.Version.HasValue);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Patch, id: id, expectedVersion: version, jsonDocument: json, filter: filter,
+            transaction: transaction, cancellationToken: cancellationToken);
+        await ApplyWriteBehaviors(RepositoryWriteOperation.Patch, context);
+
+        var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
+            transaction,
+            (collection, session) => collection.UpdateOneAsync(session, filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
+            collection => collection.UpdateOneAsync(filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
+        );
+
+        if (!updateResult.IsAcknowledged)
+        {
+            throw new FailedToUpdateException();
+        }
     }
 
     public async Task Save<TItem, TParent>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TParent>, new() where TParent : Entity, new()

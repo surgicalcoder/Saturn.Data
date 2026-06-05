@@ -25,58 +25,33 @@ using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.MongoDb;
 
-public partial class MongoDbRepository
+public partial class MongoDbRepository : IRepositoryIndexManager
 {
     internal MongoDbRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
     {
+        initialize(repositoryOptions, mongoRepositoryOptions, client);
+    }
+
+    public MongoDbRepository(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
+    {
+        initialize(repositoryOptions, mongoRepositoryOptions);
+    }
+
+    private void initialize(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions? mongoRepositoryOptions, IMongoClient? existingClient = null)
+    {
         options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
         mongoOptions = mongoRepositoryOptions ?? new MongoDbRepositoryOptions();
-        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException(nameof(mongoOptions.ConnectionString));
 
-        var mongoUrl = new MongoUrl(connectionString);
+        var mongoUrl = new MongoUrl(mongoOptions.ConnectionString ?? throw new ArgumentNullException(nameof(mongoOptions.ConnectionString)));
 
-        var settings = MongoClientSettings.FromUrl(mongoUrl);
-
-        if (mongoRepositoryOptions?.EnableDiagnostics == true)
-        {
-            settings.ClusterConfigurator = cb =>
-            {
-                cb.Subscribe(new DiagnosticsActivityEventSubscriber(new InstrumentationOptions
-                {
-                    CaptureCommandText = mongoRepositoryOptions.CaptureCommandText,
-                    ShouldStartActivity = mongoRepositoryOptions.ShouldStartActivity
-                }));
-
-                if (mongoOptions.DebugMode)
-                {
-                    setupCallbacks(cb);
-                }
-            };
-        }
-        else
-        {
-            if (mongoOptions.DebugMode)
-            {
-                settings.ClusterConfigurator = setupCallbacks;
-            }
-        }
-
-        this.client = client;
-
+        client = existingClient ?? new MongoClient(buildClientSettings(mongoUrl, mongoRepositoryOptions));
         mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
 
         RegisterConventions();
     }
 
-    public MongoDbRepository(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
+    private MongoClientSettings buildClientSettings(MongoUrl mongoUrl, MongoDbRepositoryOptions? mongoRepositoryOptions)
     {
-        options = repositoryOptions ?? throw new ArgumentNullException(nameof(repositoryOptions));
-        mongoOptions = mongoRepositoryOptions ?? new MongoDbRepositoryOptions();
-
-        var connectionString = mongoOptions.ConnectionString ?? throw new ArgumentNullException(nameof(mongoOptions.ConnectionString));
-
-        var mongoUrl = new MongoUrl(connectionString);
-
         var settings = MongoClientSettings.FromUrl(mongoUrl);
 
         if (mongoRepositoryOptions?.EnableDiagnostics == true)
@@ -95,19 +70,50 @@ public partial class MongoDbRepository
                 }
             };
         }
-        else
+        else if (mongoOptions.DebugMode)
         {
-            if (mongoOptions.DebugMode)
-            {
-                settings.ClusterConfigurator = setupCallbacks;
-            }
+            settings.ClusterConfigurator = setupCallbacks;
         }
 
-        client = new MongoClient(settings);
+        return settings;
+    }
 
-        mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
+    private static CreateIndexModel<TItem> buildCreateIndexModel<TItem>(IIndexDefinition<TItem> definition) where TItem : Entity
+    {
+        ArgumentNullException.ThrowIfNull(definition);
 
-        RegisterConventions();
+        if (definition.Keys == null || definition.Keys.Count == 0)
+        {
+            throw new ArgumentException("Index definition must contain at least one key.", nameof(definition));
+        }
+
+        IndexKeysDefinition<TItem>? keys = null;
+
+        foreach (var key in definition.Keys)
+        {
+            ArgumentNullException.ThrowIfNull(key);
+
+            var nextKey = key.Direction == IndexSortDirection.Ascending
+                ? Builders<TItem>.IndexKeys.Ascending(key.Field)
+                : Builders<TItem>.IndexKeys.Descending(key.Field);
+
+            keys = keys == null
+                ? nextKey
+                : Builders<TItem>.IndexKeys.Combine(keys, nextKey);
+        }
+
+        var options = definition.Options ?? new IndexOptions();
+
+        return new CreateIndexModel<TItem>(
+            keys!,
+            new CreateIndexOptions
+            {
+                Name = string.IsNullOrWhiteSpace(definition.Name) ? null : definition.Name,
+                Unique = options.Unique,
+                Sparse = options.Sparse,
+                Background = options.Background,
+                ExpireAfter = options.HasExpireAfter ? options.ExpireAfter : null
+            });
     }
 
     protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
@@ -117,6 +123,23 @@ public partial class MongoDbRepository
         var wrapper = new MongoDbTransactionWrapper(await client.StartSessionAsync());
 
         return wrapper;
+    }
+
+    public async Task EnsureIndexes<TItem>(IEnumerable<IIndexDefinition<TItem>> definitions, CancellationToken cancellationToken = default)
+        where TItem : Entity
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+
+        var createIndexModels = definitions
+            .Select(buildCreateIndexModel)
+            .ToList();
+
+        if (createIndexModels.Count == 0)
+        {
+            return;
+        }
+
+        await GetCollection<TItem>().Indexes.CreateManyAsync(createIndexModels, cancellationToken);
     }
 
     public void Dispose()
@@ -165,8 +188,158 @@ public partial class MongoDbRepository
         return typeNameCache.GetOrAdd(typeof(T).FullName ?? typeof(T).Name, _ => options.GetCollectionName.Invoke(typeof(T)));
     }
 
+    protected virtual RepositoryReadContext<TItem> BuildReadContext<TItem>(
+        RepositoryReadOperation operation,
+        bool includeDeleted = false,
+        string? id = null,
+        IEnumerable<string>? ids = null,
+        string? continueFrom = null,
+        int? pageSize = null,
+        int? pageNumber = null,
+        IEnumerable<SortOrder<TItem>>? sortOrders = null,
+        Expression<Func<TItem, bool>>? predicate = null,
+        IEnumerable<KeyValuePair<string, object>>? whereClause = null,
+        IDatabaseTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+        where TItem : Entity
+    {
+        return new RepositoryReadContext<TItem>
+        {
+            Operation = operation,
+            IncludeDeleted = includeDeleted,
+            Id = id,
+            Ids = ids?.ToList(),
+            ContinueFrom = continueFrom,
+            PageSize = pageSize,
+            PageNumber = pageNumber,
+            SortOrders = sortOrders?.ToList(),
+            Predicate = predicate,
+            WhereClause = whereClause?.ToList(),
+            Transaction = transaction,
+            CancellationToken = cancellationToken
+        };
+    }
+
+    protected virtual RepositoryWriteContext<TItem> BuildWriteContext<TItem>(
+        RepositoryWriteOperation operation,
+        string? id = null,
+        IEnumerable<string>? ids = null,
+        IEnumerable<TItem>? items = null,
+        Expression<Func<TItem, bool>>? filter = null,
+        long? expectedVersion = null,
+        string? jsonDocument = null,
+        IDataUpdateDefinition<TItem>? updateDefinition = null,
+        LambdaExpression? incrementField = null,
+        object? incrementDelta = null,
+        IDatabaseTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+        where TItem : Entity
+    {
+        return new RepositoryWriteContext<TItem>
+        {
+            Operation = operation,
+            Id = id,
+            Ids = ids?.ToList(),
+            Items = items?.ToList(),
+            Filter = filter,
+            ExpectedVersion = expectedVersion,
+            JsonDocument = jsonDocument,
+            UpdateDefinition = updateDefinition,
+            IncrementField = incrementField,
+            IncrementDelta = incrementDelta,
+            Transaction = transaction,
+            CancellationToken = cancellationToken
+        };
+    }
+
+    protected virtual Expression<Func<TItem, bool>> ApplyReadBehaviors<TItem>(Expression<Func<TItem, bool>> predicate,
+        RepositoryReadContext<TItem> context) where TItem : Entity
+    {
+        var effectivePredicate = predicate;
+
+        if (options.ReadBehaviors == null)
+        {
+            return effectivePredicate;
+        }
+
+        foreach (var behavior in options.ReadBehaviors)
+        {
+            effectivePredicate = behavior.BeforeQueryExecution(effectivePredicate, context);
+        }
+
+        return effectivePredicate;
+    }
+
+    protected virtual IQueryable<TItem> ApplyReadBehaviors<TItem>(IQueryable<TItem> query, RepositoryReadContext<TItem> context)
+        where TItem : Entity
+    {
+        var effectiveQuery = query;
+
+        if (options.ReadBehaviors == null)
+        {
+            return effectiveQuery;
+        }
+
+        foreach (var behavior in options.ReadBehaviors)
+        {
+            effectiveQuery = behavior.BeforeQueryExecution(effectiveQuery, context);
+        }
+
+        return effectiveQuery;
+    }
+
+    protected virtual async ValueTask ApplyWriteBehaviors<TItem>(RepositoryWriteOperation operation, RepositoryWriteContext<TItem> context)
+        where TItem : Entity
+    {
+        if (options.WriteBehaviors == null)
+        {
+            return;
+        }
+
+        foreach (var behavior in options.WriteBehaviors)
+        {
+            switch (operation)
+            {
+                case RepositoryWriteOperation.Insert:
+                    await behavior.BeforeInsert(context);
+                    break;
+                case RepositoryWriteOperation.Update:
+                    await behavior.BeforeUpdate(context);
+                    break;
+                case RepositoryWriteOperation.Upsert:
+                    await behavior.BeforeUpsert(context);
+                    break;
+                case RepositoryWriteOperation.Save:
+                    await behavior.BeforeSave(context);
+                    break;
+                case RepositoryWriteOperation.Delete:
+                    await behavior.BeforeDelete(context);
+                    break;
+                case RepositoryWriteOperation.HardDelete:
+                    await behavior.BeforeHardDelete(context);
+                    break;
+                case RepositoryWriteOperation.Restore:
+                    await behavior.BeforeRestore(context);
+                    break;
+                case RepositoryWriteOperation.Patch:
+                    await behavior.BeforePatch(context);
+                    break;
+                case RepositoryWriteOperation.Increment:
+                    await behavior.BeforeIncrement(context);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(operation), operation, null);
+            }
+        }
+    }
+
     protected virtual void RegisterConventions()
     {
+        if (Interlocked.Exchange(ref serializerRegistrationCompleted, 1) == 1)
+        {
+            return;
+        }
+
         var pack = new ConventionPack
         {
             new IgnoreIfDefaultConvention(true),
@@ -253,7 +426,17 @@ public partial class MongoDbRepository
         string? continueFrom) where TItem : Entity
     {
         if (string.IsNullOrEmpty(continueFrom))
+        {
             return baseFilter;
+        }
+
+        if (ObjectId.TryParse(continueFrom, out var objectId))
+        {
+            return Builders<TItem>.Filter.And(
+                baseFilter,
+                Builders<TItem>.Filter.Gt("_id", objectId)
+            );
+        }
 
         return Builders<TItem>.Filter.And(
             baseFilter,
@@ -270,6 +453,75 @@ public partial class MongoDbRepository
     {
         var baseFilter = Builders<TItem>.Filter.Where(predicate.NormalizeForRef());
         return BuildFilterWithContinuation(baseFilter, continueFrom);
+    }
+
+    protected static Expression<Func<TItem, bool>> ApplySoftDeleteFilter<TItem>(Expression<Func<TItem, bool>> predicate, bool includeDeleted)
+        where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return predicate;
+        }
+
+        return BuildNotDeletedPredicate<TItem>().And(predicate);
+    }
+
+    protected static FilterDefinition<TItem> ApplySoftDeleteFilter<TItem>(FilterDefinition<TItem> filter, bool includeDeleted)
+        where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return filter;
+        }
+
+        return Builders<TItem>.Filter.And(filter, BuildNotDeletedFilter<TItem>());
+    }
+
+    protected static IQueryable<TItem> ApplySoftDeleteFilter<TItem>(IQueryable<TItem> query, bool includeDeleted)
+        where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return query;
+        }
+
+        return query.Where(BuildNotDeletedPredicate<TItem>());
+    }
+
+    protected static Expression<Func<TItem, bool>> BuildNotDeletedPredicate<TItem>() where TItem : Entity
+    {
+        var parameter = Expression.Parameter(typeof(TItem), "item");
+        var property = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
+        var body = Expression.Equal(property, Expression.Constant(false));
+
+        return Expression.Lambda<Func<TItem, bool>>(body, parameter);
+    }
+
+    protected static FilterDefinition<TItem> BuildNotDeletedFilter<TItem>() where TItem : Entity
+    {
+        return Builders<TItem>.Filter.Or(
+            Builders<TItem>.Filter.Exists(nameof(ISoftDeletable.IsDeleted), false),
+            Builders<TItem>.Filter.Eq(nameof(ISoftDeletable.IsDeleted), false));
+    }
+
+    protected static bool CanApplyContinuation<TItem>(IEnumerable<SortOrder<TItem>>? sortOrders) where TItem : Entity
+    {
+        if (sortOrders == null)
+        {
+            return true;
+        }
+
+        using var enumerator = sortOrders.GetEnumerator();
+
+        if (!enumerator.MoveNext())
+        {
+            return true;
+        }
+
+        var firstSort = enumerator.Current;
+
+        return firstSort.Direction == SortDirection.Ascending &&
+               GetFieldNameFromExpression(firstSort.Field) == nameof(Entity.Id);
     }
 
     // Helper to get the field name from an expression
@@ -388,9 +640,10 @@ public partial class MongoDbRepository
         }
     }
 
-    protected static RepositoryOptions options { get; set; } = null!;
-    protected static MongoDbRepositoryOptions mongoOptions { get; set; } = null!;
-    protected IMongoDatabase mongoDatabase { get; set; }
-    protected IMongoClient client { get; set; }
+    protected RepositoryOptions options { get; set; } = null!;
+    protected MongoDbRepositoryOptions mongoOptions { get; set; } = null!;
+    protected IMongoDatabase mongoDatabase { get; set; } = null!;
+    protected IMongoClient client { get; set; } = null!;
+    private static int serializerRegistrationCompleted;
 
 }

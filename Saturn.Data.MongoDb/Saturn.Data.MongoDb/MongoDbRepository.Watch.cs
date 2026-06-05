@@ -17,23 +17,16 @@ public partial class MongoDbRepository
 
         var definition = pipelineDefinition.Match(expression).Match(e => e.OperationType == opType);
 
-        if (transaction != null)
-        {
-            await GetCollection<TItem>().WatchAsync(((MongoDbTransactionWrapper)transaction).Session, definition, cancellationToken: cancellationToken);
-        }
-        else
-        {
-            await GetCollection<TItem>().WatchAsync(definition, cancellationToken: cancellationToken);
-        }
-
         var collection = GetCollection<TItem>();
 
-        using (var asyncCursor = await collection.WatchAsync(pipelineDefinition, cancellationToken: cancellationToken))
+        using var asyncCursor = transaction != null
+            ? await collection.WatchAsync(((MongoDbTransactionWrapper)transaction).Session, definition, cancellationToken: cancellationToken)
+            : await collection.WatchAsync(definition, cancellationToken: cancellationToken);
+
+        foreach (var changeStreamDocument in asyncCursor.ToEnumerable(cancellationToken))
         {
-            foreach (var changeStreamDocument in asyncCursor.ToEnumerable())
-            {
-                callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(), (ChangeOperation)changeStreamDocument.OperationType);
-            }
+            callback.Invoke(changeStreamDocument.FullDocument, changeStreamDocument?.DocumentKey[0]?.AsObjectId.ToString(),
+                (ChangeOperation)changeStreamDocument.OperationType);
         }
     }
 }

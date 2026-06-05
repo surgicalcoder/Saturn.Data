@@ -1,4 +1,7 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 
@@ -8,8 +11,7 @@ public partial class StellarRepository : IRepository
 {
     public async Task Delete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveBulkAsync(IDs.Select(id => new EntityId(id)));
+        await Delete<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
     }
 
     public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -117,6 +119,12 @@ public partial class StellarRepository : IRepository
     
     public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        if (SupportsSoftDelete<TItem>())
+        {
+            await SoftDelete(filter, token);
+            return;
+        }
+
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var items = collection.AsQueryable().Where(filter).Select(r=>new EntityId(r.Id)).ToList();
         await collection.RemoveBulkAsync(items);
@@ -124,8 +132,151 @@ public partial class StellarRepository : IRepository
     
     public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        await Delete<TItem>(item => item.Id == id, transaction, token);
+    }
+
+    public async Task HardDelete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.RemoveAsync(id);
+        var items = collection.AsQueryable().Where(filter).Select(item => new EntityId(item.Id)).ToList();
+        await collection.RemoveBulkAsync(items);
+    }
+
+    public Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return HardDelete<TItem>(item => item.Id == id, transaction, cancellationToken);
+    }
+
+    public Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return HardDelete<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
+    }
+
+    public Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Restore<TItem>(item => item.Id == id, transaction, cancellationToken);
+    }
+
+    public Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Restore<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
+    }
+
+    public async Task Restore<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        if (!SupportsSoftDelete<TItem>())
+        {
+            throw new NotSupportedException($"Type '{typeof(TItem).Name}' does not support soft delete restore.");
+        }
+
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var items = collection.AsQueryable().Where(filter).ToList();
+
+        foreach (var item in items)
+        {
+            if (item is not ISoftDeletable softDeletable)
+            {
+                continue;
+            }
+
+            softDeletable.IsDeleted = false;
+            softDeletable.DeletedAt = null;
+            softDeletable.DeletedBy = string.Empty;
+            item.Version = (item.Version ?? 0) + 1;
+            await collection.UpdateAsync(item.Id, item);
+        }
+    }
+
+    public async Task Patch<TItem>(string id, long? expectedVersion = null, string jsonDocument = null, IDataUpdateDefinition<TItem> updateDefinition = null,
+        IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        if (string.IsNullOrWhiteSpace(jsonDocument) && updateDefinition == null)
+        {
+            throw new ArgumentException("At least one patch input must be supplied.", nameof(jsonDocument));
+        }
+
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+
+        if (!collection.ContainsKey(id))
+        {
+            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
+        }
+
+        var existing = collection[id];
+
+        if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
+        {
+            throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
+        }
+
+        var working = existing;
+
+        if (!string.IsNullOrWhiteSpace(jsonDocument))
+        {
+            var existingNode = JsonNode.Parse(JsonSerializer.Serialize(existing)) as JsonObject;
+            var patchNode = JsonNode.Parse(jsonDocument) as JsonObject;
+
+            if (existingNode == null || patchNode == null)
+            {
+                throw new ApplicationException("Patch JSON must be a JSON object.");
+            }
+
+            foreach (var property in patchNode)
+            {
+                if (property.Key == nameof(Entity.Id))
+                {
+                    continue;
+                }
+
+                existingNode[property.Key] = property.Value?.DeepClone();
+            }
+
+            working = existingNode.Deserialize<TItem>();
+
+            if (working == null)
+            {
+                throw new ApplicationException("Deserialization failed.");
+            }
+        }
+
+        if (updateDefinition != null)
+        {
+            if (updateDefinition is not StellarDataUpdateDefinition<TItem> stellarUpdateDefinition)
+            {
+                throw new NotSupportedException($"Update definition type '{updateDefinition.GetType().Name}' is not supported by StellarRepository.");
+            }
+
+            stellarUpdateDefinition.Apply(working);
+        }
+
+        working.Id = existing.Id;
+        working.Version = (existing.Version ?? 0) + 1;
+
+        await collection.UpdateAsync(working.Id, working);
+    }
+
+    public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Increment(id, field, delta, (value, change) => value + change, expectedVersion, cancellationToken);
+    }
+
+    public Task Increment<TItem>(string id, Expression<Func<TItem, long>> field, long delta, long? expectedVersion = null, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Increment(id, field, delta, (value, change) => value + change, expectedVersion, cancellationToken);
+    }
+
+    public Task Increment<TItem>(string id, Expression<Func<TItem, double>> field, double delta, long? expectedVersion = null, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Increment(id, field, delta, (value, change) => value + change, expectedVersion, cancellationToken);
+    }
+
+    public Task Increment<TItem>(string id, Expression<Func<TItem, decimal>> field, decimal delta, long? expectedVersion = null, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+    {
+        return Increment(id, field, delta, (value, change) => value + change, expectedVersion, cancellationToken);
     }
     
     public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -156,5 +307,67 @@ public partial class StellarRepository : IRepository
     public Task<IDatabaseTransaction> CreateTransaction()
     {
         throw new NotImplementedException("StellarDB does not support transactions");
+    }
+
+    private async Task SoftDelete<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var items = collection.AsQueryable().Where(filter).ToList();
+
+        foreach (var item in items)
+        {
+            if (item is not ISoftDeletable softDeletable)
+            {
+                continue;
+            }
+
+            softDeletable.IsDeleted = true;
+            softDeletable.DeletedAt = DateTime.UtcNow;
+            softDeletable.DeletedBy = string.Empty;
+            item.Version = (item.Version ?? 0) + 1;
+            await collection.UpdateAsync(item.Id, item);
+        }
+    }
+
+    private async Task Increment<TItem, TNumber>(string id, Expression<Func<TItem, TNumber>> field, TNumber delta,
+        Func<TNumber, TNumber, TNumber> add, long? expectedVersion, CancellationToken cancellationToken) where TItem : Entity
+    {
+        ArgumentNullException.ThrowIfNull(field);
+
+        if (field.Body is not MemberExpression memberExpression || memberExpression.Member is not PropertyInfo propertyInfo)
+        {
+            throw new ArgumentException("Increment field must target a writable property.", nameof(field));
+        }
+
+        if (!propertyInfo.CanRead || !propertyInfo.CanWrite)
+        {
+            throw new ArgumentException("Increment field must target a readable and writable property.", nameof(field));
+        }
+
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+
+        if (!collection.ContainsKey(id))
+        {
+            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
+        }
+
+        var existing = collection[id];
+
+        if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
+        {
+            throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
+        }
+
+        var current = propertyInfo.GetValue(existing);
+
+        if (current is not TNumber currentValue)
+        {
+            throw new ApplicationException($"Field '{propertyInfo.Name}' value type does not match increment type '{typeof(TNumber).Name}'.");
+        }
+
+        propertyInfo.SetValue(existing, add(currentValue, delta));
+        existing.Version = (existing.Version ?? 0) + 1;
+
+        await collection.UpdateAsync(existing.Id, existing);
     }
 }

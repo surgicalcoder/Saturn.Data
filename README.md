@@ -87,6 +87,31 @@ Provider libraries then map those contracts to specific backends:
 - `Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.Playground/`
 - `Saturn.Generator.Entities/Saturn.Generator.Entities.Playground/`
 
+## Key API Changes
+
+### Core API
+- **Soft-delete**:
+    - `ISoftDeletable` (`IsDeleted`, `DeletedAt`, `DeletedBy`).
+    - `IArchivable`, `IAuditable`, `ITaggable` for optional capabilities.
+    - `Delete` becomes logical delete for `ISoftDeletable`; `HardDelete` added for physical removal.
+    - `Restore` for soft-deleted items.
+- **Read-only contracts**: All `IReadonly*` interfaces now accept `bool includeDeleted = false` and expose `Exists` overloads.
+- **Projection**: Overloads for `ById`, `Many`, `One`, `All` that accept `Expression<Func<TItem, TProjection>> selector`.
+- **Patch/Increment abstraction**: `IDataUpdateDefinition<TItem>` with provider adapters (`MongoUpdateDefinitionAdapter`, `LiteDbUpdateDefinition`, `StellarUpdateDefinition`).
+- **Behavior pipeline**: `IRepositoryReadBehavior`, `IRepositoryWriteBehavior` with built-in `SoftDeleteBehavior`, `TimestampBehavior`, `AuditBehavior`.
+- **`Ref<T>` null-safety**: `HasId`, `IsPopulated`, `TryGetItem`, `RequireItem`, `ClearItem`.
+- **`SortOrderBuilder`**: Fluent `OrderBy`/`ThenBy` API.
+
+### Provider-specific work
+- **Mongo**: Single pipeline watch, true server-side projection, include-deleted filtering, patch/increment via `UpdateDefinition`.
+- **LiteDbX**: Projection via `Query().Select`, root-field pruning, `ApplySortOrders` fix, pagination on projected queries.
+- **Stellar**: API-level projection (in-memory) until storage-side support; patch/increment via read-modify-write; static options removed.
+
+### Other Integrations
+- **Generator integration**: `Saturn.Generator.Entities` now emits static `Selector` expressions for every limited view, enabling `repo.Many<Order, Order_Summary>(o=>..., Order_Summary.Selector)`.
+- **Index API**: `IIndexDefinition<TItem>` and `IRepositoryIndexManager` for explicit index creation; Mongo implements real indexes, LiteDbX maps to collection indexes, Stellar no-op.
+- **Testing**: Shared contract tests expanded for soft-delete, projection, patch, increment, exists, and watch behavior.
+
 ## Getting started
 
 ### Prerequisites

@@ -46,7 +46,7 @@ public class RefSerializationTests(DatabaseFixture fixture) : IClassFixture<Data
         });
         
 
-        Assert.Equal(1, await repo.Count<BasicEntity>(e=>true));
+        Assert.Equal(1, await repo.Count<BasicEntity>(e => true, includeDeleted: false));
         
         await repo.Insert(new RefContainerEntity
         {
@@ -54,11 +54,11 @@ public class RefSerializationTests(DatabaseFixture fixture) : IClassFixture<Data
             Related = new Ref<BasicEntity> { Id = WELL_KNOWN.Basic_Entity_1.Id }
         });
         
-        Assert.Equal(1, await repo.Count<RefContainerEntity>(e=>true));
+        Assert.Equal(1, await repo.Count<RefContainerEntity>(e => true, includeDeleted: false));
 
         var allItems = await repo.IQueryable<RefContainerEntity>().ToListAsync(); // repo.All<RefContainerEntity>(). await (await repo.All<RefContainerEntity>() ).ToListAsync();
 
-        var fetched = await repo.ById<RefContainerEntity>(ContainerId);
+        var fetched = await repo.ById<RefContainerEntity>(ContainerId, includeDeleted: false);
 
         Assert.NotNull(fetched);
         Assert.NotNull(fetched.Related);

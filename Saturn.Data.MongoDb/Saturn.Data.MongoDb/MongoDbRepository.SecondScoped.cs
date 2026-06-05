@@ -24,11 +24,7 @@ public partial class MongoDbRepository : ISecondScopedRepository
             return;
         }
 
-        await ExecuteWithTransaction<TItem>(
-            transaction,
-            async (collection, session) => await collection.DeleteManyAsync(session, f => f.Scope == Scope.Id && f.SecondScope == secondScope.Id && IDs.Contains(f.Id), cancellationToken: cancellationToken),
-            async collection => await collection.DeleteManyAsync(f => f.Scope == Scope.Id && f.SecondScope == secondScope.Id && IDs.Contains(f.Id), cancellationToken: cancellationToken)
-        );
+        await Delete<TItem>(f => f.Scope == Scope.Id && f.SecondScope == secondScope.Id && IDs.Contains(f.Id), transaction, cancellationToken);
     }
 
     public async Task Insert<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
@@ -51,10 +47,15 @@ public partial class MongoDbRepository : ISecondScopedRepository
 
     public async Task JsonUpdate<TItem, TSecondScope, TScope>(Ref<TScope> Scope, Ref<TSecondScope> secondScope, string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : SecondScopedEntity<TSecondScope, TScope>, new() where TSecondScope : Entity, new() where TScope : Entity, new()
     {
+        Expression<Func<TItem, bool>> filter = e => e.Id == id && e.Scope == Scope.Id && e.SecondScope == secondScope.Id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Patch, id: id, expectedVersion: version, jsonDocument: json, filter: filter,
+            transaction: transaction, cancellationToken: cancellationToken);
+        await ApplyWriteBehaviors(RepositoryWriteOperation.Patch, context);
+
         var result = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
-            (collection, session) => collection.UpdateOneAsync(session, e => e.Id == id && e.Scope == Scope.Id && e.SecondScope == secondScope.Id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
-            collection => collection.UpdateOneAsync(e => e.Id == id && e.Scope == Scope.Id && e.SecondScope == secondScope.Id && ((e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
+            (collection, session) => collection.UpdateOneAsync(session, filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
+            collection => collection.UpdateOneAsync(filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
         );
 
         if (!result.IsAcknowledged)

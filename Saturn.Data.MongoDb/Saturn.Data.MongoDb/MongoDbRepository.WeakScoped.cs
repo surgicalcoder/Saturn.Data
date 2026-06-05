@@ -25,20 +25,17 @@ public partial class MongoDbRepository : IWeakScopedRepository
     public async Task Delete<TItem>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new())
         where TItem : Entity, IScopedById, new()
     {
-        if (!IDs.Any())
+        var ids = IDs.ToList();
+
+        if (!ids.Any())
         {
             return;
         }
 
         var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope);
-        Expression<Func<TItem, bool>> idPredicate = item => IDs.Contains(item.Id);
-        var combinedPredicate = scopePredicate.And(idPredicate);
+        Expression<Func<TItem, bool>> idPredicate = item => ids.Contains(item.Id);
 
-        await ExecuteWithTransaction<TItem>(
-            transaction,
-            async (collection, session) => await collection.DeleteManyAsync(session, combinedPredicate, cancellationToken: cancellationToken),
-            async collection => await collection.DeleteManyAsync(combinedPredicate, cancellationToken: cancellationToken)
-        );
+        await Delete(scopePredicate.And(idPredicate), transaction, cancellationToken);
     }
 
     public async Task Insert<TItem>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new())
@@ -64,10 +61,15 @@ public partial class MongoDbRepository : IWeakScopedRepository
     {
         var scopePredicate = ScopeModelHelper.BuildScopePredicate<TItem>(scope);
         Expression<Func<TItem, bool>> idPredicate = item => item.Id == id;
+        var filter = scopePredicate.And(idPredicate).And(e => (e.Version.HasValue && e.Version <= version) || !e.Version.HasValue);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Patch, id: id, expectedVersion: version, jsonDocument: json, filter: filter,
+            transaction: transaction, cancellationToken: cancellationToken);
+        await ApplyWriteBehaviors(RepositoryWriteOperation.Patch, context);
+
         var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
-            (collection, session) => collection.UpdateOneAsync(session, scopePredicate.And(idPredicate).And(e => (e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
-            collection => collection.UpdateOneAsync(scopePredicate.And(idPredicate).And(e => (e.Version.HasValue && e.Version <= version) || !e.Version.HasValue), new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
+            (collection, session) => collection.UpdateOneAsync(session, filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken),
+            collection => collection.UpdateOneAsync(filter, new JsonUpdateDefinition<TItem>(json), cancellationToken: cancellationToken)
         );
 
         if (!updateResult.IsAcknowledged)

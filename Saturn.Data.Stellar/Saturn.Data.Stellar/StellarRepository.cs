@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using MessagePack;
@@ -47,13 +48,60 @@ public partial class StellarRepository : IAsyncDisposable
     
     protected virtual IQueryable<TItem> ApplySort<TItem>(IQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
     {
-        if (sortOrders != null && sortOrders.Any())
+        var sortOrderList = sortOrders?.ToList();
+
+        if (sortOrderList == null || sortOrderList.Count == 0)
         {
-            query = sortOrders.Aggregate(query, (current, sortOrder) => sortOrder.Direction == SortDirection.Ascending
-                ? current.OrderBy(sortOrder.Field)
-                : current.OrderByDescending(sortOrder.Field));
+            return query;
         }
-        return query;
+
+        var firstSort = sortOrderList[0];
+        IOrderedQueryable<TItem> orderedQuery = firstSort.Direction == SortDirection.Ascending
+            ? query.OrderBy(firstSort.Field)
+            : query.OrderByDescending(firstSort.Field);
+
+        foreach (var sortOrder in sortOrderList.Skip(1))
+        {
+            orderedQuery = sortOrder.Direction == SortDirection.Ascending
+                ? orderedQuery.ThenBy(sortOrder.Field)
+                : orderedQuery.ThenByDescending(sortOrder.Field);
+        }
+
+        return orderedQuery;
+    }
+
+    protected virtual bool SupportsSoftDelete<TItem>() where TItem : Entity
+    {
+        return typeof(ISoftDeletable).IsAssignableFrom(typeof(TItem));
+    }
+
+    protected virtual Expression<Func<TItem, bool>> BuildNotDeletedPredicate<TItem>() where TItem : Entity
+    {
+        var parameter = Expression.Parameter(typeof(TItem), "item");
+        var isDeleted = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
+        var body = Expression.Equal(isDeleted, Expression.Constant(false));
+
+        return Expression.Lambda<Func<TItem, bool>>(body, parameter);
+    }
+
+    protected virtual Expression<Func<TItem, bool>> ApplySoftDeleteFilter<TItem>(Expression<Func<TItem, bool>> predicate, bool includeDeleted) where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return predicate;
+        }
+
+        return BuildNotDeletedPredicate<TItem>().And(predicate);
+    }
+
+    protected virtual IQueryable<TItem> ApplySoftDeleteFilter<TItem>(IQueryable<TItem> query, bool includeDeleted) where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return query;
+        }
+
+        return query.Where(BuildNotDeletedPredicate<TItem>());
     }
     
     protected virtual IQueryable<TItem> ApplyContinueFrom<TItem>(IQueryable<TItem> query, string continueFrom) where TItem : Entity
@@ -94,7 +142,7 @@ public partial class StellarRepository : IAsyncDisposable
         return query;
     }
     
-    protected static RepositoryOptions options { get; set; }
+    protected RepositoryOptions options { get; set; }
     
     public void Dispose()
     {

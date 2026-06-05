@@ -11,6 +11,7 @@ public static class SourceCodeGenerator
     {
         source.AppendLine("using System.ComponentModel;");
         source.AppendLine("using System.Runtime.CompilerServices;");
+        source.AppendLine("using System.Linq.Expressions;");
         source.AppendLine("using GoLive.Saturn.Generator.Entities.Resources;");
         source.AppendLine("using GoLive.Saturn.Data.Entities;");
         source.AppendLine("using System.Collections.Specialized;");
@@ -212,6 +213,7 @@ public static class SourceCodeGenerator
             outputViewUpdateFromMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
             outputViewUpdateFromSelfMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
             outputViewGenerateMethod(source, classToGen, item.Key);
+            outputViewSelector(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
 
             outputViewTwoWayMethod(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
 
@@ -339,6 +341,45 @@ public static class SourceCodeGenerator
         source.AppendLine("retr.OnGenerateEnd(source, retr);");
         source.AppendLine("return retr;");
         source.AppendCloseCurlyBracketLine();
+    }
+
+    private static void outputViewSelector(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey,
+        IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
+    {
+        source.AppendLine($"public static Expression<Func<{classToGen.Name}, {classToGen.Name}_{itemKey}>> Selector => source => new {classToGen.Name}_{itemKey}");
+        source.AppendOpenCurlyBracketLine();
+
+        foreach (var v1 in item)
+        {
+            var valueExpression = $"source.{v1.classDef.Name.FirstCharToUpper()}";
+
+            if (v1.LimitedView.ComputedProperty != null)
+            {
+                valueExpression = v1.LimitedView.DisableComputedPropertyDefault
+                    ? $"{valueExpression}.{v1.LimitedView.ComputedProperty}"
+                    : $"{valueExpression}?.{v1.LimitedView.ComputedProperty} ?? default";
+            }
+
+            source.AppendLine($"{v1.classDef.Name.FirstCharToUpper()} = {valueExpression},");
+        }
+
+        if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews)
+            && classToGen.ParentItemToGenerate is { Count: > 0 }
+            && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
+        {
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == itemKey))
+            {
+                source.AppendLine($"{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName},");
+            }
+
+            foreach (var toGenerate in classToGen.ParentItemToGenerate.Where(r => r.ViewName == "*"))
+            {
+                source.AppendLine($"{toGenerate.ChildPropertyName} = source.{toGenerate.PropertyName},");
+            }
+        }
+
+        source.AppendCloseCurlyBracketLine();
+        source.AppendLine(";");
     }
 
     private static void outputAttributes(SourceStringBuilder source, MemberToGenerate classDef)

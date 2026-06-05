@@ -25,4 +25,8 @@ public class RepositoryOptions
     public Func<Type, string> GetCollectionName { get; set; }
         
     public Func<Type, string> TransparentScopeProvider { get; set; }
+
+    public IList<IRepositoryReadBehavior> ReadBehaviors { get; set; } = new List<IRepositoryReadBehavior>();
+
+    public IList<IRepositoryWriteBehavior> WriteBehaviors { get; set; } = new List<IRepositoryWriteBehavior>();
 }

@@ -8,6 +8,11 @@ public partial class StellarRepository: IScopedReadonlyRepository
 {
     public virtual async Task<TItem> ById<TItem, TScope>(string scope, string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await ById<TItem, TScope>(scope, id, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public virtual async Task<TItem> ById<TItem, TScope>(string scope, string id, bool includeDeleted, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
             return null;
@@ -23,6 +28,11 @@ public partial class StellarRepository: IScopedReadonlyRepository
 
         if (item.Scope == scope)
         {
+            if (!includeDeleted && SupportsSoftDelete<TItem>() && item is ISoftDeletable { IsDeleted: true })
+            {
+                return null;
+            }
+
             return item;
         }
 
@@ -31,17 +41,29 @@ public partial class StellarRepository: IScopedReadonlyRepository
 
     public async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await ById<TItem, TScope>(scope, IDs, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> ById<TItem, TScope>(string scope, IEnumerable<string> IDs, bool includeDeleted, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         if (string.IsNullOrWhiteSpace(scope))
         {
             return null;
         }
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        
-        return collection.AsQueryable().Where(e => IDs.Contains(e.Id) && e.Scope.Equals(scope)).ToAsyncEnumerable();
+        var query = collection.AsQueryable().Where(e => IDs.Contains(e.Id) && e.Scope.Equals(scope));
+        query = ApplySoftDeleteFilter<TItem>(query, includeDeleted);
+
+        return query.ToAsyncEnumerable();
     }
 
 
     public virtual async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
+        return await All<TItem, TScope>(scope, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public virtual async Task<IAsyncEnumerable<TItem>> All<TItem, TScope>(string scope, bool includeDeleted, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
@@ -49,39 +71,61 @@ public partial class StellarRepository: IScopedReadonlyRepository
         }
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var query = collection.AsQueryable().Where(e => e.Scope == scope);
+        query = ApplySoftDeleteFilter<TItem>(query, includeDeleted);
 
-        return collection.AsQueryable().Where(e => e.Scope == scope).ToAsyncEnumerable();
+        return query.ToAsyncEnumerable();
     }
 
     public IQueryable<TItem> IQueryable<TItem, TScope>(string scope) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return IQueryable<TItem, TScope>(scope, includeDeleted: false);
+    }
+
+    public IQueryable<TItem> IQueryable<TItem, TScope>(string scope, bool includeDeleted) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         var collection = database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>()).Result;
-        return collection.AsQueryable().Where(e => e.Scope == scope);
+        var query = collection.AsQueryable().Where(e => e.Scope == scope);
+        return ApplySoftDeleteFilter<TItem>(query, includeDeleted);
     }
 
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await Many<TItem, TScope>(scope, predicate, continueFrom, pageSize, pageNumber, sortOrders, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom, int? pageSize,
+        int? pageNumber, IEnumerable<SortOrder<TItem>> sortOrders, bool includeDeleted, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
-        var combinedPred = scopePred.And(predicate);
+        var combinedPred = ApplySoftDeleteFilter<TItem>(scopePred.And(predicate), includeDeleted);
         var query = collection.AsQueryable().Where(combinedPred);
         
         // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
         
         // Then apply continuation filter based on that order
-        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplyContinueFrom<TItem>(query, continueFrom);
         
         // Finally apply pagination
-        query = ApplyPaging(query, pageSize, pageNumber);
+        query = ApplyPaging<TItem>(query, pageSize, pageNumber);
         
-        return query.ToAsyncEnumerable();
+        return query.ToAsyncEnumerable<TItem>();
     }
     
     public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom = null, int? pageSize = 20, int? pageNumber = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await Many<TItem, TScope>(scope, whereClause, continueFrom, pageSize, pageNumber, sortOrders, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> Many<TItem, TScope>(string scope, Dictionary<string, object> whereClause, string continueFrom, int? pageSize,
+        int? pageNumber, IEnumerable<SortOrder<TItem>> sortOrders, bool includeDeleted, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
-        var query = collection.AsQueryable();
+        var query = ApplySoftDeleteFilter<TItem>(collection.AsQueryable(), includeDeleted);
         
         // Apply scope filter first
         query = query.Where(e => e.Scope == scope);
@@ -103,35 +147,49 @@ public partial class StellarRepository: IScopedReadonlyRepository
         query = ApplySort(query, sortOrders);
         
         // Then apply continuation filter based on that order
-        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplyContinueFrom<TItem>(query, continueFrom);
         
         // Finally apply pagination
-        query = ApplyPaging(query, pageSize, pageNumber);
+        query = ApplyPaging<TItem>(query, pageSize, pageNumber);
         
-        return query.ToAsyncEnumerable();
+        return query.ToAsyncEnumerable<TItem>();
     }
     
     public async Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IEnumerable<SortOrder<TItem>> sortOrders = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await One<TItem, TScope>(scope, predicate, continueFrom, sortOrders, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public async Task<TItem> One<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom,
+        IEnumerable<SortOrder<TItem>> sortOrders, bool includeDeleted, IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
-        var combinedPred = scopePred.And(predicate);
+        var combinedPred = ApplySoftDeleteFilter<TItem>(scopePred.And(predicate), includeDeleted);
         var query = collection.AsQueryable().Where(combinedPred);
         
         // Apply sorting first to establish the correct order
         query = ApplySort(query, sortOrders);
         
         // Then apply continuation filter based on that order
-        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplyContinueFrom<TItem>(query, continueFrom);
         
         return query.FirstOrDefault();
     }
     
     public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await Random<TItem, TScope>(scope, predicate, continueFrom, count, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom,
+        int count, bool includeDeleted, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> scopePred = item => item.Scope == scope;
         var combinedPred = predicate != null ? scopePred.And(predicate) : scopePred;
+        combinedPred = ApplySoftDeleteFilter<TItem>(combinedPred, includeDeleted);
         var query = collection.AsQueryable().Where(combinedPred);
         
         query = ApplyContinueFrom(query, continueFrom);
@@ -157,6 +215,12 @@ public partial class StellarRepository: IScopedReadonlyRepository
 
     public virtual async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom = null, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
     {
+        return await Count<TItem, TScope>(scope, predicate, continueFrom, includeDeleted: false, transaction, cancellationToken);
+    }
+
+    public virtual async Task<long> Count<TItem, TScope>(string scope, Expression<Func<TItem, bool>> predicate, string continueFrom, bool includeDeleted,
+        IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()
+    {
         if (scope == null || string.IsNullOrWhiteSpace(scope))
         {
             return 0;
@@ -164,10 +228,10 @@ public partial class StellarRepository: IScopedReadonlyRepository
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         Expression<Func<TItem, bool>> firstPred = item => item.Scope == scope;
-        var combinedPred = firstPred.And(predicate);
+        var combinedPred = ApplySoftDeleteFilter<TItem>(firstPred.And(predicate), includeDeleted);
         var query = collection.AsQueryable().Where(combinedPred);
         
-        query = ApplyContinueFrom(query, continueFrom);
+        query = ApplyContinueFrom<TItem>(query, continueFrom);
         
         return query.LongCount();
     }

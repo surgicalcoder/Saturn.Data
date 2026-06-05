@@ -54,6 +54,31 @@ public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged where T
         set => SetField(ref _refId, value);
     }
 
+    public bool HasId => !string.IsNullOrWhiteSpace(Id);
+
+    public bool IsPopulated => Item != null;
+
+    public bool TryGetItem(out T value)
+    {
+        value = Item;
+        return value != null;
+    }
+
+    public T RequireItem()
+    {
+        if (Item == null)
+        {
+            throw new InvalidOperationException($"Reference to '{typeof(T).Name}' is not populated.");
+        }
+
+        return Item;
+    }
+
+    public void ClearItem()
+    {
+        Item = null;
+    }
+
     public override string ToString()
     {
         return Id;

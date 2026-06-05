@@ -24,11 +24,7 @@ public partial class MongoDbRepository : IScopedRepository
             return;
         }
 
-        await ExecuteWithTransaction<TItem>(
-            transaction,
-            async (collection, session) => await collection.DeleteManyAsync(session, f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken: cancellationToken),
-            async collection => await collection.DeleteManyAsync(f => f.Scope == scope && IDs.Contains(f.Id), cancellationToken: cancellationToken)
-        );
+        await Delete<TItem>(f => f.Scope == scope && IDs.Contains(f.Id), transaction, cancellationToken);
     }
 
     public async Task Insert<TItem, TScope>(string scope, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : ScopedEntity<TScope>, new() where TScope : Entity, new()

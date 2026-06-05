@@ -56,12 +56,32 @@ public partial class LiteDbRepository //: IRepository
     /// </summary>
     internal virtual ILiteQueryable<TItem> ApplySortOrders<TItem>(ILiteQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
     {
-        if (sortOrders == null) return query;
+        if (sortOrders == null)
+        {
+            return query;
+        }
 
-        return sortOrders.Aggregate(query, (current, sortOrder) =>
-            sortOrder.Direction == SortDirection.Ascending
-                ? current.OrderBy(sortOrder.Field)
-                : current.OrderByDescending(sortOrder.Field));
+        var sortList = sortOrders.ToList();
+
+        if (sortList.Count == 0)
+        {
+            return query;
+        }
+
+        var first = sortList[0];
+        var orderedQuery = first.Direction == SortDirection.Ascending
+            ? query.OrderBy(first.Field)
+            : query.OrderByDescending(first.Field);
+
+        for (var i = 1; i < sortList.Count; i++)
+        {
+            var sort = sortList[i];
+            orderedQuery = sort.Direction == SortDirection.Ascending
+                ? orderedQuery.ThenBy(sort.Field)
+                : orderedQuery.ThenByDescending(sort.Field);
+        }
+
+        return orderedQuery;
     }
 
     /// <summary>
@@ -69,12 +89,32 @@ public partial class LiteDbRepository //: IRepository
     /// </summary>
     internal virtual IQueryable<TItem> ApplySortOrders<TItem>(IQueryable<TItem> query, IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
     {
-        if (sortOrders == null) return query;
+        if (sortOrders == null)
+        {
+            return query;
+        }
 
-        return sortOrders.Aggregate(query, (current, sortOrder) =>
-            sortOrder.Direction == SortDirection.Ascending
-                ? current.OrderBy(sortOrder.Field)
-                : current.OrderByDescending(sortOrder.Field));
+        var sortList = sortOrders.ToList();
+
+        if (sortList.Count == 0)
+        {
+            return query;
+        }
+
+        var first = sortList[0];
+        IOrderedQueryable<TItem> orderedQuery = first.Direction == SortDirection.Ascending
+            ? query.OrderBy(first.Field)
+            : query.OrderByDescending(first.Field);
+
+        for (var i = 1; i < sortList.Count; i++)
+        {
+            var sort = sortList[i];
+            orderedQuery = sort.Direction == SortDirection.Ascending
+                ? orderedQuery.ThenBy(sort.Field)
+                : orderedQuery.ThenByDescending(sort.Field);
+        }
+
+        return orderedQuery;
     }
 
     /// <summary>
@@ -156,6 +196,21 @@ public partial class LiteDbRepository //: IRepository
         return query.Limit(pageSize.Value);
     }
 
+    internal virtual ILiteQueryableResult<TItem> ApplyPagination<TItem>(ILiteQueryableResult<TItem> query, int? pageSize, int? pageNumber = null)
+    {
+        if (pageSize is not > 0)
+        {
+            return query;
+        }
+
+        if (pageNumber is > 1)
+        {
+            return query.Offset((pageNumber.Value - 1) * pageSize.Value).Limit(pageSize.Value);
+        }
+
+        return query.Limit(pageSize.Value);
+    }
+
     /// <summary>
     /// Applies pagination to a queryable.
     /// <paramref name="pageNumber"/> is 1-based when supplied together with <paramref name="pageSize"/>.
@@ -223,6 +278,35 @@ public partial class LiteDbRepository //: IRepository
     internal static async IAsyncEnumerable<TItem> EmptyAsyncEnumerable<TItem>()
     {
         yield break;
+    }
+
+    internal static bool SupportsSoftDelete<TItem>() where TItem : Entity
+    {
+        return typeof(ISoftDeletable).IsAssignableFrom(typeof(TItem));
+    }
+
+    internal static Expression<Func<TItem, bool>> ApplySoftDeleteFilter<TItem>(Expression<Func<TItem, bool>> predicate, bool includeDeleted) where TItem : Entity
+    {
+        if (includeDeleted || !SupportsSoftDelete<TItem>())
+        {
+            return predicate;
+        }
+
+        return predicate.And(BuildNotDeletedPredicate<TItem>());
+    }
+
+    internal static Expression<Func<TItem, bool>> BuildNotDeletedPredicate<TItem>() where TItem : Entity
+    {
+        if (!SupportsSoftDelete<TItem>())
+        {
+            return _ => true;
+        }
+
+        var parameter = Expression.Parameter(typeof(TItem), "item");
+        var isDeleted = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
+        var isNotDeleted = Expression.Equal(isDeleted, Expression.Constant(false));
+
+        return Expression.Lambda<Func<TItem, bool>>(isNotDeleted, parameter);
     }
 
     private static string? TryGetMemberName(Expression expression)
