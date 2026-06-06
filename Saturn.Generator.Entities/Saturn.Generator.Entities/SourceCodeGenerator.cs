@@ -357,7 +357,7 @@ public static class SourceCodeGenerator
             {
                 valueExpression = v1.LimitedView.DisableComputedPropertyDefault
                     ? $"{valueExpression}.{v1.LimitedView.ComputedProperty}"
-                    : $"{valueExpression}?.{v1.LimitedView.ComputedProperty} ?? default";
+                    : $"{valueExpression} != null ? {valueExpression}.{v1.LimitedView.ComputedProperty} : default";
             }
 
             source.AppendLine($"{v1.classDef.Name.FirstCharToUpper()} = {valueExpression},");
