@@ -8,6 +8,8 @@ param(
     [ValidateSet('patch', 'minor', 'major')]
     [string] $Bump = 'patch',
 
+    [string] $VersionSuffix = '',
+
     [switch] $DryRun,
     [switch] $AsJson
 )
@@ -57,29 +59,35 @@ function Bump-SemVerCore([object] $Base, [string] $BumpLevel) {
     }
 }
 
-function Get-LatestPublishedVersion([string] $PackageId) {
+function Get-AllPublishedVersions([string] $PackageId) {
     $lowerId = $PackageId.ToLowerInvariant()
     $url = "https://api.nuget.org/v3-flatcontainer/$lowerId/index.json"
 
     try {
         $response = Invoke-RestMethod -Uri $url -Method Get
-    } catch {
-        if ($_.Exception.Message -match '404') {
-            return $null
+        if ($null -ne $response -and $null -ne $response.versions -and $response.versions.Count -gt 0) {
+            return [string[]]$response.versions
         }
+    } catch {
+        if ($_.Exception.Message -match '404') { return $null }
         throw
     }
 
-    if ($null -eq $response -or $null -eq $response.versions -or $response.versions.Count -eq 0) {
-        return $null
-    }
+    return $null
+}
 
-    $stable = @($response.versions | Where-Object { $_ -notmatch '-' })
-    if ($stable.Count -gt 0) {
-        return $stable[-1]
+function Get-NextSuffixCounter([string[]] $PublishedVersions, [string] $SuffixLabel) {
+    if ($null -eq $PublishedVersions -or $PublishedVersions.Count -eq 0) { return 1 }
+    $pattern = "-$SuffixLabel\.(\d+)$"
+    $max = 0
+    foreach ($v in $PublishedVersions) {
+        $match = [System.Text.RegularExpressions.Regex]::Match($v, $pattern)
+        if ($match.Success) {
+            $c = [int]$match.Groups[1].Value
+            if ($c -gt $max) { $max = $c }
+        }
     }
-
-    return $response.versions[-1]
+    return $max + 1
 }
 
 $repoRootResolved = [System.IO.Path]::GetFullPath($RepoRoot)
@@ -107,19 +115,20 @@ foreach ($projectRelativePath in $ProjectPaths) {
         [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
     }
 
-    $versionNode = $xmlDoc.SelectSingleNode('//Version')
-    $versionPrefixNode = $xmlDoc.SelectSingleNode('//VersionPrefix')
+    $versionElement = $xmlDoc.SelectSingleNode('//Version')
+    $versionPrefixElement = $xmlDoc.SelectSingleNode('//VersionPrefix')
 
     $currentVersionText = $null
-    if ($null -ne $versionNode -and -not [string]::IsNullOrWhiteSpace($versionNode.InnerText)) {
-        $currentVersionText = $versionNode.InnerText.Trim()
-    } elseif ($null -ne $versionPrefixNode -and -not [string]::IsNullOrWhiteSpace($versionPrefixNode.InnerText)) {
-        $currentVersionText = $versionPrefixNode.InnerText.Trim()
+    if ($null -ne $versionElement -and -not [string]::IsNullOrWhiteSpace($versionElement.InnerText)) {
+        $currentVersionText = $versionElement.InnerText.Trim()
+    } elseif ($null -ne $versionPrefixElement -and -not [string]::IsNullOrWhiteSpace($versionPrefixElement.InnerText)) {
+        $currentVersionText = $versionPrefixElement.InnerText.Trim()
     }
 
-    $currentCore = Get-SemVerCore $currentVersionText
-    $publishedVersionText = Get-LatestPublishedVersion -PackageId $packageId
+    $allPublishedVersions = Get-AllPublishedVersions -PackageId $packageId
+    $publishedVersionText = if ($allPublishedVersions -and $allPublishedVersions.Count -gt 0) { $allPublishedVersions[-1] } else { $null }
     $publishedCore = Get-SemVerCore $publishedVersionText
+    $currentCore = Get-SemVerCore $currentVersionText
 
     $baseCore = $null
     $isFirstVersion = $false
@@ -141,18 +150,23 @@ foreach ($projectRelativePath in $ProjectPaths) {
     }
     $nextVersion = Format-SemVerCore $nextCore
 
-    if ($null -eq $versionNode) {
+    if (-not [string]::IsNullOrWhiteSpace($VersionSuffix) -and $VersionSuffix -ne 'none') {
+        $counter = Get-NextSuffixCounter -PublishedVersions $allPublishedVersions -SuffixLabel $VersionSuffix
+        $nextVersion = "$nextVersion-$VersionSuffix.$counter"
+    }
+
+    if ($null -eq $versionElement) {
         $propertyGroup = $xmlDoc.SelectSingleNode('/Project/PropertyGroup')
         if ($null -eq $propertyGroup) {
             $propertyGroup = $xmlDoc.CreateElement('PropertyGroup')
             [void]$xmlDoc.DocumentElement.AppendChild($propertyGroup)
         }
 
-        $versionNode = $xmlDoc.CreateElement('Version')
-        [void]$propertyGroup.AppendChild($versionNode)
+        $versionElement = $xmlDoc.CreateElement('Version')
+        [void]$propertyGroup.AppendChild($versionElement)
     }
 
-    $versionNode.InnerText = $nextVersion
+    $versionElement.InnerText = $nextVersion
 
     if (-not $DryRun) {
         $xmlDoc.Save($projectPath)

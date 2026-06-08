@@ -1,4 +1,4 @@
-﻿name: Publish Changed NuGets
+﻿name: Publish
 
 on:
   workflow_dispatch:
@@ -17,6 +17,16 @@ on:
           - patch
           - minor
           - major
+      version_suffix:
+        description: "Pre-release suffix (auto-increments counter from NuGet)."
+        required: false
+        type: choice
+        default: none
+        options:
+          - none
+          - alpha
+          - beta
+          - rc
       commit_version_changes:
         description: "Commit bumped versions back to the branch"
         required: false
@@ -133,7 +143,7 @@ jobs:
             throw "Missing auto bump script: $scriptPath"
           }
 
-          & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}'
+          & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}' -VersionSuffix '${{ inputs.version_suffix }}'
 
       - name: Build impacted projects
         shell: pwsh
