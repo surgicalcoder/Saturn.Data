@@ -14,6 +14,7 @@ on:
         type: choice
         default: patch
         options:
+          - none
           - patch
           - minor
           - major
@@ -27,6 +28,11 @@ on:
           - alpha
           - beta
           - rc
+      dry_run:
+        description: "Preview version bumps without publishing or committing"
+        required: false
+        type: boolean
+        default: false
       commit_version_changes:
         description: "Commit bumped versions back to the branch"
         required: false
@@ -132,6 +138,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Auto bump versions for changed packages
+        id: bump
         if: needs.detect.outputs.publish_count != '0'
         shell: pwsh
         run: |
@@ -143,9 +150,13 @@ jobs:
             throw "Missing auto bump script: $scriptPath"
           }
 
-          & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}' -VersionSuffix '${{ inputs.version_suffix }}'
+          $dryRun = if ('${{ inputs.dry_run }}' -eq 'true') { @{ DryRun = $true } } else { @{} }
+          $result = & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}' -VersionSuffix '${{ inputs.version_suffix }}' @dryRun -AsJson | ConvertFrom-Json
+
+          $result | Export-CliXml -Path "$env:RUNNER_TEMP/bump-result.clixml"
 
       - name: Build impacted projects
+        if: ${{ !inputs.dry_run }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -157,7 +168,7 @@ jobs:
           }
 
       - name: Pack changed packable projects
-        if: needs.detect.outputs.publish_count != '0'
+        if: ${{ needs.detect.outputs.publish_count != '0' && !inputs.dry_run }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -175,7 +186,7 @@ jobs:
 
 
       - name: Upload package artifacts
-        if: needs.detect.outputs.publish_count != '0'
+        if: ${{ needs.detect.outputs.publish_count != '0' && !inputs.dry_run }}
         uses: actions/upload-artifact@v4
         with:
           name: changed-nugets
@@ -183,7 +194,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish packages
-        if: needs.detect.outputs.publish_count != '0' && inputs.publish
+        if: ${{ needs.detect.outputs.publish_count != '0' && inputs.publish && !inputs.dry_run }}
         shell: pwsh
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_KEY }}
@@ -203,7 +214,7 @@ jobs:
           }
 
       - name: Commit version updates
-        if: needs.detect.outputs.publish_count != '0' && inputs.publish && inputs.commit_version_changes
+        if: ${{ needs.detect.outputs.publish_count != '0' && inputs.publish && inputs.commit_version_changes && !inputs.dry_run }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -219,8 +230,33 @@ jobs:
             exit 0
           }
 
-          git commit -m "chore: auto-bump package versions [skip ci]"
+          $resultPath = "$env:RUNNER_TEMP/bump-result.clixml"
+          $commitBody = if (Test-Path $resultPath) {
+            $result = Import-CliXml -Path $resultPath
+            ($result | ForEach-Object { "$($_.PackageId) $($_.CurrentVersion) → $($_.NextVersion)" }) -join "`n"
+          } else { '' }
+
+          git commit -m "chore: auto-bump package versions [skip ci]" -m "$commitBody"
           git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run && needs.detect.outputs.publish_count != '0' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultPath = "$env:RUNNER_TEMP/bump-result.clixml"
+          if (Test-Path $resultPath) {
+            $result = Import-CliXml -Path $resultPath
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Dry run results"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Package | Current | Next |"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---------|---------|------|"
+            foreach ($item in $result) {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| $($item.PackageId) | $($item.CurrentVersion) | $($item.NextVersion) |"
+            }
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> No packages were published or committed. Re-run with dry_run = false to execute."
+          }
 
       - name: No publish candidates
         if: needs.detect.outputs.publish_count == '0'

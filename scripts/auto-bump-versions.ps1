@@ -5,10 +5,11 @@ param(
 
     [string] $RepoRoot = (Get-Location).Path,
 
-    [ValidateSet('patch', 'minor', 'major')]
+    [ValidateSet('none', 'patch', 'minor', 'major')]
     [string] $Bump = 'patch',
 
-    [string] $VersionSuffix = '',
+    [ValidateSet('none', 'alpha', 'beta', 'rc')]
+    [string] $VersionSuffix = 'none',
 
     [switch] $DryRun,
     [switch] $AsJson
@@ -44,6 +45,9 @@ function Format-SemVerCore([object] $V) {
 
 function Bump-SemVerCore([object] $Base, [string] $BumpLevel) {
     switch ($BumpLevel) {
+        'none' {
+            return [PSCustomObject]@{ Major = $Base.Major; Minor = $Base.Minor; Patch = $Base.Patch }
+        }
         'major' {
             return [PSCustomObject]@{ Major = $Base.Major + 1; Minor = 0; Patch = 0 }
         }
@@ -64,7 +68,7 @@ function Get-AllPublishedVersions([string] $PackageId) {
     $url = "https://api.nuget.org/v3-flatcontainer/$lowerId/index.json"
 
     try {
-        $response = Invoke-RestMethod -Uri $url -Method Get
+        $response = Invoke-RestMethod -Uri $url -Method Get -RetryIntervalSec 2 -MaximumRetryCount 3
         if ($null -ne $response -and $null -ne $response.versions -and $response.versions.Count -gt 0) {
             return [string[]]$response.versions
         }
