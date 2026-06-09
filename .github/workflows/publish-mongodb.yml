@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
      SOLUTION: 'Saturn.Data.MongoDb/Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj'
      BUILD_VER : '6.0'

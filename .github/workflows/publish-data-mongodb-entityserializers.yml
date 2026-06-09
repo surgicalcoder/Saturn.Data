@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
      SOLUTION: 'Saturn.Data.MongoDb.EntitySerializers/GoLive.Saturn.Data.MongoDb.EntitySerializers.slnx'
      BUILD_VER : '6.0'

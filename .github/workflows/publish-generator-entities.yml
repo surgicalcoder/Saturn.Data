@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
      SOLUTION: 'Saturn.Generator.Entities/Saturn.Generator.Entities/Saturn.Generator.Entities.csproj'
      BUILD_VER : '1.3'

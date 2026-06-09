@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
       SOLUTION: 'Saturn.Data.Entities/GoLive.Saturn.Data.Entities.sln'
       BUILD_VER: '3.4'
