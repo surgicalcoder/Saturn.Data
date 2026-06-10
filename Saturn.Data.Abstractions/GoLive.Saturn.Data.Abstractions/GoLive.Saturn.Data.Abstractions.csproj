@@ -16,7 +16,7 @@
       <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
       <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
       <RepositoryType>git</RepositoryType>
-  </PropertyGroup>
+  <Version>6.0.38-alpha.1</Version></PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <NoWarn>1701;1702;1998</NoWarn>

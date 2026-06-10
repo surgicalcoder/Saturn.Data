@@ -18,7 +18,7 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-    </PropertyGroup>
+    <Version>7.0.0-alpha.1</Version></PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="GoLive.Saturn.Data.Abstractions" Version="3.6.27" />

@@ -16,7 +16,7 @@
       <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
       <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
       <RepositoryType>git</RepositoryType>
-  </PropertyGroup>
+  <Version>3.4.28-alpha.1</Version></PropertyGroup>
 
   <ItemGroup>
     <Compile Update="Ref.fetch.cs">
