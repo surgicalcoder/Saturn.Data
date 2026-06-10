@@ -2,6 +2,7 @@
 
   <PropertyGroup>
 	  <TargetFramework>net8.0</TargetFramework>
+	  <Version>7.0.0</Version>
 	  <LangVersion>latest</LangVersion>
 	  <PackOnBuild>true</PackOnBuild>
 	  <AssemblyName>GoLive.Saturn.Generator.Entities.Resources</AssemblyName>

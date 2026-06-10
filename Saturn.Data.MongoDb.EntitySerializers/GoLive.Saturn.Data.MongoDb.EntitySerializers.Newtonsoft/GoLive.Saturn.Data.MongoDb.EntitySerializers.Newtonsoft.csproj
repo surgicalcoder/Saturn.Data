@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+      <Version>7.0.0</Version>
       <PackageId>GoLive.Saturn.Data.MongoDb.EntitySerializers.Newtonsoft</PackageId>
       <Authors>SurgicalCoder</Authors>
       <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

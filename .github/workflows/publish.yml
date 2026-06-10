@@ -33,11 +33,6 @@ on:
         required: false
         type: boolean
         default: false
-      commit_version_changes:
-        description: "Commit bumped versions back to the branch"
-        required: false
-        type: boolean
-        default: true
       base_ref:
         description: "Optional git base ref/SHA for manual diff"
         required: false
@@ -225,32 +220,6 @@ jobs:
             Write-Host "PUSH: $($package.Name)"
             dotnet nuget push "$($package.FullName)" --source "https://api.nuget.org/v3/index.json" --api-key "$env:NUGET_API_KEY" --skip-duplicate
           }
-
-      - name: Commit version updates
-        if: ${{ needs.detect.outputs.publish_count != '0' && inputs.publish && inputs.commit_version_changes && !inputs.dry_run }}
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -u
-
-          $hasChanges = git diff --cached --name-only
-          if ([string]::IsNullOrWhiteSpace($hasChanges)) {
-            Write-Host "No version file changes to commit."
-            exit 0
-          }
-
-          $resultPath = "$env:RUNNER_TEMP/bump-result.clixml"
-          $commitBody = if (Test-Path $resultPath) {
-            $result = Import-CliXml -Path $resultPath
-            ($result | ForEach-Object { "$($_.PackageId) $($_.CurrentVersion) → $($_.NextVersion)" }) -join "`n"
-          } else { '' }
-
-          git commit -m "chore: auto-bump package versions [skip ci]" -m "$commitBody"
-          git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Dry run summary
         if: ${{ inputs.dry_run && needs.detect.outputs.build_count != '0' }}

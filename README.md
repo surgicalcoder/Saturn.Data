@@ -173,7 +173,6 @@ The workflow is manually triggered (`workflow_dispatch`) and runs in two jobs:
 | --- | --- | --- | --- |
 | `publish` | no | `true` | If `true`, pushes generated packages to NuGet.org. |
 | `version_bump` | yes | `patch` | Automatic semver bump for changed packages: `patch`, `minor`, `major`. |
-| `commit_version_changes` | no | `true` | Commit updated `<Version>` entries back to the branch after publish. |
 | `base_ref` | no | _empty_ | Optional explicit base ref/SHA for diff calculation. |
 | `head_ref` | no | _empty_ | Optional explicit head ref/SHA for diff calculation. |
 

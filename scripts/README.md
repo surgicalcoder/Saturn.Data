@@ -27,7 +27,6 @@ The manual workflow (`Publish Changed NuGets`) runs in this order:
 3. Build impacted projects.
 4. Pack changed packages only.
 5. Publish to NuGet.org (if `publish=true`).
-6. Commit bumped `.csproj` files back to the current branch (if `commit_version_changes=true`).
 
 ## Required secret
 
@@ -39,7 +38,6 @@ Configure this repository secret:
 
 - `version_bump` (required): `patch`, `minor`, `major`
 - `publish` (default `true`): publish generated packages
-- `commit_version_changes` (default `true`): commit updated versions back to git
 - `base_ref` (optional): override base commit/ref for change detection
 - `head_ref` (optional): override head commit/ref for change detection
 
@@ -49,13 +47,12 @@ For routine releases:
 
 - `version_bump=patch`
 - `publish=true`
-- `commit_version_changes=true`
 
 Use `minor` or `major` only when intentionally making those release-level changes.
 
 ## Notes
 
-- Version tracking is done by updating and committing `.csproj` versions.
+- Version tracking is done by reading/writing `<Version>` in `.csproj` during build. NuGet registry is persistent record — csproj changes not committed.
 - `dotnet nuget push` uses `--skip-duplicate` to avoid hard failure if a package/version already exists.
 - If no changed packable projects are found, the workflow exits without publishing.
 
