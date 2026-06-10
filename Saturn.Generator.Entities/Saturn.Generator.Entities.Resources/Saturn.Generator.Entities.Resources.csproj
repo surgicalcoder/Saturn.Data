@@ -19,7 +19,7 @@
 	  <GenerateRepositoryUrlAttribute>true</GenerateRepositoryUrlAttribute>
 	  <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
 	  <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
-  <Version>1.1.1-alpha.1</Version></PropertyGroup>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.28" />

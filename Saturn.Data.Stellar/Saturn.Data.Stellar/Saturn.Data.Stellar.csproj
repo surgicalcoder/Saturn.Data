@@ -18,7 +18,7 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-    <Version>6.0.4-alpha.1</Version></PropertyGroup>
+    </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="GoLive.Saturn.Crypto" Version="1.0.15" />

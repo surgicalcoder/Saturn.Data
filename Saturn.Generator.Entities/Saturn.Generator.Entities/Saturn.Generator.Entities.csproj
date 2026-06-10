@@ -34,7 +34,7 @@
         <DevelopmentDependency>true</DevelopmentDependency>
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
-    <Version>1.3.42-alpha.1</Version></PropertyGroup>
+    </PropertyGroup>
     <PropertyGroup>
         <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
     </PropertyGroup>

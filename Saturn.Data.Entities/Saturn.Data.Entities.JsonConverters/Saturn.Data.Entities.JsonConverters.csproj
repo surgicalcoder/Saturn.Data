@@ -19,7 +19,7 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-    <Version>3.4.28-alpha.1</Version></PropertyGroup>
+    </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="System.Text.Json" Version="10.0.8" />

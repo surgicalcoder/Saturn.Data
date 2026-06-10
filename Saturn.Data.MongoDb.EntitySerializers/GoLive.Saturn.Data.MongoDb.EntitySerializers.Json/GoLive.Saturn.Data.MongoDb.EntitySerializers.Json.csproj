@@ -17,7 +17,7 @@
       <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
       <RepositoryType>git</RepositoryType>
       <RootNamespace>GoLive.Saturn.Data.EntitySerializers.Json</RootNamespace>
-  <Version>6.0.3-alpha.1</Version></PropertyGroup>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.28" />
