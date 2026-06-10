@@ -8,6 +8,7 @@ param(
     [string] $PrBaseSha,
     [string] $BaseSha,
     [switch] $IncludeDependents = $true,
+    [switch] $ForceBuildAll,
     [switch] $AsJson
 )
 
@@ -137,10 +138,16 @@ foreach ($projectPath in $projectFiles) {
 }
 
 $changedProjectSet = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
-foreach ($file in $changedFiles) {
+if ($ForceBuildAll) {
     foreach ($project in $projects.Values) {
-        if ($file.StartsWith($project.DirPrefix)) {
-            [void] $changedProjectSet.Add($project.FullPath)
+        [void] $changedProjectSet.Add($project.FullPath)
+    }
+} else {
+    foreach ($file in $changedFiles) {
+        foreach ($project in $projects.Values) {
+            if ($file.StartsWith($project.DirPrefix)) {
+                [void] $changedProjectSet.Add($project.FullPath)
+            }
         }
     }
 }

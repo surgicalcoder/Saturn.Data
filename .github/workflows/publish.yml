@@ -46,6 +46,11 @@ on:
         description: "Optional git head ref/SHA for manual diff"
         required: false
         type: string
+      force_build_all:
+        description: "Ignore file changes, build all projects"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -96,6 +101,10 @@ jobs:
             $params.HeadSha = '${{ inputs.head_ref }}'
           }
 
+          if ('${{ inputs.force_build_all }}' -eq 'true') {
+            $params.ForceBuildAll = $true
+          }
+
           $result = (& $scriptPath @params | ConvertFrom-Json)
 
           "base_sha=$($result.BaseSha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -112,6 +121,10 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Changed files: $($result.ChangedFileCount)"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Projects to build: $($result.BuildProjectCount)"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Projects to publish: $($result.PublishProjectCount)"
+          if ('${{ inputs.force_build_all }}' -eq 'true') {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> **Force build all** enabled — change detection bypassed, all projects included."
+          }
 
           if ($result.PublishProjectCount -gt 0) {
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
@@ -240,25 +253,48 @@ jobs:
           git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Dry run summary
-        if: ${{ inputs.dry_run && needs.detect.outputs.publish_count != '0' }}
+        if: ${{ inputs.dry_run && needs.detect.outputs.build_count != '0' }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Dry run — preview"
+
+          # Show build projects (csproj list)
+          $buildProjects = @('${{ needs.detect.outputs.build_projects_json }}' | ConvertFrom-Json)
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Projects to build ($($buildProjects.Count))"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          foreach ($proj in $buildProjects) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- $proj"
+          }
+
+          # Show nupkg filenames from bump result
           $resultPath = "$env:RUNNER_TEMP/bump-result.clixml"
           if (Test-Path $resultPath) {
             $result = Import-CliXml -Path $resultPath
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Dry run results"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### NuPkg files to produce ($($result.Count))"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            foreach ($item in $result) {
+              $nupkg = "$($item.PackageId).$($item.NextVersion).nupkg"
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- $nupkg  ← $($item.ProjectPath)"
+            }
+
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Version bumps"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Package | Current | Next |"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---------|---------|------|"
             foreach ($item in $result) {
               Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| $($item.PackageId) | $($item.CurrentVersion) | $($item.NextVersion) |"
             }
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> No packages were published or committed. Re-run with dry_run = false to execute."
           }
+
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> No packages were published or committed. Re-run with dry_run = false to execute."
 
       - name: No publish candidates
         if: needs.detect.outputs.publish_count == '0'
-        run: echo "No packable changed projects detected."
+        run: echo "No packable projects found. Build-only run (csproj built, nothing packed)."
 
