@@ -1,11 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-    </PropertyGroup>
+    <Version>6.0.6-alpha.1</Version></PropertyGroup>
 
     <PropertyGroup>
         <PackageId>GoLive.Saturn.Data.MongoDb</PackageId>

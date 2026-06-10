@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -18,7 +18,7 @@
         <PackageProjectUrl>https://github.com/surgicalcoder/Saturn.Data</PackageProjectUrl>
         <RepositoryUrl>https://github.com/surgicalcoder/Saturn.Data</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-    </PropertyGroup>
+    <Version>3.4.28-alpha.1</Version></PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="System.Text.Json" Version="10.0.8" />
