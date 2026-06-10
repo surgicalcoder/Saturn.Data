@@ -26,7 +26,7 @@ function Resolve-GitRef([string] $Ref) {
 $repoRootResolved = [System.IO.Path]::GetFullPath($RepoRoot)
 $eventNameResolved = if (-not [string]::IsNullOrWhiteSpace($EventName)) { $EventName } else { $env:GITHUB_EVENT_NAME }
 $headShaResolved = if (-not [string]::IsNullOrWhiteSpace($HeadSha)) { Resolve-GitRef $HeadSha } else { Resolve-GitRef $env:GITHUB_SHA }
-$beforeShaResolved = if (-not [string]::IsNullOrWhiteSpace($BeforeSha)) { $BeforeSha } else { $env:GITHUB_EVENT_BEFORE }
+$beforeShaResolved = if (-not [string]::IsNullOrWhiteSpace($BeforeSha)) { Resolve-GitRef $BeforeSha } else { $env:GITHUB_EVENT_BEFORE }
 $prBaseRefResolved = if (-not [string]::IsNullOrWhiteSpace($PrBaseRef)) { $PrBaseRef } else { $env:GITHUB_BASE_REF }
 $prBaseShaResolved = if (-not [string]::IsNullOrWhiteSpace($PrBaseSha)) { $PrBaseSha } else { $null }
 
@@ -71,23 +71,51 @@ $projectFiles = Get-ChildItem -Path $repoRootResolved -Recurse -Filter *.csproj 
 $projects = @{}
 $dependents = @{}
 
+function Select-XmlNode([System.Xml.XmlDocument] $Doc, [string] $XPath, [System.Xml.XmlNamespaceManager] $NsMgr) {
+    if ($null -ne $NsMgr) { return $Doc.SelectSingleNode($XPath, $NsMgr) }
+    return $Doc.SelectSingleNode($XPath)
+}
+
+function Select-XmlNodes([System.Xml.XmlDocument] $Doc, [string] $XPath, [System.Xml.XmlNamespaceManager] $NsMgr) {
+    if ($null -ne $NsMgr) { return $Doc.SelectNodes($XPath, $NsMgr) }
+    return $Doc.SelectNodes($XPath)
+}
+
 foreach ($projectPath in $projectFiles) {
     $fullPath = [System.IO.Path]::GetFullPath($projectPath)
     $relativePath = Normalize-RepoPath($fullPath.Substring($repoRootResolved.Length).TrimStart('\', '/'))
     $projectDir = [System.IO.Path]::GetDirectoryName($fullPath)
     $dirPrefix = Normalize-RepoPath($projectDir.Substring($repoRootResolved.Length).TrimStart('\', '/')) + '/'
 
-    [xml] $xml = Get-Content -LiteralPath $fullPath
-
-    $isPackable = $true
-    $packableNode = $xml.SelectSingleNode('//IsPackable')
-    if ($null -ne $packableNode -and -not [string]::IsNullOrWhiteSpace($packableNode.InnerText)) {
-        if ($packableNode.InnerText.Trim() -match '^(?i:false|0)$') {
-            $isPackable = $false
-        }
+    [System.Xml.XmlDocument] $xml = New-Object System.Xml.XmlDocument
+    try {
+        $xml.Load($projectPath)
+    } catch {
+        Write-Warning "Skipping malformed csproj: $relativePath ($($_.Exception.Message))"
+        continue
     }
 
-    $refNodes = $xml.SelectNodes('//ProjectReference')
+    # Handle optional default namespace (SDK-style projects omit it; defend against edge cases)
+    $nsMgr = $null
+    $defaultNs = $xml.DocumentElement.GetAttribute('xmlns')
+    if (-not [string]::IsNullOrWhiteSpace($defaultNs)) {
+        $nsMgr = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
+        $nsMgr.AddNamespace('msb', $defaultNs)
+    }
+
+    $xpfx = if ($null -ne $nsMgr) { 'msb:' } else { '' }
+
+    $isPackable = $false
+    $genNode = Select-XmlNode -Doc $xml -XPath "//${xpfx}GeneratePackageOnBuild" -NsMgr $nsMgr
+    if ($null -ne $genNode -and $genNode.InnerText.Trim() -match '^(?i:true|1)$') {
+        $isPackable = $true
+    }
+    $packableNode = Select-XmlNode -Doc $xml -XPath "//${xpfx}IsPackable" -NsMgr $nsMgr
+    if ($null -ne $packableNode -and $packableNode.InnerText.Trim() -match '^(?i:true|1)$') {
+        $isPackable = $true
+    }
+
+    $refNodes = Select-XmlNodes -Doc $xml -XPath "//${xpfx}ProjectReference" -NsMgr $nsMgr
     foreach ($node in $refNodes) {
         $include = $node.GetAttribute('Include')
         if ([string]::IsNullOrWhiteSpace($include)) { continue }

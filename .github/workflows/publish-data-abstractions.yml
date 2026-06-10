@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
      SOLUTION: 'Saturn.Data.Abstractions/GoLive.Saturn.Data.Abstractions/GoLive.Saturn.Data.Abstractions.csproj'
      BUILD_VER : '6.0'

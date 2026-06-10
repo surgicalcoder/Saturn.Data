@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
       SOLUTION: 'Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.sln'
       BUILD_VER: '6.0'

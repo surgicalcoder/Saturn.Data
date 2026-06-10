@@ -4,6 +4,7 @@ on:
 
 jobs:
   publish:
+    if: false
     env:
       SOLUTION: 'Saturn.Data.Stellar/Saturn.Data.Stellar.slnx'
       BUILD_VER: '6.0'
