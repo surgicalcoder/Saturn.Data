@@ -84,7 +84,7 @@ function Select-XmlNodes([System.Xml.XmlDocument] $Doc, [string] $XPath, [System
 
 foreach ($projectPath in $projectFiles) {
     $fullPath = [System.IO.Path]::GetFullPath($projectPath)
-    $relativePath = Normalize-RepoPath($fullPath.Substring($repoRootResolved.Length).TrimStart('\', '/'))
+    $relativePath = ($fullPath.Substring($repoRootResolved.Length).TrimStart('\', '/') -replace '\\', '/')
     $projectDir = [System.IO.Path]::GetDirectoryName($fullPath)
     $dirPrefix = Normalize-RepoPath($projectDir.Substring($repoRootResolved.Length).TrimStart('\', '/')) + '/'
 
