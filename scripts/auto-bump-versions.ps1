@@ -131,6 +131,7 @@ foreach ($projectRelativePath in $ProjectPaths) {
 
     $allPublishedVersions = Get-AllPublishedVersions -PackageId $packageId
     $publishedVersionText = if ($allPublishedVersions -and $allPublishedVersions.Count -gt 0) { $allPublishedVersions[-1] } else { $null }
+    Write-Host "DEBUG: project=$projectRelativePath current='$currentVersionText' published='$publishedVersionText'"
     $publishedCore = Get-SemVerCore $publishedVersionText
     $currentCore = Get-SemVerCore $currentVersionText
 
