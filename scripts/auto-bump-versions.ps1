@@ -69,8 +69,11 @@ function Get-AllPublishedVersions([string] $PackageId) {
 
     try {
         $response = Invoke-RestMethod -Uri $url -Method Get -RetryIntervalSec 2 -MaximumRetryCount 3
-        if ($null -ne $response -and $null -ne $response.versions -and $response.versions.Count -gt 0) {
-            return [string[]]$response.versions
+        if ($null -ne $response -and $null -ne $response.versions) {
+            $versions = @($response.versions | Where-Object { $_ -match '^\d+\.\d+\.\d+' })
+            if ($versions.Count -gt 0) {
+                return [string[]]$versions
+            }
         }
     } catch {
         if ($_.Exception.Message -match '404') { return $null }
@@ -130,8 +133,9 @@ foreach ($projectRelativePath in $ProjectPaths) {
     }
 
     $allPublishedVersions = Get-AllPublishedVersions -PackageId $packageId
-    $publishedVersionText = if ($allPublishedVersions -and $allPublishedVersions.Count -gt 0) { $allPublishedVersions[-1] } else { $null }
-    Write-Host "DEBUG: project=$projectRelativePath current='$currentVersionText' published='$publishedVersionText'"
+    $publishedVersionText = if ($allPublishedVersions -and $allPublishedVersions.Count -gt 0) {
+        ($allPublishedVersions | Sort-Object -Descending { [int][regex]::Match($_, '^(\d+)').Groups[1].Value }, { [int][regex]::Match($_, '^\d+\.(\d+)').Groups[1].Value }, { [int][regex]::Match($_, '^\d+\.\d+\.(\d+)').Groups[1].Value } | Select-Object -First 1)
+    } else { $null }
     $publishedCore = Get-SemVerCore $publishedVersionText
     $currentCore = Get-SemVerCore $currentVersionText
 
