@@ -9,6 +9,7 @@ public static class SourceCodeGenerator
 {
     public static void Generate(SourceStringBuilder source, ClassToGenerate classToGen)
     {
+        source.AppendLine("using System;");
         source.AppendLine("using System.ComponentModel;");
         source.AppendLine("using System.Runtime.CompilerServices;");
         source.AppendLine("using System.Linq.Expressions;");
