@@ -56,6 +56,8 @@ public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged where T
 
     public bool HasId => !string.IsNullOrWhiteSpace(Id);
 
+    public string _shortId => string.IsNullOrWhiteSpace(Id) ? null : Entity.GetIdAsHex(Id);
+
     public bool IsPopulated => Item != null;
 
     public bool TryGetItem(out T value)
