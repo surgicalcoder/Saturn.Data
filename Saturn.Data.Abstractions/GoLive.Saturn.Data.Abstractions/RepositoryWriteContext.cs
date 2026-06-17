@@ -31,5 +31,7 @@ public sealed class RepositoryWriteContext<TItem> where TItem : Entity
     public IDatabaseTransaction Transaction { get; init; }
 
     public CancellationToken CancellationToken { get; init; }
+
+    public bool Suppress { get; init; }
 }
 

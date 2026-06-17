@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Entities;
+using GoLive.Saturn.Data.Entities.Cascade;
 
 namespace GoLive.Saturn.Data.Abstractions;
 
@@ -115,4 +116,20 @@ public interface IRepository : IReadonlyRepository
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : Entity
         => throw new NotSupportedException("Increment is not implemented by this repository.");
+
+    Task<Abstractions.Cascade.CascadeReport> DeleteCascade<TItem>(
+        string id,
+        CascadeMode mode = CascadeMode.Default,
+        CascadeDepth depth = CascadeDepth.Single,
+        IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+        => throw new NotSupportedException("DeleteCascade is not implemented by this repository.");
+
+    Task<Abstractions.Cascade.CascadeReport> HardDeleteCascade<TItem>(
+        string id,
+        CascadeMode mode = CascadeMode.Default,
+        CascadeDepth depth = CascadeDepth.Single,
+        IDatabaseTransaction transaction = null,
+        CancellationToken cancellationToken = default) where TItem : Entity
+        => throw new NotSupportedException("HardDeleteCascade is not implemented by this repository.");
 }
