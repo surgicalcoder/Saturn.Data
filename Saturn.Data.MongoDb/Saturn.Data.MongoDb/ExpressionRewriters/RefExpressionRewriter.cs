@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Diagnostics;
+using System.Linq.Expressions;
 using GoLive.Saturn.Data.Entities;
 using MongoDB.Bson;
 
@@ -8,54 +9,72 @@ public static class RefExpressionRewriter
 {
     public static Expression<Func<T, bool>> NormalizeForRef<T>(this Expression<Func<T, bool>> expr)
     {
-        var visitor = new RefExpressionVisitor();
-        var newBody = visitor.Visit(expr.Body);
-        return Expression.Lambda<Func<T, bool>>(newBody, expr.Parameters);
+        if (expr is null)
+        {
+            throw new ArgumentNullException(nameof(expr),
+                "NRE in NormalizeForRef: predicate expression is null");
+        }
+
+        Debug.WriteLine($"[RefExprRewriter] NormalizeForRef<{typeof(T).Name}>: {expr}");
+
+        try
+        {
+            var visitor = new RefExpressionVisitor();
+            var newBody = visitor.Visit(expr.Body);
+            return Expression.Lambda<Func<T, bool>>(newBody, expr.Parameters);
+        }
+        catch (NullReferenceException)
+        {
+            throw new InvalidOperationException(
+                $"NRE inside NormalizeForRef visitor. Expression: {expr}");
+        }
     }
 
     private class RefExpressionVisitor : ExpressionVisitor
     {
         protected override Expression VisitBinary(BinaryExpression node)
         {
-            if (node.NodeType == ExpressionType.Equal || node.NodeType == ExpressionType.NotEqual)
+            if (node.NodeType is ExpressionType.Equal or ExpressionType.NotEqual)
             {
                 var left = node.Left;
                 var right = node.Right;
 
-                // Detect Ref<T>.Id == string comparisons
-                // Problem: Ref<T>.Id is stored as ObjectId in MongoDB, but is a string in C#
-                // Solution: Rewrite to compare the Ref object itself, not just the Id
+                Debug.WriteLineIf(IsRefId(left) || IsRefId(right),
+                    $"[RefExprRewriter] VisitBinary rewriting at {node}");
+
                 if (IsRefId(left) && IsString(right))
                 {
-                    // Change from: refObj.Id == stringId
-                    // To: refObj == new Ref<T>(stringId)
                     var memberExpr = (MemberExpression)left;
-                    var refExpr = Visit(memberExpr.Expression); // The Ref<T> object
-                    var stringExpr = Visit(right); // The string Id
-                    
-                    // Create new Ref<T>(stringId)
-                    var refType = refExpr.Type;
+                    var refExpr = Visit(memberExpr.Expression);
+                    var stringExpr = Visit(right);
+
+                    Debug.WriteLineIf(refExpr is null,
+                        $"[RefExprRewriter] VisitBinary: refExpr is null for {memberExpr.Expression}");
+
+                    var refType = refExpr!.Type;
                     var refCtor = refType.GetConstructor(new[] { typeof(string) });
+
                     var newRefExpr = Expression.New(refCtor!, stringExpr);
-                    
-                    return node.NodeType == ExpressionType.Equal 
+
+                    return node.NodeType == ExpressionType.Equal
                         ? Expression.Equal(refExpr, newRefExpr)
                         : Expression.NotEqual(refExpr, newRefExpr);
                 }
 
                 if (IsRefId(right) && IsString(left))
                 {
-                    // Change from: stringId == refObj.Id
-                    // To: new Ref<T>(stringId) == refObj
                     var memberExpr = (MemberExpression)right;
-                    var refExpr = Visit(memberExpr.Expression); // The Ref<T> object
-                    var stringExpr = Visit(left); // The string Id
-                    
-                    // Create new Ref<T>(stringId)
-                    var refType = refExpr.Type;
+                    var refExpr = Visit(memberExpr.Expression);
+                    var stringExpr = Visit(left);
+
+                    Debug.WriteLineIf(refExpr is null,
+                        $"[RefExprRewriter] VisitBinary: refExpr is null for {memberExpr.Expression}");
+
+                    var refType = refExpr!.Type;
                     var refCtor = refType.GetConstructor(new[] { typeof(string) });
+
                     var newRefExpr = Expression.New(refCtor!, stringExpr);
-                    
+
                     return node.NodeType == ExpressionType.Equal
                         ? Expression.Equal(newRefExpr, refExpr)
                         : Expression.NotEqual(newRefExpr, refExpr);
@@ -67,45 +86,38 @@ public static class RefExpressionRewriter
 
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
-            // Handle Count, Any, Where, etc. with lambda predicates
-            // These methods need their lambda expressions to be visited so nested Ref<T>.Id comparisons are rewritten
-            if (node.Method.DeclaringType == typeof(Enumerable) || 
-                (node.Method.DeclaringType?.IsGenericType == true && 
+            if (node.Method.DeclaringType == typeof(Enumerable) ||
+                (node.Method.DeclaringType?.IsGenericType == true &&
                  node.Method.DeclaringType.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
             {
                 if (node.Method.Name is "Count" or "Any" or "Where" or "First" or "FirstOrDefault" or "Single" or "SingleOrDefault")
                 {
-                    // These methods may have a lambda predicate as the last argument - visit it
                     return base.VisitMethodCall(node);
                 }
             }
-            
-            // Handle .Contains(...) — works for both lists and arrays
+
             if (node.Method.Name == nameof(Enumerable.Contains))
             {
-                // Enumerable.Contains(collection, value)
                 var collectionExpr = node.Arguments.FirstOrDefault();
                 var valueExpr = node.Arguments.LastOrDefault();
+
+                Debug.WriteLine($"[RefExprRewriter] VisitMethodCall Contains: col={collectionExpr}, val={valueExpr}");
 
                 var visitedCollection = Visit(collectionExpr);
                 var visitedValue = Visit(valueExpr);
 
-                // Check if we actually need to modify anything
-                bool needsModification = false;
+                var needsModification = false;
 
-                // Normalize if value is a string but the collection holds Ref<T>.Id (ObjectIds)
                 if (IsRefId(valueExpr))
                 {
-                    if (IsStringCollection(visitedCollection))
+                    if (visitedCollection != null && IsStringCollection(visitedCollection))
                     {
-                        // Wrap string array into ObjectIds
                         visitedCollection = ConvertStringCollectionToObjectId(visitedCollection);
                         needsModification = true;
                     }
                 }
-                else if (IsString(visitedValue))
+                else if (visitedValue != null && IsString(visitedValue))
                 {
-                    // Example: ids.Contains(d.Id)
                     if (IsRefId(valueExpr))
                     {
                         visitedValue = WrapAsObjectId(visitedValue);
@@ -113,20 +125,17 @@ public static class RefExpressionRewriter
                     }
                 }
 
-                // Only reconstruct the call if we made modifications and the method is generic
                 if (needsModification && node.Method.IsGenericMethod)
                 {
                     return Expression.Call(
-                        node.Method.GetGenericMethodDefinition().MakeGenericMethod(visitedValue.Type),
+                        node.Method.GetGenericMethodDefinition().MakeGenericMethod(visitedValue!.Type),
                         visitedCollection,
                         visitedValue);
                 }
-                
-                // If no modifications or not a generic method, just return the visited version
+
                 if (visitedCollection != collectionExpr || visitedValue != valueExpr)
                 {
-                    // Arguments changed but method is not generic - recreate with same method
-                    return node.Update(node.Object, new[] { visitedCollection, visitedValue });
+                    return node.Update(node.Object, new[] { visitedCollection!, visitedValue! });
                 }
             }
 
@@ -141,21 +150,20 @@ public static class RefExpressionRewriter
                    m.Expression.Type.GetGenericTypeDefinition() == typeof(Ref<>);
         }
 
-        private static bool IsString(Expression expr) => expr.Type == typeof(string);
+        private static bool IsString(Expression expr) =>
+            expr?.Type == typeof(string);
 
         private static bool IsStringCollection(Expression expr)
         {
-            var t = expr.Type;
-            return typeof(IEnumerable<string>).IsAssignableFrom(t);
+            var t = expr?.Type;
+            return t != null && typeof(IEnumerable<string>).IsAssignableFrom(t);
         }
 
         private static Expression WrapAsObjectId(Expression stringExpr)
         {
-            // Use ObjectId.Parse instead of constructor - MongoDB LINQ provider supports this
             var parseMethod = typeof(ObjectId).GetMethod(nameof(ObjectId.Parse), new[] { typeof(string) });
             return Expression.Call(parseMethod!, stringExpr);
         }
-
 
         private static Expression ConvertStringCollectionToObjectId(Expression collectionExpr)
         {
@@ -168,7 +176,7 @@ public static class RefExpressionRewriter
             var selectMethod = typeof(Enumerable).GetMethods()
                 .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
                 .MakeGenericMethod(stringType, objectIdType);
-            
+
             return Expression.Call(
                 selectMethod,
                 collectionExpr,
