@@ -13,8 +13,10 @@ public struct MongoCommandStartedEvent
     public int RequestId { get; internal set; }
     public string ServiceId { get; internal set; }
     public DateTime Timestamp { get; internal set; }
+    public string TraceId { get; internal set; }
+    public string SpanId { get; internal set; }
 
-    internal static MongoCommandStartedEvent FromMongoEvent(CommandStartedEvent mongoEvent, string Command = "")
+    internal static MongoCommandStartedEvent FromMongoEvent(CommandStartedEvent mongoEvent, string Command = "", string traceId = "", string spanId = "")
     {
         return new MongoCommandStartedEvent
         {
@@ -25,7 +27,9 @@ public struct MongoCommandStartedEvent
             OperationId = mongoEvent.OperationId,
             RequestId = mongoEvent.RequestId,
             ServiceId = mongoEvent.ServiceId?.ToString(),
-            Timestamp = mongoEvent.Timestamp
+            Timestamp = mongoEvent.Timestamp,
+            TraceId = traceId,
+            SpanId = spanId
         };
     }
 }
