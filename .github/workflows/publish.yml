@@ -49,6 +49,8 @@ on:
 
 permissions:
   contents: write
+  checks: write
+  pull-requests: read
 
 jobs:
   detect:
@@ -129,13 +131,9 @@ jobs:
             }
           }
 
-  # Requires a GitHub environment named "publish" with Required reviewers configured.
-  # Go to Settings → Environments → publish → add required reviewers.
   approve:
     name: Manual approval gate
     needs: detect
-    environment:
-      name: publish
     runs-on: ubuntu-latest
     steps:
       - name: Summarize changes pending approval
@@ -146,11 +144,10 @@ jobs:
           CHANGED_COUNT: ${{ needs.detect.outputs.changed_count }}
           BUILD_COUNT: ${{ needs.detect.outputs.build_count }}
           PUBLISH_COUNT: ${{ needs.detect.outputs.publish_count }}
-          PUBLISH_PROJECTS: ${{ needs.detect.outputs.publish_projects_json }}
         run: |
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## ⏳ Manual approval required"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Review the changes detected below, then approve or reject."
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Review the detect job output above, then approve below."
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Metric | Value |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|--------|-------|"
@@ -160,14 +157,13 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Projects to build | $env:BUILD_COUNT |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Projects to publish | $env:PUBLISH_COUNT |"
 
-          if ($env:PUBLISH_COUNT -gt 0) {
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Publish candidates"
-            $projects = @('${{ needs.detect.outputs.publish_projects_json }}' | ConvertFrom-Json)
-            foreach ($p in $projects) {
-              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- $p"
-            }
-          }
+      - name: Wait for manual approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+          issue-title: "Publish packages to NuGet"
 
   build_pack_publish:
     name: Build, pack, and publish
