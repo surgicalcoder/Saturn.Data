@@ -33,12 +33,12 @@ on:
         required: false
         type: boolean
         default: false
-      base_ref:
-        description: "Optional git base ref/SHA for manual diff"
+      from_ref:
+        description: "Override the FROM ref/SHA for change detection (base of diff)"
         required: false
         type: string
-      head_ref:
-        description: "Optional git head ref/SHA for manual diff"
+      to_ref:
+        description: "Override the TO ref/SHA for change detection (head of diff)"
         required: false
         type: string
       force_build_all:
@@ -89,11 +89,11 @@ jobs:
             AsJson = $true
           }
 
-          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.base_ref }}')) {
-            $params.BaseSha = '${{ inputs.base_ref }}'
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.from_ref }}')) {
+            $params.BaseSha = '${{ inputs.from_ref }}'
           }
-          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.head_ref }}')) {
-            $params.HeadSha = '${{ inputs.head_ref }}'
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.to_ref }}')) {
+            $params.HeadSha = '${{ inputs.to_ref }}'
           }
 
           if ('${{ inputs.force_build_all }}' -eq 'true') {
