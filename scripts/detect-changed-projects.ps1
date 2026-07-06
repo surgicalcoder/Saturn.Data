@@ -60,7 +60,10 @@ if (-not [string]::IsNullOrWhiteSpace($BaseSha)) {
     $baseShaResolved = (git rev-parse "$headShaResolved^").Trim()
 }
 
-$rawChangedFiles = git diff --name-only "$baseShaResolved" "$headShaResolved"
+# Use diff-tree -m to handle merge commits: shows diffs against ALL parents, not just
+# the first parent (HEAD^). A plain diff --name-only base head on a merge commit only
+# reveals merge-conflict resolutions, missing every file brought in by the merge.
+$rawChangedFiles = git diff-tree --no-commit-id -r -m --name-only "$headShaResolved"
 $changedFiles = @(
     $rawChangedFiles |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
