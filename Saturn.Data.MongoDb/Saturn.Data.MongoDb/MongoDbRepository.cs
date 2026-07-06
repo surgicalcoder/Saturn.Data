@@ -64,13 +64,10 @@ public partial class MongoDbRepository : IRepositoryIndexManager
                     ShouldStartActivity = mongoRepositoryOptions.ShouldStartActivity
                 }));
 
-                if (mongoOptions.DebugMode)
-                {
-                    setupCallbacks(cb);
-                }
+                setupCallbacks(cb);
             };
         }
-        else if (mongoOptions.DebugMode)
+        else
         {
             settings.ClusterConfigurator = setupCallbacks;
         }
