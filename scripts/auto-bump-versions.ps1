@@ -12,7 +12,8 @@ param(
     [string] $VersionSuffix = 'none',
 
     [switch] $DryRun,
-    [switch] $AsJson
+    [switch] $AsJson,
+    [switch] $AlignToHighest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -98,6 +99,8 @@ function Get-NextSuffixCounter([string[]] $PublishedVersions, [string] $SuffixLa
 }
 
 $repoRootResolved = [System.IO.Path]::GetFullPath($RepoRoot)
+
+# Phase 1: Compute versions for all projects (no file writes yet)
 $results = New-Object System.Collections.Generic.List[object]
 
 foreach ($projectRelativePath in $ProjectPaths) {
@@ -164,24 +167,7 @@ foreach ($projectRelativePath in $ProjectPaths) {
         $nextVersion = "$nextVersion-$VersionSuffix.$counter"
     }
 
-    if ($null -eq $versionElement) {
-        $propertyGroup = $xmlDoc.SelectSingleNode('/Project/PropertyGroup')
-        if ($null -eq $propertyGroup) {
-            $propertyGroup = $xmlDoc.CreateElement('PropertyGroup')
-            [void]$xmlDoc.DocumentElement.AppendChild($propertyGroup)
-        }
-
-        $versionElement = $xmlDoc.CreateElement('Version')
-        [void]$propertyGroup.AppendChild($versionElement)
-    }
-
-    $versionElement.InnerText = $nextVersion
-
-    if (-not $DryRun) {
-        $xmlDoc.Save($projectPath)
-    }
-
-    Write-Host "BUMP: $packageId current=$currentVersionText published=$publishedVersionText next=$nextVersion"
+    Write-Host "COMPUTED: $packageId current=$currentVersionText published=$publishedVersionText next=$nextVersion"
 
     $results.Add([PSCustomObject]@{
         ProjectPath = $projectRelativePath
@@ -190,6 +176,51 @@ foreach ($projectRelativePath in $ProjectPaths) {
         PublishedVersion = $publishedVersionText
         NextVersion = $nextVersion
     }) | Out-Null
+}
+
+# Phase 1.5: Align all packages to the highest version if requested
+if ($AlignToHighest -and $results.Count -gt 1) {
+    $sorted = $results | Sort-Object {
+        $v = Get-SemVerCore $_.NextVersion
+        if ($null -eq $v) { 0, 0, 0 } else { $v.Major, $v.Minor, $v.Patch }
+    } -Descending
+    $highestVersion = $sorted[0].NextVersion
+    Write-Host "ALIGN: All packages unified to highest version: $highestVersion"
+    foreach ($item in $results) {
+        $item.NextVersion = $highestVersion
+    }
+}
+
+# Phase 2: Apply computed versions to .csproj files
+foreach ($item in $results) {
+    $projectPath = if ([System.IO.Path]::IsPathRooted($item.ProjectPath)) {
+        $item.ProjectPath
+    } else {
+        Join-Path -Path $repoRootResolved -ChildPath $item.ProjectPath
+    }
+
+    $xmlDoc = New-Object System.Xml.XmlDocument
+    $xmlDoc.PreserveWhitespace = $true
+    $xmlDoc.Load($projectPath)
+
+    $versionElement = $xmlDoc.SelectSingleNode('//Version')
+    if ($null -eq $versionElement) {
+        $propertyGroup = $xmlDoc.SelectSingleNode('/Project/PropertyGroup')
+        if ($null -eq $propertyGroup) {
+            $propertyGroup = $xmlDoc.CreateElement('PropertyGroup')
+            [void]$xmlDoc.DocumentElement.AppendChild($propertyGroup)
+        }
+        $versionElement = $xmlDoc.CreateElement('Version')
+        [void]$propertyGroup.AppendChild($versionElement)
+    }
+
+    $versionElement.InnerText = $item.NextVersion
+
+    if (-not $DryRun) {
+        $xmlDoc.Save($projectPath)
+    }
+
+    Write-Host "BUMP: $($item.PackageId) current=$($item.CurrentVersion) published=$($item.PublishedVersion) next=$($item.NextVersion)"
 }
 
 if ($AsJson) {
