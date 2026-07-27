@@ -27,8 +27,18 @@ public partial class StellarRepository : IRepository
     public async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var entityDictionary = entities.ToDictionary(
-            entity => string.IsNullOrEmpty(entity.Id) ? new EntityId() : new EntityId(entity.Id),
+        var entityList = entities.ToList();
+
+        foreach (var entity in entityList)
+        {
+            if (string.IsNullOrWhiteSpace(entity.Id))
+            {
+                entity.Id = EntityId.GenerateNewId();
+            }
+        }
+
+        var entityDictionary = entityList.ToDictionary(
+            entity => new EntityId(entity.Id),
             entity => entity
         );
         

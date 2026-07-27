@@ -33,6 +33,7 @@ public partial class StellarRepository : IAsyncDisposable
                     EntityIgnoreResolver.Instance,
                     RefResolver.Instance,
                     WeakRefResolver.Instance,
+                    ValueTupleResolver.Instance,
                     ContractlessStandardResolver.Instance
                 ))
         };
