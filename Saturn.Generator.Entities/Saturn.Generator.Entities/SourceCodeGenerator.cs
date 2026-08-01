@@ -57,7 +57,45 @@ public static class SourceCodeGenerator
                 var collTargetName = coll.Name.FirstCharToUpper();
                 source.AppendLine($"{collTargetName} = new();");
 
-                source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) => Changes.Upsert($\"{collTargetName}.{{eventArgs.NewStartingIndex}}\", eventArgs.NewItem);");
+                if (coll.DoNotTrackChanges)
+                {
+                    continue;
+                }
+
+                var keySuffix = CollectionItemKeySuffix(coll.CollectionType);
+
+                source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) =>");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("if (!EnableChangeTracking || Changes == null) return;");
+                source.AppendLine("switch (eventArgs.Action)");
+                source.AppendOpenCurlyBracketLine();
+
+                source.AppendLine("case System.Collections.Specialized.NotifyCollectionChangedAction.Add:");
+                source.AppendLine($"Changes[$\"{collTargetName}.{{eventArgs.NewItem{keySuffix}}}\"] = eventArgs.NewItem;");
+                source.AppendLine("break;");
+
+                source.AppendLine("case System.Collections.Specialized.NotifyCollectionChangedAction.Remove:");
+                source.AppendLine($"Changes.Remove($\"{collTargetName}.{{eventArgs.OldItem{keySuffix}}}\");");
+                source.AppendLine("break;");
+
+                source.AppendLine("case System.Collections.Specialized.NotifyCollectionChangedAction.Replace:");
+                source.AppendLine($"Changes.Remove($\"{collTargetName}.{{eventArgs.OldItem{keySuffix}}}\");");
+                source.AppendLine($"Changes[$\"{collTargetName}.{{eventArgs.NewItem{keySuffix}}}\"] = eventArgs.NewItem;");
+                source.AppendLine("break;");
+
+                source.AppendLine("case System.Collections.Specialized.NotifyCollectionChangedAction.Move:");
+                source.AppendLine("break;");
+
+                source.AppendLine("case System.Collections.Specialized.NotifyCollectionChangedAction.Reset:");
+                source.AppendLine($"foreach (var key in Changes.Keys.Where(k => k.StartsWith(\"{collTargetName}.\")).ToList())");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("Changes.Remove(key);");
+                source.AppendCloseCurlyBracketLine();
+                source.AppendLine("break;");
+
+                source.AppendCloseCurlyBracketLine();
+                source.AppendCloseCurlyBracketLine();
+                source.AppendLine(";");
             }
 
             source.AppendCloseCurlyBracketLine();
@@ -71,7 +109,7 @@ public static class SourceCodeGenerator
             }
             else
             {
-                GenerateNormalMember(source, member);
+                GenerateNormalMember(source, member, classToGen);
             }
         }
 
@@ -392,29 +430,65 @@ public static class SourceCodeGenerator
 
         foreach (var attr in classDef.AdditionalAttributes)
         {
-            var builder = new StringBuilder();
-            builder.Append($"[{attr.Name}(");
+            var parameters = new List<string>();
+            parameters.AddRange(attr.ConstructorParameters);
+            parameters.AddRange(attr.NamedParameters.Select(p => $"{p.Key}={p.Value}"));
 
-            if (attr.ConstructorParameters.Count > 0)
-            {
-                foreach (var attrConstructorParameter in attr.ConstructorParameters)
-                {
-                    builder.Append($"{attrConstructorParameter},");
-                }
-            }
-
-            if (attr.NamedParameters.Count > 0)
-            {
-                foreach (var attrNamedParameter in attr.NamedParameters)
-                {
-                    builder.Append($"{attrNamedParameter.Key}={attrNamedParameter.Value},");
-                }
-            }
-
-            builder.AppendLine(")]");
-
-            source.AppendLine(builder.ToString().Replace(",)]", ")]")); // TODO need to fix
+            source.AppendLine($"[{attr.Name}({string.Join(",", parameters)})]");
         }
+    }
+
+    private static string CollectionItemKeySuffix(ITypeSymbol elementType)
+    {
+        if (elementType == null)
+        {
+            return string.Empty;
+        }
+
+        if (elementType is INamedTypeSymbol { TypeArguments.Length: 1 } named
+            && named.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
+        {
+            return "?.Id";
+        }
+
+        if (elementType.GetMembers("Id").OfType<IPropertySymbol>().Any(p => p.GetMethod != null && p.DeclaredAccessibility != Accessibility.Private))
+        {
+            return "?.Id";
+        }
+
+        return elementType.AllInterfaces.Any(i => i.ToString() == "GoLive.Saturn.Data.Entities.IUniquelyIdentifiable") ? "?.Id" : string.Empty;
+    }
+
+    private static string NoTrackingSetterBody(MemberToGenerate item, string valueExpression)
+    {
+        return $@"if (EqualityComparer<{item.Type.ToDisplayString()}>.Default.Equals({item.Name}, {valueExpression})) return;
+{item.Name} = {valueExpression};
+OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
+    }
+
+    private static string ScopedSetValue(MemberToGenerate item, string valueExpression)
+    {
+        if (!item.DoNotTrackChanges)
+        {
+            return $"SetField(ref this.{item.Name}, {valueExpression});";
+        }
+
+        return $@"var valueToSet = {valueExpression};
+if (EqualityComparer<{item.Type.ToDisplayString()}>.Default.Equals({item.Name}, valueToSet)) return;
+{item.Name} = valueToSet;
+OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
+    }
+
+    private static string ScopedClearValue(MemberToGenerate item)
+    {
+        if (!item.DoNotTrackChanges)
+        {
+            return $"SetField(ref this.{item.Name}, null);";
+        }
+
+        return $@"if (EqualityComparer<{item.Type.ToDisplayString()}>.Default.Equals({item.Name}, null)) return;
+{item.Name} = null;
+OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
     }
 
     private static void GenerateCollectionMember(SourceStringBuilder source, MemberToGenerate item)
@@ -423,11 +497,23 @@ public static class SourceCodeGenerator
         source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} ObservableCollections.ObservableList<{item.CollectionType}> {itemName.FirstCharToUpper()}");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"get => {itemName};");
-        source.AppendLine($"set => SetField(ref this.{itemName}, value);");
+
+        if (item.DoNotTrackChanges)
+        {
+            source.AppendLine("set");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine(NoTrackingSetterBody(item, "value"));
+            source.AppendCloseCurlyBracketLine();
+        }
+        else
+        {
+            source.AppendLine($"set => SetField(ref this.{itemName}, value);");
+        }
+
         source.AppendCloseCurlyBracketLine();
     }
 
-    private static void GenerateNormalMember(SourceStringBuilder source, MemberToGenerate item)
+    private static void GenerateNormalMember(SourceStringBuilder source, MemberToGenerate item, ClassToGenerate classToGen)
     {
         var itemName = item.Name;
 
@@ -446,44 +532,60 @@ public static class SourceCodeGenerator
             source.AppendLine($"get => {itemName};");
         }
 
-        if (item.IsScoped)
+        if (item.IsScoped
+            && classToGen.IsMultiscopedEntity
+            && item.Type is { } scopedType
+            && scopedType.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>")
         {
+            var setValue = ScopedSetValue(item, $"value.Item ?? new {item.Type.ToDisplayString()}(value.Id)");
+            var clearValue = ScopedClearValue(item);
+            var simpleValue = getSimpleValue(item);
+
             source.AppendLine($@"set
         {{
-            if (value != null && !string.IsNullOrWhiteSpace(value.Id))
+            if (value != null)
             {{
-                if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id) && Scopes.Contains({itemName}.Id) && {itemName}.Id != value.Id )
+                if (string.IsNullOrWhiteSpace(value.Id))
                 {{
-                    Scopes.Remove({itemName}.Id);
+                    Scopes.RemoveAll(f => f == {itemName}?.Id);
+                    {clearValue}
                 }}
-
-                if (!Scopes.Contains(value.Id))
+                else
                 {{
-                    Scopes.Add(value.Id);
+                    if (!Scopes.Contains(value.Id))
+                    {{
+                        Scopes.Add(value.Id);
+                    }}
+                    {setValue}
+                    {simpleValue}
                 }}
-
-                SetField(ref this.{itemName}, value.Id);
-                if (value.Item != null)
-                {{
-                    SetField(ref this.{itemName}, value.Item);
-                }}
-
-                {getSimpleValue(item)}
-
             }}
             else
             {{
-                if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id) && Scopes.Contains({itemName}.Id))
+                if ({itemName} != null && !string.IsNullOrWhiteSpace({itemName}.Id))
                 {{
-                    Scopes.Remove({itemName}.Id);
-                    SetField(ref this.{itemName}, string.Empty);
+                    Scopes.RemoveAll(f => f == {itemName}.Id);
                 }}
+                {clearValue}
             }}
         }}");
         }
         else if (!item.ReadOnly)
         {
-            if (item.HasRunAfterSetMethodSimple)
+            if (item.DoNotTrackChanges)
+            {
+                source.AppendLine("set");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine(NoTrackingSetterBody(item, "value"));
+
+                if (item.HasRunAfterSetMethodSimple)
+                {
+                    source.AppendLine($"{itemName}_runAfterSet(value);");
+                }
+
+                source.AppendCloseCurlyBracketLine();
+            }
+            else if (item.HasRunAfterSetMethodSimple)
             {
                 source.Append($@"set
         {{

@@ -19,6 +19,7 @@ public class MemberToGenerate
     public bool ReadOnly { get; set; }
     public bool WriteOnly { get; set; }
     public bool IsScoped { get; set; }
+    public bool DoNotTrackChanges { get; set; }
     public bool UseOnlyForLimited { get; set; }
     
     public bool HasRunAfterSetMethodSimple { get; set; }

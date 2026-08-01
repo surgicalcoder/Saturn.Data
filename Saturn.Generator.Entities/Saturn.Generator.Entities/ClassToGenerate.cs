@@ -14,6 +14,7 @@ public class ClassToGenerate
     public string Filename { get; set; }
     public string Namespace { get; set; }
     public bool HasInitMethod { get; set; }
+    public bool IsMultiscopedEntity { get; set; }
 
     public List<LimitedViewParentItemToGenerate> ParentItemToGenerate { get; set; }
     

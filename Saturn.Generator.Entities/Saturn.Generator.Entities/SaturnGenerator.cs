@@ -42,6 +42,14 @@ public class SaturnGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor AddRefToScopeRequiresMultiscoped = new(
+        id: "SATURN005",
+        title: "AddRefToScope requires Ref<T> on MultiscopedEntity",
+        messageFormat: "Member '{0}' in class '{1}' has [AddRefToScope] but this requires a Ref<T> member on a class deriving from MultiscopedEntity<T>",
+        category: "Saturn.Generator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(static (s, _) => Scanner.CanBeEntity(s),
@@ -100,6 +108,17 @@ public class SaturnGenerator : IIncrementalGenerator
                 if (viewName != null && viewName != "*" && !viewNames.Contains(viewName))
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(ReadonlyInViewNotFound, Location.None, member.Name, toGenerate.Name, viewName));
+                }
+            }
+
+            // SATURN005: AddRefToScope requires a Ref<T> member on a class deriving from MultiscopedEntity<T>
+            if (member.IsScoped)
+            {
+                var isRefType = member.Type != null && member.Type.OriginalDefinition.ToString() == "GoLive.Saturn.Data.Entities.Ref<T>";
+
+                if (!toGenerate.IsMultiscopedEntity || !isRefType)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(AddRefToScopeRequiresMultiscoped, Location.None, member.Name, toGenerate.Name));
                 }
             }
         }

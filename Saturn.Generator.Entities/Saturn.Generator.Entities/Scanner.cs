@@ -12,6 +12,9 @@ namespace GoLive.Saturn.Generator.Entities;
 public static class Scanner
 {
     private static readonly SymbolDisplayFormat symbolDisplayFormat = new(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+    private static readonly SymbolDisplayFormat genericTypeDisplayFormat = new(
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
     private const string ATTRIBUTES_DoNotTrackChanges = $"{ATTRIBUTE_NAMESPACE}.DoNotTrackChangesAttribute";
     private const string ATTRIBUTES_AddRefToScope = $"{ATTRIBUTE_NAMESPACE}.AddRefToScopeAttribute";
     private const string ATTRIBUTES_WriteOnly = $"{ATTRIBUTE_NAMESPACE}.WriteOnlyAttribute";
@@ -52,6 +55,25 @@ public static class Scanner
         return false;
     }
 
+    private static bool InheritsFromGeneric(INamedTypeSymbol classDeclaration, string qualifiedGenericBaseTypeName)
+    {
+        var currentDeclared = classDeclaration;
+
+        while (currentDeclared.BaseType != null)
+        {
+            var currentBaseType = currentDeclared.BaseType;
+
+            if (string.Equals(currentBaseType.OriginalDefinition.ToDisplayString(genericTypeDisplayFormat), qualifiedGenericBaseTypeName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            currentDeclared = currentBaseType;
+        }
+
+        return false;
+    }
+
     public static ClassToGenerate ConvertToMapping((INamedTypeSymbol symbol, ClassDeclarationSyntax syntax) input)
     {
         ClassToGenerate retr = new();
@@ -62,6 +84,7 @@ public static class Scanner
         retr.Members = ConvertToMembers(input.symbol).ToList();
         retr.ParentItemToGenerate = GetParentItemsToGenerate(input.symbol, input.syntax).ToList();
         retr.HasInitMethod = input.symbol.GetMembers().OfType<IMethodSymbol>().Any(m => m.Name == "_init" && m.DeclaredAccessibility == Accessibility.Private);
+        retr.IsMultiscopedEntity = InheritsFromGeneric(input.symbol, "GoLive.Saturn.Data.Entities.MultiscopedEntity<T>");
         
         if (input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews))
         {
@@ -340,7 +363,7 @@ public static class Scanner
 
             if (AttributeExists(attr, ATTRIBUTES_DoNotTrackChanges))
             {
-                continue;
+                memberToGenerate.DoNotTrackChanges = true;
             }
 
             if (AttributeExists(attr, ATTRIBUTES_AddRefToScope))
