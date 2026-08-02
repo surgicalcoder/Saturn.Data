@@ -15,8 +15,6 @@ public class MongoDbRepositoryOptions
     
     public string ConnectionString { get; set; }
     
-    public bool DebugMode { get; set; }
-    
     public Func<Type, bool> ObjectSerializerConfiguration { get; set; } = type => true;
     
     public Dictionary<Type, Type> GenericSerializers { get; set; } = new();

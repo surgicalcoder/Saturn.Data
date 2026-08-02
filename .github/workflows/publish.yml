@@ -33,12 +33,12 @@ on:
         required: false
         type: boolean
         default: false
-      base_ref:
-        description: "Optional git base ref/SHA for manual diff"
+      from_ref:
+        description: "Override the FROM ref/SHA for change detection (base of diff)"
         required: false
         type: string
-      head_ref:
-        description: "Optional git head ref/SHA for manual diff"
+      to_ref:
+        description: "Override the TO ref/SHA for change detection (head of diff)"
         required: false
         type: string
       force_build_all:
@@ -46,9 +46,16 @@ on:
         required: false
         type: boolean
         default: false
+      align_versions:
+        description: "Align all packages to the highest computed version (e.g. 5 packages → all use 1.3.0)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  checks: write
+  issues: write
 
 jobs:
   detect:
@@ -62,6 +69,7 @@ jobs:
       changed_count: ${{ steps.detect.outputs.changed_count }}
       base_sha: ${{ steps.detect.outputs.base_sha }}
       head_sha: ${{ steps.detect.outputs.head_sha }}
+      version_preview_json: ${{ steps.version-preview.outputs.version_preview_json }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,11 +97,11 @@ jobs:
             AsJson = $true
           }
 
-          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.base_ref }}')) {
-            $params.BaseSha = '${{ inputs.base_ref }}'
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.from_ref }}')) {
+            $params.BaseSha = '${{ inputs.from_ref }}'
           }
-          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.head_ref }}')) {
-            $params.HeadSha = '${{ inputs.head_ref }}'
+          if (-not [string]::IsNullOrWhiteSpace('${{ inputs.to_ref }}')) {
+            $params.HeadSha = '${{ inputs.to_ref }}'
           }
 
           if ('${{ inputs.force_build_all }}' -eq 'true') {
@@ -129,9 +137,107 @@ jobs:
             }
           }
 
+      - name: Preview version bumps
+        id: version-preview
+        if: steps.detect.outputs.publish_count != '0'
+        shell: pwsh
+        env:
+          ALIGN_FLAG: ${{ inputs.align_versions && 'true' || '' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $publishProjects = @('${{ steps.detect.outputs.publish_projects_json }}' | ConvertFrom-Json)
+          $scriptPath = Join-Path '${{ github.workspace }}' 'scripts/auto-bump-versions.ps1'
+
+          $bumpParams = @{
+            ProjectPaths   = $publishProjects
+            RepoRoot       = '${{ github.workspace }}'
+            Bump           = '${{ inputs.version_bump }}'
+            VersionSuffix  = '${{ inputs.version_suffix }}'
+            DryRun         = $true
+            AsJson         = $true
+          }
+
+          if ($env:ALIGN_FLAG -eq 'true') {
+            $bumpParams.AlignToHighest = $true
+          }
+
+          $previewJson = & $scriptPath @bumpParams
+          "version_preview_json=$previewJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          $preview = ($previewJson | ConvertFrom-Json)
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Version preview"
+
+          if ($env:ALIGN_FLAG -eq 'true') {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "> **Align versions enabled** — all packages will use the highest version."
+          }
+
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Package | Current | Published | Next |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---------|---------|----------|------|"
+          foreach ($item in $preview) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| $($item.PackageId) | $($item.CurrentVersion) | $($item.PublishedVersion) | **$($item.NextVersion)** |"
+          }
+
+  approve:
+    name: Manual approval gate
+    needs: detect
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize changes pending approval
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ needs.detect.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.detect.outputs.head_sha }}
+          CHANGED_COUNT: ${{ needs.detect.outputs.changed_count }}
+          BUILD_COUNT: ${{ needs.detect.outputs.build_count }}
+          PUBLISH_COUNT: ${{ needs.detect.outputs.publish_count }}
+        run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## ⏳ Manual approval required"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Review the detect job output above, then approve below."
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Metric | Value |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|--------|-------|"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Base SHA | $env:BASE_SHA |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Head SHA | $env:HEAD_SHA |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Changed files | $env:CHANGED_COUNT |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Projects to build | $env:BUILD_COUNT |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Projects to publish | $env:PUBLISH_COUNT |"
+
+          if ($env:PUBLISH_COUNT -gt 0) {
+            $preview = @('${{ needs.detect.outputs.version_preview_json }}' | ConvertFrom-Json)
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "### Version preview"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Package | Current | Published | Next |"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---------|---------|----------|------|"
+            foreach ($item in $preview) {
+              Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| $($item.PackageId) | $($item.CurrentVersion) | $($item.PublishedVersion) | **$($item.NextVersion)** |"
+            }
+          }
+
+      - name: Wait for manual approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+          issue-title: "Publish packages to NuGet"
+
+      - name: Wait for manual approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+          issue-title: "Publish packages to NuGet"
+
   build_pack_publish:
     name: Build, pack, and publish
-    needs: detect
+    needs: [detect, approve]
     runs-on: ubuntu-latest
     if: needs.detect.outputs.build_count != '0'
     steps:
@@ -149,6 +255,8 @@ jobs:
         id: bump
         if: needs.detect.outputs.publish_count != '0'
         shell: pwsh
+        env:
+          ALIGN_FLAG: ${{ inputs.align_versions && 'true' || '' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $projects = @('${{ needs.detect.outputs.publish_projects_json }}' | ConvertFrom-Json)
@@ -158,8 +266,20 @@ jobs:
             throw "Missing auto bump script: $scriptPath"
           }
 
+          $bumpParams = @{
+            ProjectPaths  = $projects
+            RepoRoot      = '${{ github.workspace }}'
+            Bump          = '${{ inputs.version_bump }}'
+            VersionSuffix = '${{ inputs.version_suffix }}'
+            AsJson        = $true
+          }
+
+          if ($env:ALIGN_FLAG -eq 'true') {
+            $bumpParams.AlignToHighest = $true
+          }
+
           $dryRun = if ('${{ inputs.dry_run }}' -eq 'true') { @{ DryRun = $true } } else { @{} }
-          $result = & $scriptPath -ProjectPaths $projects -RepoRoot '${{ github.workspace }}' -Bump '${{ inputs.version_bump }}' -VersionSuffix '${{ inputs.version_suffix }}' @dryRun -AsJson | ConvertFrom-Json
+          $result = & $scriptPath @bumpParams @dryRun | ConvertFrom-Json
 
           $result | Export-CliXml -Path "$env:RUNNER_TEMP/bump-result.clixml"
 

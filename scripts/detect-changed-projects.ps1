@@ -60,7 +60,13 @@ if (-not [string]::IsNullOrWhiteSpace($BaseSha)) {
     $baseShaResolved = (git rev-parse "$headShaResolved^").Trim()
 }
 
-$rawChangedFiles = git diff --name-only "$baseShaResolved" "$headShaResolved"
+# When a base SHA is known, diff explicitly against it. When not (shouldn't happen),
+# fall back to diff-tree -m which diffs against all parents of a merge commit.
+if (-not [string]::IsNullOrWhiteSpace($baseShaResolved)) {
+    $rawChangedFiles = git diff-tree --no-commit-id -r --name-only "$baseShaResolved" "$headShaResolved"
+} else {
+    $rawChangedFiles = git diff-tree --no-commit-id -r -m --name-only "$headShaResolved"
+}
 $changedFiles = @(
     $rawChangedFiles |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |

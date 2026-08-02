@@ -64,13 +64,10 @@ public partial class MongoDbRepository : IRepositoryIndexManager
                     ShouldStartActivity = mongoRepositoryOptions.ShouldStartActivity
                 }));
 
-                if (mongoOptions.DebugMode)
-                {
-                    setupCallbacks(cb);
-                }
+                setupCallbacks(cb);
             };
         }
-        else if (mongoOptions.DebugMode)
+        else
         {
             settings.ClusterConfigurator = setupCallbacks;
         }
@@ -150,24 +147,42 @@ public partial class MongoDbRepository : IRepositoryIndexManager
 
     protected virtual void setupCallbacks(ClusterBuilder cb)
     {
+        // 1. ActivitySource Start — creates Activity, stores in dict
+        cb.Subscribe<CommandStartedEvent>(MongoDbActivity.Start);
+
+        // 2. User callbacks — capture trace info synchronously before Task.Run,
+        //    while Activity is still in the dict (Stop/Fail hasn't run yet)
         if (mongoOptions.CommandStartedCallback != null)
         {
             cb.Subscribe<CommandStartedEvent>(e =>
             {
                 var document = e.Command.ToJson();
-                Task.Run(async () => await mongoOptions.CommandStartedCallback.Invoke(MongoCommandStartedEvent.FromMongoEvent(e, document)));
+                var (traceId, spanId) = MongoDbActivity.GetTraceInfo(e.ConnectionId?.ToString(), e.OperationId, e.RequestId);
+                Task.Run(async () => await mongoOptions.CommandStartedCallback.Invoke(MongoCommandStartedEvent.FromMongoEvent(e, document, traceId, spanId)));
             });
         }
 
         if (mongoOptions.CommandFailedCallback != null)
         {
-            cb.Subscribe<CommandFailedEvent>(e => { Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e))); });
+            cb.Subscribe<CommandFailedEvent>(e =>
+            {
+                var (traceId, spanId) = MongoDbActivity.GetTraceInfo(e.ConnectionId?.ToString(), e.OperationId, e.RequestId);
+                Task.Run(async () => await mongoOptions.CommandFailedCallback.Invoke(MongoCommandFailedEvent.FromMongoEvent(e, traceId, spanId)));
+            });
         }
 
         if (mongoOptions.CommandSucceededCallback != null)
         {
-            cb.Subscribe<CommandSucceededEvent>(e => { Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e))); });
+            cb.Subscribe<CommandSucceededEvent>(e =>
+            {
+                var (traceId, spanId) = MongoDbActivity.GetTraceInfo(e.ConnectionId?.ToString(), e.OperationId, e.RequestId);
+                Task.Run(async () => await mongoOptions.CommandSucceededCallback.Invoke(MongoCommandSucceededEvent.FromMongoEvent(e, traceId, spanId)));
+            });
         }
+
+        // 3. ActivitySource Stop/Fail — cleanup after callbacks captured trace info
+        cb.Subscribe<CommandSucceededEvent>(MongoDbActivity.Stop);
+        cb.Subscribe<CommandFailedEvent>(MongoDbActivity.Fail);
     }
 
     public void Dispose(bool val)
