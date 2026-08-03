@@ -10,18 +10,18 @@ Status: design proposal, not approved.
 Progress log. Tick a phase off only when its **done** gate passes (tests green, build clean, files landed). Each phase
 is a self-contained commit unit on `master`.
 
-| #  | Phase                   | Status    | Done gate                                                                                    |
-|----|-------------------------|-----------|----------------------------------------------------------------------------------------------|
-| 0  | Chokepoint              | `[ ]` not started | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green |
-| 1  | After\* contract       | `[ ]` not started | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green |
-| 2  | Provider after-hooks    | `[ ]` not started | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                  |
-| 3  | Feed core               | `[ ]` not started | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
-| 4  | Delivery                | `[ ]` not started | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                   |
-| 5  | Docs                    | `[ ]` not started | This tracker ticked; `docs/data-change-feed.md` usage guide written                           |
+| # | Phase                | Status                | Done gate                                                                                            |
+|---|----------------------|-----------------------|------------------------------------------------------------------------------------------------------|
+| 0 | Chokepoint           | `[x]` done 2026-08-03 | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green    |
+| 1 | After\* contract     | `[ ]` not started     | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
+| 2 | Provider after-hooks | `[ ]` not started     | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
+| 3 | Feed core            | `[ ]` not started     | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
+| 4 | Delivery             | `[ ]` not started     | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                          |
+| 5 | Docs                 | `[ ]` not started     | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
 
 Per-phase task list (detailed below in §11). Sub-items tick as completed:
 
-- [ ] **Phase 0** — dispatcher + provider `Before*` wiring
+- [x] **Phase 0** — dispatcher + provider `Before*` wiring
 - [ ] **Phase 1** — `After*` contract + Mongo after-dispatch
 - [ ] **Phase 2** — LiteDbX + Stellar after-hooks
 - [ ] **Phase 3** — feed core
@@ -497,7 +497,8 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 0 — Chokepoint
 
-- [ ] `BehaviorDispatcher` (abstractions): `RunWriteBehaviorsAsync<TItem>` lifting Mongo's `ApplyWriteBehaviors`; `DispatchBeforeAsync`/`DispatchAfterAsync` helpers
+- [ ] `BehaviorDispatcher` (abstractions): `RunWriteBehaviorsAsync<TItem>` lifting Mongo's `ApplyWriteBehaviors`;
+  `DispatchBeforeAsync`/`DispatchAfterAsync` helpers
 - [ ] Mongo: swap `ApplyWriteBehaviors` → dispatcher, keep `Before*` ordering identical
 - [ ] LiteDbX: call `RunWriteBehaviorsAsync` on every write op in `LiteDbRepository.Repository.cs`
 - [ ] Stellar: same in `StellarRepository.Repository.cs`
@@ -507,7 +508,8 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 - [ ] Add 9 `After*` default no-op members to `IRepositoryWriteBehavior`
 - [ ] Add `RepositoryWriteResult` + `WriteOutcome` in abstractions
-- [ ] Mongo `BuildWriteResult()` from `BulkWriteResult`/`ReplaceOneResult`/`UpdateResult`/`DeleteResult` (incl. `PartialFailure`/`FailedCount`/`FailedIds`)
+- [ ] Mongo `BuildWriteResult()` from `BulkWriteResult`/`ReplaceOneResult`/`UpdateResult`/`DeleteResult` (incl.
+  `PartialFailure`/`FailedCount`/`FailedIds`)
 - [ ] Mongo dispatches `After*` in-tx / immediately (§5.3)
 - [ ] `After*` swallow+log isolation (§5.4); `Suppress` gates `After*` (§5.5)
 - [ ] `ChangeFeedContractTests` Mongo tests 1–8 green

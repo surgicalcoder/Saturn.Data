@@ -11,7 +11,11 @@ public partial class StellarRepository : IRepository
 {
     public async Task Delete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
-        await Delete<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
+        var ids = IDs.ToList();
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
+
+        await DeleteCore<TItem>(item => ids.Contains(item.Id), token: cancellationToken);
     }
 
     public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -20,34 +24,39 @@ public partial class StellarRepository : IRepository
         {
             entity.Id = EntityId.GenerateNewId();
         }
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        await collection.AddAsync(entity.Id, entity);
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: new[] { entity }, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
+
+        await InsertCore(entity, token);
     }
 
     public async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var entityList = entities.ToList();
 
-        foreach (var entity in entityList)
+        if (entityList.Count == 0)
         {
-            if (string.IsNullOrWhiteSpace(entity.Id))
-            {
-                entity.Id = EntityId.GenerateNewId();
-            }
+            return;
         }
 
-        var entityDictionary = entityList.ToDictionary(
-            entity => new EntityId(entity.Id),
-            entity => entity
-        );
-        
-        await collection.AddBulkAsync(entityDictionary);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: entityList, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
+
+        await InsertCore(entityList, token);
     }
 
     public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        await Upsert(entity, transaction, token);
+        if (string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: new[] { entity }, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
+
+        await UpsertCore(entity, token);
     }
 
     public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -58,23 +67,35 @@ public partial class StellarRepository : IRepository
 
     public async Task Save<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-      var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-      
-      var entitiesToUpdate = entities.Where(entity => !string.IsNullOrEmpty(entity.Id)).ToList();
-      var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
+        if (entities.Count == 0)
+        {
+            return;
+        }
 
-      await Update(entitiesToUpdate, token: token);
-      await Insert(entitiesToAdd, token: token);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: entities, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
+        await SaveCore(entities, token);
     }
     
     public async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        await Save(entity, token: token);
+        if (string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, id: entity.Id, items: new[] { entity }, filter: e => e.Id == entity.Id, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
+
+        await UpsertCore(entity, token);
     }
     
     public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, id: entity.Id, items: new[] { entity }, filter: conditionPredicate, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
+
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var items = collection.AsQueryable().Where(conditionPredicate).ToList();
         foreach (var item in items)
@@ -91,26 +112,28 @@ public partial class StellarRepository : IRepository
 
     public async Task Update<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        await Save(entities, token: token);
+        if (entities.Count == 0)
+        {
+            return;
+        }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, items: entities, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
+
+        await SaveCore(entities, token);
     }
     
     public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        
         if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
         {
             entity.Id = EntityId.GenerateNewId();
         }
-        
-        if (collection.ContainsKey(entity.Id))
-        {
-            await collection.UpdateAsync(entity.Id, entity);
-        }
-        else
-        {
-            await collection.AddAsync(entity.Id, entity);
-        }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: new[] { entity }, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
+
+        await UpsertCore(entity, token);
     }
 
     public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -121,80 +144,90 @@ public partial class StellarRepository : IRepository
 
     public async Task Upsert<TItem>(List<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        if (entities.Count == 0)
+        {
+            return;
+        }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: entities, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
+
         foreach (var entity in entities)
         {
-            await Upsert(entity, token: token);
+            await UpsertCore(entity, token);
         }
     }
     
     public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        if (SupportsSoftDelete<TItem>())
-        {
-            await SoftDelete(filter, token);
-            return;
-        }
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, filter: filter, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var items = collection.AsQueryable().Where(filter).Select(r=>new EntityId(r.Id)).ToList();
-        await collection.RemoveBulkAsync(items);
+        await DeleteCore(filter, token);
     }
     
     public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
-        await Delete<TItem>(item => item.Id == id, transaction, token);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
+
+        await DeleteCore<TItem>(item => item.Id == id, token);
     }
 
     public async Task HardDelete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var items = collection.AsQueryable().Where(filter).Select(item => new EntityId(item.Id)).ToList();
-        await collection.RemoveBulkAsync(items);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
+
+        await HardDeleteCore(filter, cancellationToken);
     }
 
-    public Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return HardDelete<TItem>(item => item.Id == id, transaction, cancellationToken);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
+
+        await HardDeleteCore<TItem>(item => item.Id == id, cancellationToken);
     }
 
-    public Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return HardDelete<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
+        var ids = IDs.ToList();
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
+
+        await HardDeleteCore<TItem>(item => ids.Contains(item.Id), cancellationToken);
     }
 
-    public Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Restore<TItem>(item => item.Id == id, transaction, cancellationToken);
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
+
+        await RestoreCore<TItem>(item => item.Id == id, cancellationToken);
     }
 
-    public Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
+    public async Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Restore<TItem>(item => IDs.Contains(item.Id), transaction, cancellationToken);
+        var ids = IDs.ToList();
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
+
+        await RestoreCore<TItem>(item => ids.Contains(item.Id), cancellationToken);
     }
 
     public async Task Restore<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        if (!SupportsSoftDelete<TItem>())
-        {
-            throw new NotSupportedException($"Type '{typeof(TItem).Name}' does not support soft delete restore.");
-        }
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
-        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
-        var items = collection.AsQueryable().Where(filter).ToList();
+        await RestoreCore(filter, cancellationToken);
+    }
 
-        foreach (var item in items)
-        {
-            if (item is not ISoftDeletable softDeletable)
-            {
-                continue;
-            }
-
-            softDeletable.IsDeleted = false;
-            softDeletable.DeletedAt = null;
-            softDeletable.DeletedBy = string.Empty;
-            item.Version = (item.Version ?? 0) + 1;
-            await collection.UpdateAsync(item.Id, item);
-        }
+    private async Task DispatchRestoreAsync<TItem>(RepositoryWriteContext<TItem> context, Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
+    {
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
+        await RestoreCore(filter, cancellationToken);
     }
 
     public async Task Patch<TItem>(string id, long? expectedVersion = null, string jsonDocument = null, IDataUpdateDefinition<TItem> updateDefinition = null,
@@ -204,6 +237,10 @@ public partial class StellarRepository : IRepository
         {
             throw new ArgumentException("At least one patch input must be supplied.", nameof(jsonDocument));
         }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Patch, id: id, expectedVersion: expectedVersion, jsonDocument: jsonDocument,
+            updateDefinition: updateDefinition, transaction: transaction, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Patch, context);
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
 
@@ -291,6 +328,10 @@ public partial class StellarRepository : IRepository
     
     public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
     {
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Patch, id: id, expectedVersion: version, jsonDocument: json, transaction: transaction,
+            cancellationToken: token);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Patch, context);
+
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var entity = await ById<TItem>(id, token: token);
     
@@ -304,7 +345,7 @@ public partial class StellarRepository : IRepository
             throw new InvalidOperationException($"Version mismatch: expected {entity.Version}, got {version}.");
         }
     
-        var updatedEntity = System.Text.Json.JsonSerializer.Deserialize<TItem>(json);
+        var updatedEntity = JsonSerializer.Deserialize<TItem>(json);
         if (updatedEntity == null)
         {
             throw new InvalidOperationException("Deserialization failed.");
@@ -317,6 +358,113 @@ public partial class StellarRepository : IRepository
     public Task<IDatabaseTransaction> CreateTransaction()
     {
         throw new NotImplementedException("StellarDB does not support transactions");
+    }
+
+    private async Task InsertCore<TItem>(TItem entity, CancellationToken token) where TItem : Entity
+    {
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        await collection.AddAsync(entity.Id, entity);
+    }
+
+    private async Task InsertCore<TItem>(List<TItem> entityList, CancellationToken token) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+
+        foreach (var entity in entityList)
+        {
+            if (string.IsNullOrWhiteSpace(entity.Id))
+            {
+                entity.Id = EntityId.GenerateNewId();
+            }
+        }
+
+        var entityDictionary = entityList.ToDictionary(
+            entity => new EntityId(entity.Id),
+            entity => entity
+        );
+        
+        await collection.AddBulkAsync(entityDictionary);
+    }
+
+    private async Task UpsertCore<TItem>(TItem entity, CancellationToken token) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        
+        if (entity?.Id == null || string.IsNullOrWhiteSpace(entity.Id))
+        {
+            entity.Id = EntityId.GenerateNewId();
+        }
+        
+        if (collection.ContainsKey(entity.Id))
+        {
+            await collection.UpdateAsync(entity.Id, entity);
+        }
+        else
+        {
+            await collection.AddAsync(entity.Id, entity);
+        }
+    }
+
+    private async Task SaveCore<TItem>(List<TItem> entities, CancellationToken token) where TItem : Entity
+    {
+        var entitiesToUpdate = entities.Where(entity => !string.IsNullOrEmpty(entity.Id)).ToList();
+        var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
+
+        foreach (var entity in entitiesToUpdate)
+        {
+            await UpsertCore(entity, token);
+        }
+
+        await InsertCore(entitiesToAdd, token);
+    }
+
+    private async Task DeleteCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken token) where TItem : Entity
+    {
+        if (SupportsSoftDelete<TItem>())
+        {
+            await SoftDelete(filter, token);
+            return;
+        }
+
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var items = collection.AsQueryable().Where(filter).Select(r => new EntityId(r.Id)).ToList();
+        await collection.RemoveBulkAsync(items);
+    }
+
+    private async Task HardDeleteCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
+    {
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var items = collection.AsQueryable().Where(filter).Select(item => new EntityId(item.Id)).ToList();
+        await collection.RemoveBulkAsync(items);
+    }
+
+    private async Task RestoreCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (!SupportsSoftDelete<TItem>())
+        {
+            throw new NotSupportedException($"Type '{typeof(TItem).Name}' does not support soft delete restore.");
+        }
+
+        var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
+        var items = collection.AsQueryable().Where(filter).ToList();
+
+        foreach (var item in items)
+        {
+            if (item is not ISoftDeletable softDeletable)
+            {
+                continue;
+            }
+
+            softDeletable.IsDeleted = false;
+            softDeletable.DeletedAt = null;
+            softDeletable.DeletedBy = string.Empty;
+            item.Version = (item.Version ?? 0) + 1;
+            await collection.UpdateAsync(item.Id, item);
+        }
     }
 
     private async Task SoftDelete<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -353,6 +501,10 @@ public partial class StellarRepository : IRepository
         {
             throw new ArgumentException("Increment field must target a readable and writable property.", nameof(field));
         }
+
+        var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Increment, id: id, expectedVersion: expectedVersion, incrementField: field,
+            incrementDelta: delta, transaction: null, cancellationToken: cancellationToken);
+        await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Increment, context);
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
 

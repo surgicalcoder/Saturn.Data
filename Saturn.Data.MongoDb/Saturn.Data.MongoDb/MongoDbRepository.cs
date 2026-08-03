@@ -306,46 +306,7 @@ public partial class MongoDbRepository : IRepositoryIndexManager
     protected virtual async ValueTask ApplyWriteBehaviors<TItem>(RepositoryWriteOperation operation, RepositoryWriteContext<TItem> context)
         where TItem : Entity
     {
-        if (options.WriteBehaviors == null)
-        {
-            return;
-        }
-
-        foreach (var behavior in options.WriteBehaviors)
-        {
-            switch (operation)
-            {
-                case RepositoryWriteOperation.Insert:
-                    await behavior.BeforeInsert(context);
-                    break;
-                case RepositoryWriteOperation.Update:
-                    await behavior.BeforeUpdate(context);
-                    break;
-                case RepositoryWriteOperation.Upsert:
-                    await behavior.BeforeUpsert(context);
-                    break;
-                case RepositoryWriteOperation.Save:
-                    await behavior.BeforeSave(context);
-                    break;
-                case RepositoryWriteOperation.Delete:
-                    await behavior.BeforeDelete(context);
-                    break;
-                case RepositoryWriteOperation.HardDelete:
-                    await behavior.BeforeHardDelete(context);
-                    break;
-                case RepositoryWriteOperation.Restore:
-                    await behavior.BeforeRestore(context);
-                    break;
-                case RepositoryWriteOperation.Patch:
-                    await behavior.BeforePatch(context);
-                    break;
-                case RepositoryWriteOperation.Increment:
-                    await behavior.BeforeIncrement(context);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(operation), operation, null);
-            }
-        }
+        await BehaviorDispatcher.DispatchBeforeAsync(options.WriteBehaviors, operation, context);
     }
 
     protected virtual void RegisterConventions()

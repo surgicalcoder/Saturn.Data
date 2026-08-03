@@ -638,3 +638,5 @@ FodyWeavers.xsd
 .agentbridge/
 
 .omo/
+
+.commandcode/

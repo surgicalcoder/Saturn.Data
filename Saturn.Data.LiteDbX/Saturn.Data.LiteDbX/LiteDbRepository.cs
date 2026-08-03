@@ -319,5 +319,41 @@ public partial class LiteDbRepository //: IRepository
         return expression is MemberExpression memberExpression ? memberExpression.Member.Name : null;
     }
 
+    protected virtual RepositoryWriteContext<TItem> BuildWriteContext<TItem>(
+        RepositoryWriteOperation operation,
+        string? id = null,
+        IEnumerable<string>? ids = null,
+        IEnumerable<TItem>? items = null,
+        Expression<Func<TItem, bool>>? filter = null,
+        long? expectedVersion = null,
+        string? jsonDocument = null,
+        IDataUpdateDefinition<TItem>? updateDefinition = null,
+        LambdaExpression? incrementField = null,
+        object? incrementDelta = null,
+        IDatabaseTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+        where TItem : Entity
+    {
+        return new RepositoryWriteContext<TItem>
+        {
+            Operation = operation,
+            Id = id,
+            Ids = ids?.ToList(),
+            Items = items?.ToList(),
+            Filter = filter,
+            ExpectedVersion = expectedVersion,
+            JsonDocument = jsonDocument,
+            UpdateDefinition = updateDefinition,
+            IncrementField = incrementField,
+            IncrementDelta = incrementDelta,
+            Transaction = transaction,
+            CancellationToken = cancellationToken
+        };
+    }
+
+    protected virtual ValueTask DispatchWriteBehaviorsAsync<TItem>(RepositoryWriteOperation operation, RepositoryWriteContext<TItem> context)
+        where TItem : Entity
+        => BehaviorDispatcher.DispatchBeforeAsync(options.WriteBehaviors, operation, context);
+
     
 }
