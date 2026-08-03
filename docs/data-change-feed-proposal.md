@@ -13,7 +13,7 @@ is a self-contained commit unit on `master`.
 | # | Phase                | Status                | Done gate                                                                                            |
 |---|----------------------|-----------------------|------------------------------------------------------------------------------------------------------|
 | 0 | Chokepoint           | `[x]` done 2026-08-03 | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green    |
-| 1 | After\* contract     | `[ ]` not started     | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
+| 1 | After\* contract     | `[x]` done 2026-08-03 | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
 | 2 | Provider after-hooks | `[ ]` not started     | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
 | 3 | Feed core            | `[ ]` not started     | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
 | 4 | Delivery             | `[ ]` not started     | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                          |
@@ -22,7 +22,7 @@ is a self-contained commit unit on `master`.
 Per-phase task list (detailed below in §11). Sub-items tick as completed:
 
 - [x] **Phase 0** — dispatcher + provider `Before*` wiring
-- [ ] **Phase 1** — `After*` contract + Mongo after-dispatch
+- [x] **Phase 1** — `After*` contract + Mongo after-dispatch
 - [ ] **Phase 2** — LiteDbX + Stellar after-hooks
 - [ ] **Phase 3** — feed core
 - [ ] **Phase 4** — delivery / poller
@@ -506,13 +506,13 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 1 — After\* contract
 
-- [ ] Add 9 `After*` default no-op members to `IRepositoryWriteBehavior`
-- [ ] Add `RepositoryWriteResult` + `WriteOutcome` in abstractions
-- [ ] Mongo `BuildWriteResult()` from `BulkWriteResult`/`ReplaceOneResult`/`UpdateResult`/`DeleteResult` (incl.
+- [x] Add 9 `After*` default no-op members to `IRepositoryWriteBehavior`
+- [x] Add `RepositoryWriteResult` + `WriteOutcome` in abstractions
+- [x] Mongo `BuildWriteResult()` from `BulkWriteResult`/`ReplaceOneResult`/`UpdateResult`/`DeleteResult` (incl.
   `PartialFailure`/`FailedCount`/`FailedIds`)
-- [ ] Mongo dispatches `After*` in-tx / immediately (§5.3)
-- [ ] `After*` swallow+log isolation (§5.4); `Suppress` gates `After*` (§5.5)
-- [ ] `ChangeFeedContractTests` Mongo tests 1–8 green
+- [x] Mongo dispatches `After*` in-tx / immediately (§5.3)
+- [x] `After*` swallow+log isolation (§5.4); `Suppress` gates `After*` (§5.5)
+- [x] `ChangeFeedContractTests` Mongo tests 1–8 green
 
 ### Phase 2 — Provider after-hooks
 

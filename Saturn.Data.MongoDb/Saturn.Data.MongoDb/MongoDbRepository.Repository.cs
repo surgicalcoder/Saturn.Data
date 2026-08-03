@@ -14,13 +14,20 @@ public partial class MongoDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, filter: normalizedFilter, transaction: transaction, cancellationToken: cancellationToken);
         await ApplyWriteBehaviors(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(GetCollection<TItem>(), transaction, normalizedFilter, cancellationToken)
+            : null;
+
         if (!SupportsSoftDelete<TItem>())
         {
-            await ExecuteWithTransaction<TItem>(
+            var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
                 transaction,
                 (collection, session) => collection.DeleteManyAsync(session, normalizedFilter, cancellationToken: cancellationToken),
                 collection => collection.DeleteManyAsync(normalizedFilter, cancellationToken: cancellationToken)
             );
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, matchedIds: matchedIds, rawResult: deleteResult));
             return;
         }
 
@@ -30,11 +37,14 @@ public partial class MongoDbRepository : IRepository
             .Set(nameof(ISoftDeletable.DeletedBy), string.Empty)
             .Inc("_v", 1L);
 
-        await ExecuteWithTransaction<TItem>(
+        var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
             (collection, session) => collection.UpdateManyAsync(session, normalizedFilter, update, cancellationToken: cancellationToken),
             collection => collection.UpdateManyAsync(normalizedFilter, update, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)updateResult.ModifiedCount, matchedIds: matchedIds, rawResult: updateResult));
     }
     
     public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -45,11 +55,14 @@ public partial class MongoDbRepository : IRepository
 
         if (!SupportsSoftDelete<TItem>())
         {
-            await ExecuteWithTransaction<TItem>(
+            var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
                 transaction,
                 (collection, session) => collection.DeleteOneAsync(session, filter, cancellationToken: cancellationToken),
                 collection => collection.DeleteOneAsync(filter, cancellationToken: cancellationToken)
             );
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, new[] { id }, rawResult: deleteResult));
             return;
         }
 
@@ -59,11 +72,14 @@ public partial class MongoDbRepository : IRepository
             .Set(nameof(ISoftDeletable.DeletedBy), string.Empty)
             .Inc("_v", 1L);
 
-        await ExecuteWithTransaction<TItem>(
+        var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
             (collection, session) => collection.UpdateOneAsync(session, filter, update, cancellationToken: cancellationToken),
             collection => collection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)updateResult.ModifiedCount, new[] { id }, rawResult: updateResult));
     }
 
     public async Task Delete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -75,11 +91,14 @@ public partial class MongoDbRepository : IRepository
 
         if (!SupportsSoftDelete<TItem>())
         {
-            await ExecuteWithTransaction<TItem>(
+            var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
                 transaction,
                 (collection, session) => collection.DeleteManyAsync(session, filter, cancellationToken: cancellationToken),
                 collection => collection.DeleteManyAsync(filter, cancellationToken: cancellationToken)
             );
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, ids, rawResult: deleteResult));
             return;
         }
 
@@ -89,11 +108,14 @@ public partial class MongoDbRepository : IRepository
             .Set(nameof(ISoftDeletable.DeletedBy), string.Empty)
             .Inc("_v", 1L);
 
-        await ExecuteWithTransaction<TItem>(
+        var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
             (collection, session) => collection.UpdateManyAsync(session, filter, update, cancellationToken: cancellationToken),
             collection => collection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)updateResult.ModifiedCount, ids, rawResult: updateResult));
     }
 
     public async Task HardDelete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null,
@@ -103,11 +125,18 @@ public partial class MongoDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, filter: normalizedFilter, transaction: transaction, cancellationToken: cancellationToken);
         await ApplyWriteBehaviors(RepositoryWriteOperation.HardDelete, context);
 
-        await ExecuteWithTransaction<TItem>(
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(GetCollection<TItem>(), transaction, normalizedFilter, cancellationToken)
+            : null;
+
+        var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
             transaction,
             (collection, session) => collection.DeleteManyAsync(session, normalizedFilter, cancellationToken: cancellationToken),
             collection => collection.DeleteManyAsync(normalizedFilter, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, matchedIds: matchedIds, rawResult: deleteResult));
     }
 
     public async Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -117,11 +146,14 @@ public partial class MongoDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, id: id, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await ApplyWriteBehaviors(RepositoryWriteOperation.HardDelete, context);
 
-        await ExecuteWithTransaction<TItem>(
+        var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
             transaction,
             (collection, session) => collection.DeleteOneAsync(session, filter, cancellationToken: cancellationToken),
             collection => collection.DeleteOneAsync(filter, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, new[] { id }, rawResult: deleteResult));
     }
 
     public async Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -132,11 +164,14 @@ public partial class MongoDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, ids: ids, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await ApplyWriteBehaviors(RepositoryWriteOperation.HardDelete, context);
 
-        await ExecuteWithTransaction<TItem>(
+        var deleteResult = await ExecuteWithTransaction<TItem, DeleteResult>(
             transaction,
             (collection, session) => collection.DeleteManyAsync(session, filter, cancellationToken: cancellationToken),
             collection => collection.DeleteManyAsync(filter, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, (int)deleteResult.DeletedCount, ids, rawResult: deleteResult));
     }
 
     public async Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -162,17 +197,25 @@ public partial class MongoDbRepository : IRepository
         var normalizedFilter = filter.NormalizeForRef();
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, filter: normalizedFilter, transaction: transaction, cancellationToken: cancellationToken);
         await ApplyWriteBehaviors(RepositoryWriteOperation.Restore, context);
+
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(GetCollection<TItem>(), transaction, normalizedFilter, cancellationToken)
+            : null;
+
         var update = Builders<TItem>.Update
             .Set(nameof(ISoftDeletable.IsDeleted), false)
             .Set(nameof(ISoftDeletable.DeletedAt), (DateTime?)null)
             .Set(nameof(ISoftDeletable.DeletedBy), string.Empty)
             .Inc("_v", 1L);
 
-        await ExecuteWithTransaction<TItem>(
+        var updateResult = await ExecuteWithTransaction<TItem, UpdateResult>(
             transaction,
             (collection, session) => collection.UpdateManyAsync(session, normalizedFilter, update, cancellationToken: cancellationToken),
             collection => collection.UpdateManyAsync(normalizedFilter, update, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, (int)updateResult.ModifiedCount, matchedIds: matchedIds, rawResult: updateResult));
     }
 
     public async Task Patch<TItem>(string id, long? expectedVersion = null, string jsonDocument = null, IDataUpdateDefinition<TItem> updateDefinition = null,
@@ -222,30 +265,33 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, (int)result.ModifiedCount, new[] { id }, rawResult: result));
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Increment(id, field, delta, expectedVersion, transaction, cancellationToken);
+        return Increment<TItem, int>(id, field, delta, expectedVersion, transaction, cancellationToken);
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, long>> field, long delta, long? expectedVersion = null,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Increment(id, field, delta, expectedVersion, transaction, cancellationToken);
+        return Increment<TItem, long>(id, field, delta, expectedVersion, transaction, cancellationToken);
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, double>> field, double delta, long? expectedVersion = null,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Increment(id, field, delta, expectedVersion, transaction, cancellationToken);
+        return Increment<TItem, double>(id, field, delta, expectedVersion, transaction, cancellationToken);
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, decimal>> field, decimal delta, long? expectedVersion = null,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
     {
-        return Increment(id, field, delta, expectedVersion, transaction, cancellationToken);
+        return Increment<TItem, decimal>(id, field, delta, expectedVersion, transaction, cancellationToken);
     }
 
     private async Task Increment<TItem, TNumber>(string id, Expression<Func<TItem, TNumber>> field, TNumber delta, long? expectedVersion,
@@ -273,6 +319,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
+            BuildWriteResult(context, WriteOutcome.Incremented, (int)result.ModifiedCount, new[] { id }, rawResult: result));
     }
 
     private static bool SupportsSoftDelete<TItem>() where TItem : Entity
@@ -294,6 +343,9 @@ public partial class MongoDbRepository : IRepository
             (collection, session) => collection.InsertOneAsync(session, entity, cancellationToken: cancellationToken),
             collection => collection.InsertOneAsync(entity, cancellationToken: cancellationToken)
         );
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
     }
 
     public async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
@@ -321,6 +373,11 @@ public partial class MongoDbRepository : IRepository
             (collection, session) => collection.InsertManyAsync(session, entitiesList, new InsertManyOptions { IsOrdered = true }, cancellationToken),
             collection => collection.InsertManyAsync(entitiesList, new InsertManyOptions { IsOrdered = true }, cancellationToken)
         );
+
+        var ids = entitiesList.Select(e => e.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, entitiesList.Count, ids));
     }
     
     public async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -339,6 +396,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, (int)result.ModifiedCount, new[] { id }, rawResult: result));
     }
     
     public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -361,6 +421,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpsertException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: updateResult.UpsertedId != null, rawResult: updateResult));
     }
     public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
@@ -392,6 +455,12 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpsertException();
         }
+
+        var ids = entityList.Select(e => e.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, (int)(bulkWriteResult.ModifiedCount + bulkWriteResult.Upserts.Count), ids,
+                wasCreated: bulkWriteResult.Upserts.Count > 0, rawResult: bulkWriteResult));
     }
     public async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
@@ -409,6 +478,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, (int)updateResult.ModifiedCount, new[] { entity.Id }, rawResult: updateResult));
     }
     
     public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -428,6 +500,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, (int)updateResult.ModifiedCount, new[] { entity.Id }, rawResult: updateResult));
     }
     public async Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
@@ -452,6 +527,11 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        var ids = entityList.Select(e => e.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, (int)bulkWriteResult.ModifiedCount, ids, rawResult: bulkWriteResult));
     }
     public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
@@ -473,6 +553,9 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpsertException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: updateResult.UpsertedId != null, rawResult: updateResult));
     }
     public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
     {
@@ -504,5 +587,11 @@ public partial class MongoDbRepository : IRepository
         {
             throw new FailedToUpsertException();
         }
+
+        var ids = entityList.Select(e => e.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, (int)(bulkWriteResult.ModifiedCount + bulkWriteResult.Upserts.Count), ids,
+                wasCreated: bulkWriteResult.Upserts.Count > 0, rawResult: bulkWriteResult));
     }
 }

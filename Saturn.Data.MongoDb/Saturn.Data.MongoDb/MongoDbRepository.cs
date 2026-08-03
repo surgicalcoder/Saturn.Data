@@ -309,6 +309,58 @@ public partial class MongoDbRepository : IRepositoryIndexManager
         await BehaviorDispatcher.DispatchBeforeAsync(options.WriteBehaviors, operation, context);
     }
 
+    protected virtual async ValueTask ApplyAfterBehaviors<TItem>(RepositoryWriteOperation operation, RepositoryWriteContext<TItem> context, RepositoryWriteResult result)
+        where TItem : Entity
+    {
+        await BehaviorDispatcher.DispatchAfterAsync(options.WriteBehaviors, operation, context, result);
+    }
+
+    protected virtual RepositoryWriteResult BuildWriteResult<TItem>(
+        RepositoryWriteContext<TItem> context,
+        WriteOutcome outcome,
+        int affectedCount,
+        IReadOnlyCollection<string>? entityIds = null,
+        IReadOnlyCollection<string>? matchedIds = null,
+        bool wasCreated = false,
+        object? rawResult = null,
+        bool partialFailure = false,
+        int failedCount = 0,
+        IReadOnlyCollection<string>? failedIds = null)
+        where TItem : Entity
+    {
+        return new RepositoryWriteResult
+        {
+            Operation = context.Operation,
+            Succeeded = true,
+            PartialFailure = partialFailure,
+            Outcome = outcome,
+            AffectedCount = affectedCount,
+            FailedCount = failedCount,
+            EntityIds = entityIds ?? Array.Empty<string>(),
+            FailedIds = failedIds ?? Array.Empty<string>(),
+            MatchedIds = matchedIds ?? Array.Empty<string>(),
+            WasCreated = wasCreated,
+            RawResult = rawResult,
+            CompletedAtUtc = DateTimeOffset.UtcNow
+        };
+    }
+
+    protected bool HasWriteBehaviors => options.WriteBehaviors is { Count: > 0 };
+
+    private async Task<IReadOnlyList<string>> MaterializeIdsAsync<TItem>(IMongoCollection<TItem> collection, IDatabaseTransaction? transaction,
+        Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
+    {
+        var cursor = transaction is MongoDbTransactionWrapper wrapper
+            ? await collection.FindAsync(wrapper.Session, filter, cancellationToken: cancellationToken)
+            : await collection.FindAsync(filter, cancellationToken: cancellationToken);
+
+        using (cursor)
+        {
+            var docs = await cursor.ToListAsync(cancellationToken);
+            return docs.Select(d => d.Id).ToList();
+        }
+    }
+
     protected virtual void RegisterConventions()
     {
         if (Interlocked.Exchange(ref serializerRegistrationCompleted, 1) == 1)
