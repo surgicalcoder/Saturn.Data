@@ -5,6 +5,31 @@ Status: design proposal, not approved.
 
 ---
 
+## 0. Phase Tracker
+
+Progress log. Tick a phase off only when its **done** gate passes (tests green, build clean, files landed). Each phase
+is a self-contained commit unit on `master`.
+
+| #  | Phase                   | Status    | Done gate                                                                                    |
+|----|-------------------------|-----------|----------------------------------------------------------------------------------------------|
+| 0  | Chokepoint              | `[ ]` not started | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green |
+| 1  | After\* contract       | `[ ]` not started | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green |
+| 2  | Provider after-hooks    | `[ ]` not started | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                  |
+| 3  | Feed core               | `[ ]` not started | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
+| 4  | Delivery                | `[ ]` not started | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                   |
+| 5  | Docs                    | `[ ]` not started | This tracker ticked; `docs/data-change-feed.md` usage guide written                           |
+
+Per-phase task list (detailed below in §11). Sub-items tick as completed:
+
+- [ ] **Phase 0** — dispatcher + provider `Before*` wiring
+- [ ] **Phase 1** — `After*` contract + Mongo after-dispatch
+- [ ] **Phase 2** — LiteDbX + Stellar after-hooks
+- [ ] **Phase 3** — feed core
+- [ ] **Phase 4** — delivery / poller
+- [ ] **Phase 5** — docs
+
+---
+
 ## 1. Goals & Non-Goals
 
 ### Goals
@@ -469,6 +494,52 @@ Test entities reuse existing `Saturn.Data.Testing.Shared` fixtures plus a `__cha
 
 Each phase lands on `master` behind the existing `publish-changed-nugets.yml` workflow with a `minor` bump for Phases
 3–4, `patch` for Phases 0–2.
+
+### Phase 0 — Chokepoint
+
+- [ ] `BehaviorDispatcher` (abstractions): `RunWriteBehaviorsAsync<TItem>` lifting Mongo's `ApplyWriteBehaviors`; `DispatchBeforeAsync`/`DispatchAfterAsync` helpers
+- [ ] Mongo: swap `ApplyWriteBehaviors` → dispatcher, keep `Before*` ordering identical
+- [ ] LiteDbX: call `RunWriteBehaviorsAsync` on every write op in `LiteDbRepository.Repository.cs`
+- [ ] Stellar: same in `StellarRepository.Repository.cs`
+- [ ] Run full existing provider suites → green (before-gap closed, no regressions)
+
+### Phase 1 — After\* contract
+
+- [ ] Add 9 `After*` default no-op members to `IRepositoryWriteBehavior`
+- [ ] Add `RepositoryWriteResult` + `WriteOutcome` in abstractions
+- [ ] Mongo `BuildWriteResult()` from `BulkWriteResult`/`ReplaceOneResult`/`UpdateResult`/`DeleteResult` (incl. `PartialFailure`/`FailedCount`/`FailedIds`)
+- [ ] Mongo dispatches `After*` in-tx / immediately (§5.3)
+- [ ] `After*` swallow+log isolation (§5.4); `Suppress` gates `After*` (§5.5)
+- [ ] `ChangeFeedContractTests` Mongo tests 1–8 green
+
+### Phase 2 — Provider after-hooks
+
+- [ ] LiteDbX `buildResult()` (`bool Update`, upsert flag → `WasCreated`)
+- [ ] Stellar `buildResult()` (derived counts; `RawResult = null`; no tx)
+- [ ] LiteDbX + Stellar dispatch `After*` + `Suppress` gating
+- [ ] LiteDbX + Stellar tests 1–8 green
+
+### Phase 3 — Feed core
+
+- [ ] `DataChangeEvent` + `DataChangeEvent<TItem>` (incl. `IsPartial`, `HasFullItems`)
+- [ ] `IChangeFeedSink` (`AppendAsync`, `ReadAsync`)
+- [ ] `ChangeFeedBehavior` implementing all `After*` → sink, honoring `PayloadMode` (§7.2)
+- [ ] `OutboxChangeFeedSink` base + provider subclasses (Mongo/LiteDbX/Stellar) with `__change_feed` collections
+- [ ] `__change_feed_counters` monotonic sequence counter (§7.3)
+- [ ] Tests 9–12 green (tx atomicity, isolation, ordering, dedupe)
+
+### Phase 4 — Delivery
+
+- [ ] `ChangeFeedPoller` (per-`(Source, EntityType)` drain, `ChangeId` watermark)
+- [ ] `IChangeFeed<TItem>` subscribe/read
+- [ ] One-sink-per-app registration extensions (`AddMongoChangeFeed` etc., §7.4)
+- [ ] Tests 11–13 green
+
+### Phase 5 — Docs
+
+- [ ] Phase tracker in §0 all ticked
+- [ ] `docs/data-change-feed.md` usage guide (register, subscribe, payload modes, partial events, cascade suppression)
+- [ ] Release notes: LiteDbX/Stellar now dispatch behaviors; partial-failure semantics
 
 ---
 
