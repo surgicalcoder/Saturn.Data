@@ -1,4 +1,7 @@
 ﻿using System.Linq.Expressions;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDbX;
@@ -20,7 +23,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, ids: normalizedIds, filter: item => normalizedIds.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
+            : null;
+
         await DeleteCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
     }
 
     public virtual async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -34,6 +44,9 @@ public partial class LiteDbRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
         await GetCollection<TItem>().Insert(entity, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
     }
 
     public virtual async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -48,6 +61,11 @@ public partial class LiteDbRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
         await GetCollection<TItem>().Insert(list, cancellationToken);
+
+        var ids = list.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, list.Count, ids));
     }
 
     public virtual async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -60,7 +78,10 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
-        _ = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+        var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
     }
 
     public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -80,6 +101,7 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
+        var anyInserted = false;
         for (var i = 0; i < list.Count; i++)
         {
             if (string.IsNullOrEmpty(list[i].Id))
@@ -87,8 +109,16 @@ public partial class LiteDbRepository : IRepository
                 list[i].Id = ObjectId.NewObjectId().ToString();
             }
 
-            _ = await GetCollection<TItem>().Upsert(list[i], cancellationToken);
+            if (await GetCollection<TItem>().Upsert(list[i], cancellationToken))
+            {
+                anyInserted = true;
+            }
         }
+
+        var ids = list.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
     }
 
     public virtual async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -102,6 +132,9 @@ public partial class LiteDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id }));
     }
 
     public virtual async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -111,7 +144,16 @@ public partial class LiteDbRepository : IRepository
 
         var coll = GetCollection<TItem>();
         var id = await coll.FindOne(conditionPredicate, cancellationToken);
+
+        if (id == null)
+        {
+            throw new FailedToUpdateException();
+        }
+
         await coll.Update(id.Id, entity, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { id.Id }));
     }
 
     public async Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -142,6 +184,11 @@ public partial class LiteDbRepository : IRepository
                 throw new FailedToUpdateException();
             }
         }
+
+        var ids = list.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, list.Count, ids));
     }
     
     public virtual async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -154,7 +201,10 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
-        _ = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+        var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
     }
 
     public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
@@ -175,6 +225,7 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
+        var anyInserted = false;
         for (var i = 0; i < list.Count; i++)
         {
             if (string.IsNullOrEmpty(list[i].Id))
@@ -182,8 +233,16 @@ public partial class LiteDbRepository : IRepository
                 list[i].Id = ObjectId.NewObjectId().ToString();
             }
 
-            _ = await coll.Upsert(list[i], cancellationToken);
+            if (await coll.Upsert(list[i], cancellationToken))
+            {
+                anyInserted = true;
+            }
         }
+
+        var ids = list.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
     }
 
     public virtual async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -191,7 +250,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, cancellationToken)
+            : null;
+
         await DeleteCore<TItem>(filter, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
 
     public virtual async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -199,7 +265,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, id: id, filter: f => f.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(f => f.Id == id, cancellationToken)
+            : null;
+
         await DeleteCore<TItem>(f => f.Id == id, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     private async Task DeleteCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -240,7 +313,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, cancellationToken)
+            : null;
+
         await GetCollection<TItem>().DeleteMany(filter, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
 
     public async Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -249,7 +329,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+            : null;
+
         await GetCollection<TItem>().DeleteMany(item => item.Id == id, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     public async Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -259,7 +346,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
+            : null;
+
         await GetCollection<TItem>().DeleteMany(item => ids.Contains(item.Id), cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -268,7 +362,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+            : null;
+
         await RestoreCore<TItem>(item => item.Id == id, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -284,7 +385,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, ids: normalizedIds, filter: item => normalizedIds.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
+            : null;
+
         await RestoreCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null,
@@ -293,7 +401,14 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, cancellationToken)
+            : null;
+
         await RestoreCore<TItem>(filter, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
 
     private async Task RestoreCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -356,26 +471,36 @@ public partial class LiteDbRepository : IRepository
 
         if (!string.IsNullOrWhiteSpace(jsonDocument))
         {
-            var patchDocument = JsonSerializer.Deserialize<BsonDocument>(jsonDocument);
+            var existingNode = JsonNode.Parse(JsonSerializer.Serialize(existing)) as JsonObject;
+            var patchNode = JsonNode.Parse(jsonDocument) as JsonObject;
 
-            if (patchDocument == null)
+            if (existingNode == null || patchNode == null)
             {
-                throw new ApplicationException("Unable to deserialize patch JSON into a BSON document.");
+                throw new ApplicationException("Patch JSON must be a JSON object.");
             }
 
-            var existingDocument = BsonMapper.Global.ToDocument(existing);
-
-            foreach (var key in patchDocument.Keys)
+            var mergeNode = patchNode;
+            if (patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject)
             {
-                if (key == "_id")
+                mergeNode = setObject;
+            }
+
+            foreach (var property in mergeNode)
+            {
+                if (property.Key == "_id")
                 {
                     continue;
                 }
 
-                existingDocument[key] = patchDocument[key];
+                existingNode[property.Key] = property.Value?.DeepClone();
             }
 
-            working = BsonMapper.Global.ToObject<TItem>(existingDocument);
+            working = existingNode.Deserialize<TItem>();
+
+            if (working == null)
+            {
+                throw new ApplicationException("Deserialization failed.");
+            }
         }
 
         if (updateDefinition != null)
@@ -397,6 +522,9 @@ public partial class LiteDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null,
@@ -471,6 +599,9 @@ public partial class LiteDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
+            BuildWriteResult(context, WriteOutcome.Incremented, 1, new[] { existing.Id }));
     }
 
     public virtual async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -505,5 +636,8 @@ public partial class LiteDbRepository : IRepository
         {
             throw new FailedToUpdateException();
         }
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
     }
 }

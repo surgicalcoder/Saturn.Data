@@ -15,7 +15,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
+            : null;
+
         await DeleteCore<TItem>(item => ids.Contains(item.Id), token: cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
     }
 
     public async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -29,6 +36,9 @@ public partial class StellarRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
         await InsertCore(entity, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
     }
 
     public async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -44,6 +54,11 @@ public partial class StellarRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
         await InsertCore(entityList, token);
+
+        var ids = entityList.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+            BuildWriteResult(context, WriteOutcome.Inserted, entityList.Count, ids));
     }
 
     public async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -56,7 +71,11 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: new[] { entity }, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
+        var existed = await ExistsAsync<TItem>(entity.Id);
         await UpsertCore(entity, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: !existed));
     }
 
     public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -75,7 +94,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: entities, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
+        var entitiesToAdd = entities.Where(entity => string.IsNullOrEmpty(entity.Id)).ToList();
+
         await SaveCore(entities, token);
+
+        var ids = entities.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+            BuildWriteResult(context, WriteOutcome.Merged, entities.Count, ids, wasCreated: entitiesToAdd.Count > 0));
     }
     
     public async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -89,6 +115,9 @@ public partial class StellarRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
 
         await UpsertCore(entity, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id }));
     }
     
     public async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -98,10 +127,21 @@ public partial class StellarRepository : IRepository
 
         var collection = await database.GetCollectionAsync<EntityId, TItem>(collectionName: GetCollectionNameForType<TItem>());
         var items = collection.AsQueryable().Where(conditionPredicate).ToList();
+
+        if (items.Count == 0)
+        {
+            throw new FailedToUpdateException();
+        }
+
         foreach (var item in items)
         {
             await collection.UpdateAsync(item.Id, entity);
         }
+
+        var matchedIds = items.Select(item => item.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, items.Count, matchedIds, matchedIds: matchedIds));
     }
 
     public async Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -121,6 +161,11 @@ public partial class StellarRepository : IRepository
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
 
         await SaveCore(entities, token);
+
+        var ids = entities.Select(entity => entity.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+            BuildWriteResult(context, WriteOutcome.Updated, entities.Count, ids));
     }
     
     public async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -133,7 +178,11 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: new[] { entity }, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
+        var existed = await ExistsAsync<TItem>(entity.Id);
         await UpsertCore(entity, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: !existed));
     }
 
     public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -152,10 +201,21 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: entities, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
-        foreach (var entity in entities)
+        var anyCreated = false;
+        foreach (var entityItem in entities)
         {
-            await UpsertCore(entity, token);
+            if (!await ExistsAsync<TItem>(entityItem.Id))
+            {
+                anyCreated = true;
+            }
+
+            await UpsertCore(entityItem, token);
         }
+
+        var ids = entities.Select(entityItem => entityItem.Id).ToList();
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+            BuildWriteResult(context, WriteOutcome.Merged, entities.Count, ids, wasCreated: anyCreated));
     }
     
     public async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -163,7 +223,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, filter: filter, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, token)
+            : null;
+
         await DeleteCore(filter, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
     
     public async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken token = default) where TItem : Entity
@@ -171,7 +238,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: token);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, token)
+            : null;
+
         await DeleteCore<TItem>(item => item.Id == id, token);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     public async Task HardDelete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -179,7 +253,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, cancellationToken)
+            : null;
+
         await HardDeleteCore(filter, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
 
     public async Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -187,7 +268,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+            : null;
+
         await HardDeleteCore<TItem>(item => item.Id == id, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     public async Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -196,7 +284,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
+            : null;
+
         await HardDeleteCore<TItem>(item => ids.Contains(item.Id), cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -204,7 +299,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+            : null;
+
         await RestoreCore<TItem>(item => item.Id == id, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -213,7 +315,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
+            : null;
+
         await RestoreCore<TItem>(item => ids.Contains(item.Id), cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
     }
 
     public async Task Restore<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -221,7 +330,14 @@ public partial class StellarRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
+        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+            ? await MaterializeIdsAsync(filter, cancellationToken)
+            : null;
+
         await RestoreCore(filter, cancellationToken);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
     }
 
     private async Task DispatchRestoreAsync<TItem>(RepositoryWriteContext<TItem> context, Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -268,7 +384,13 @@ public partial class StellarRepository : IRepository
                 throw new ApplicationException("Patch JSON must be a JSON object.");
             }
 
-            foreach (var property in patchNode)
+            var mergeNode = patchNode;
+            if (patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject)
+            {
+                mergeNode = setObject;
+            }
+
+            foreach (var property in mergeNode)
             {
                 if (property.Key == nameof(Entity.Id))
                 {
@@ -300,6 +422,9 @@ public partial class StellarRepository : IRepository
         working.Version = (existing.Version ?? 0) + 1;
 
         await collection.UpdateAsync(working.Id, working);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null, IDatabaseTransaction transaction = null,
@@ -353,6 +478,9 @@ public partial class StellarRepository : IRepository
         updatedEntity.Id = id;
     
         await collection.UpdateAsync(id, updatedEntity);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
     }
 
     public Task<IDatabaseTransaction> CreateTransaction()
@@ -531,5 +659,8 @@ public partial class StellarRepository : IRepository
         existing.Version = (existing.Version ?? 0) + 1;
 
         await collection.UpdateAsync(existing.Id, existing);
+
+        await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
+            BuildWriteResult(context, WriteOutcome.Incremented, 1, new[] { existing.Id }));
     }
 }

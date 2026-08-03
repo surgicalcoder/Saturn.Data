@@ -14,7 +14,7 @@ is a self-contained commit unit on `master`.
 |---|----------------------|-----------------------|------------------------------------------------------------------------------------------------------|
 | 0 | Chokepoint           | `[x]` done 2026-08-03 | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green    |
 | 1 | After\* contract     | `[x]` done 2026-08-03 | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
-| 2 | Provider after-hooks | `[ ]` not started     | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
+| 2 | Provider after-hooks | `[x]` done 2026-08-03 | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
 | 3 | Feed core            | `[ ]` not started     | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
 | 4 | Delivery             | `[ ]` not started     | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                          |
 | 5 | Docs                 | `[ ]` not started     | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
@@ -23,7 +23,7 @@ Per-phase task list (detailed below in §11). Sub-items tick as completed:
 
 - [x] **Phase 0** — dispatcher + provider `Before*` wiring
 - [x] **Phase 1** — `After*` contract + Mongo after-dispatch
-- [ ] **Phase 2** — LiteDbX + Stellar after-hooks
+- [x] **Phase 2** — LiteDbX + Stellar after-hooks
 - [ ] **Phase 3** — feed core
 - [ ] **Phase 4** — delivery / poller
 - [ ] **Phase 5** — docs
@@ -516,10 +516,10 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 2 — Provider after-hooks
 
-- [ ] LiteDbX `buildResult()` (`bool Update`, upsert flag → `WasCreated`)
-- [ ] Stellar `buildResult()` (derived counts; `RawResult = null`; no tx)
-- [ ] LiteDbX + Stellar dispatch `After*` + `Suppress` gating
-- [ ] LiteDbX + Stellar tests 1–8 green
+- [x] LiteDbX `buildResult()` (`bool Update`, upsert flag → `WasCreated`)
+- [x] Stellar `buildResult()` (derived counts; `RawResult = null`; no tx)
+- [x] LiteDbX + Stellar dispatch `After*` + `Suppress` gating
+- [x] LiteDbX + Stellar tests 1–8 green
 
 ### Phase 3 — Feed core
 

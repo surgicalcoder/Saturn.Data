@@ -355,5 +355,49 @@ public partial class LiteDbRepository //: IRepository
         where TItem : Entity
         => BehaviorDispatcher.DispatchBeforeAsync(options.WriteBehaviors, operation, context);
 
-    
+    protected virtual async ValueTask ApplyAfterBehaviors<TItem>(RepositoryWriteOperation operation, RepositoryWriteContext<TItem> context, RepositoryWriteResult result)
+        where TItem : Entity
+    {
+        await BehaviorDispatcher.DispatchAfterAsync(options.WriteBehaviors, operation, context, result);
+    }
+
+    protected virtual RepositoryWriteResult BuildWriteResult<TItem>(
+        RepositoryWriteContext<TItem> context,
+        WriteOutcome outcome,
+        int affectedCount,
+        IReadOnlyCollection<string>? entityIds = null,
+        IReadOnlyCollection<string>? matchedIds = null,
+        bool wasCreated = false,
+        object? rawResult = null,
+        bool partialFailure = false,
+        int failedCount = 0,
+        IReadOnlyCollection<string>? failedIds = null)
+        where TItem : Entity
+    {
+        return new RepositoryWriteResult
+        {
+            Operation = context.Operation,
+            Succeeded = true,
+            PartialFailure = partialFailure,
+            Outcome = outcome,
+            AffectedCount = affectedCount,
+            FailedCount = failedCount,
+            EntityIds = entityIds ?? Array.Empty<string>(),
+            FailedIds = failedIds ?? Array.Empty<string>(),
+            MatchedIds = matchedIds ?? Array.Empty<string>(),
+            WasCreated = wasCreated,
+            RawResult = rawResult,
+            CompletedAtUtc = DateTimeOffset.UtcNow
+        };
+    }
+
+    protected bool HasWriteBehaviors => options.WriteBehaviors is { Count: > 0 };
+
+    private async Task<IReadOnlyList<string>> MaterializeIdsAsync<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken)
+        where TItem : Entity
+    {
+        var items = await GetCollection<TItem>().Query().Where(BsonMapper.Global.GetExpression(filter))
+            .ToEnumerable(cancellationToken).ToListAsync(cancellationToken);
+        return items.Select(i => i.Id).ToList();
+    }
 }
