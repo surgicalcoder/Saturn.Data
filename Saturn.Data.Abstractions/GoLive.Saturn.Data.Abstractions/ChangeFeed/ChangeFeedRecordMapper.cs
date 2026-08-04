@@ -9,7 +9,7 @@ public static class ChangeFeedRecordMapper
 {
     public static DataChangeEvent ToEvent(ChangeFeedRecord record)
     {
-        var entityType = Type.GetType(record.EntityTypeName, throwOnError: false);
+        var entityType = ResolveEntityType(record.EntityTypeName);
 
         var items = new List<object>();
         if (!string.IsNullOrEmpty(record.ItemsJson))
@@ -32,6 +32,26 @@ public static class ChangeFeedRecordMapper
             Items = items,
             Version = record.Version
         };
+    }
+
+    private static Type ResolveEntityType(string typeName)
+    {
+        var type = Type.GetType(typeName, throwOnError: false);
+        if (type != null)
+        {
+            return type;
+        }
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            type = assembly.GetType(typeName, throwOnError: false);
+            if (type != null)
+            {
+                return type;
+            }
+        }
+
+        return null;
     }
 
     public static ChangeFeedRecord ToRecord(DataChangeEvent change)

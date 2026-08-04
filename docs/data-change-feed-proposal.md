@@ -16,7 +16,7 @@ is a self-contained commit unit on `master`.
 | 1 | After\* contract     | `[x]` done 2026-08-03 | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
 | 2 | Provider after-hooks | `[x]` done 2026-08-03 | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
 | 3 | Feed core            | `[x]` done 2026-08-04 | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
-| 4 | Delivery             | `[ ]` not started     | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                          |
+| 4 | Delivery             | `[x]` done 2026-08-04 | `ChangeFeedPoller`, `IChangeFeed<TItem>`, DI extensions; tests 11–13 green                           |
 | 5 | Docs                 | `[ ]` not started     | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
 
 Per-phase task list (detailed below in §11). Sub-items tick as completed:
@@ -25,7 +25,7 @@ Per-phase task list (detailed below in §11). Sub-items tick as completed:
 - [x] **Phase 1** — `After*` contract + Mongo after-dispatch
 - [x] **Phase 2** — LiteDbX + Stellar after-hooks
 - [x] **Phase 3** — feed core
-- [ ] **Phase 4** — delivery / poller
+- [x] **Phase 4** — delivery / poller
 - [ ] **Phase 5** — docs
 
 ---
@@ -532,10 +532,10 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 4 — Delivery
 
-- [ ] `ChangeFeedPoller` (per-`(Source, EntityType)` drain, `ChangeId` watermark)
-- [ ] `IChangeFeed<TItem>` subscribe/read
-- [ ] One-sink-per-app registration extensions (`AddMongoChangeFeed` etc., §7.4)
-- [ ] Tests 11–13 green
+- [x] `ChangeFeedPoller` (per-`(Source, EntityType)` drain, `ChangeId` watermark)
+- [x] `IChangeFeed<TItem>` subscribe/read
+- [x] One-sink-per-app registration extensions (`AddMongoChangeFeed` etc., §7.4)
+- [x] Tests 11–13 green
 
 ### Phase 5 — Docs
 
