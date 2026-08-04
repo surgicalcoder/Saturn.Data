@@ -227,14 +227,6 @@ jobs:
           minimum-approvals: 1
           issue-title: "Publish packages to NuGet"
 
-      - name: Wait for manual approval
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ secrets.GITHUB_TOKEN }}
-          approvers: ${{ github.actor }}
-          minimum-approvals: 1
-          issue-title: "Publish packages to NuGet"
-
   build_pack_publish:
     name: Build, pack, and publish
     needs: [detect, approve]
