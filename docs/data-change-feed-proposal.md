@@ -17,7 +17,7 @@ is a self-contained commit unit on `master`.
 | 2 | Provider after-hooks | `[x]` done 2026-08-03 | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
 | 3 | Feed core            | `[x]` done 2026-08-04 | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
 | 4 | Delivery             | `[x]` done 2026-08-04 | `ChangeFeedPoller`, `IChangeFeed<TItem>`, DI extensions; tests 11–13 green                           |
-| 5 | Docs                 | `[ ]` not started     | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
+| 5 | Docs                 | `[x]` done 2026-08-04 | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
 
 Per-phase task list (detailed below in §11). Sub-items tick as completed:
 
@@ -26,7 +26,7 @@ Per-phase task list (detailed below in §11). Sub-items tick as completed:
 - [x] **Phase 2** — LiteDbX + Stellar after-hooks
 - [x] **Phase 3** — feed core
 - [x] **Phase 4** — delivery / poller
-- [ ] **Phase 5** — docs
+- [x] **Phase 5** — docs
 
 ---
 
@@ -497,12 +497,12 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 0 — Chokepoint
 
-- [ ] `BehaviorDispatcher` (abstractions): `RunWriteBehaviorsAsync<TItem>` lifting Mongo's `ApplyWriteBehaviors`;
+- [x] `BehaviorDispatcher` (abstractions): `RunWriteBehaviorsAsync<TItem>` lifting Mongo's `ApplyWriteBehaviors`;
   `DispatchBeforeAsync`/`DispatchAfterAsync` helpers
-- [ ] Mongo: swap `ApplyWriteBehaviors` → dispatcher, keep `Before*` ordering identical
-- [ ] LiteDbX: call `RunWriteBehaviorsAsync` on every write op in `LiteDbRepository.Repository.cs`
-- [ ] Stellar: same in `StellarRepository.Repository.cs`
-- [ ] Run full existing provider suites → green (before-gap closed, no regressions)
+- [x] Mongo: swap `ApplyWriteBehaviors` → dispatcher, keep `Before*` ordering identical
+- [x] LiteDbX: call `RunWriteBehaviorsAsync` on every write op in `LiteDbRepository.Repository.cs`
+- [x] Stellar: same in `StellarRepository.Repository.cs`
+- [x] Run full existing provider suites → green (before-gap closed, no regressions)
 
 ### Phase 1 — After\* contract
 
@@ -539,9 +539,9 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 5 — Docs
 
-- [ ] Phase tracker in §0 all ticked
-- [ ] `docs/data-change-feed.md` usage guide (register, subscribe, payload modes, partial events, cascade suppression)
-- [ ] Release notes: LiteDbX/Stellar now dispatch behaviors; partial-failure semantics
+- [x] Phase tracker in §0 all ticked
+- [x] `docs/data-change-feed.md` usage guide (register, subscribe, payload modes, partial events, cascade suppression)
+- [x] Release notes: LiteDbX/Stellar now dispatch behaviors; partial-failure semantics
 
 ---
 
