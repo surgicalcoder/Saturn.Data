@@ -315,6 +315,12 @@ public partial class MongoDbRepository : IRepositoryIndexManager
         await BehaviorDispatcher.DispatchAfterAsync(options.WriteBehaviors, operation, context, result);
     }
 
+    protected virtual async ValueTask ApplyOnWriteFailed<TItem>(RepositoryWriteContext<TItem> context, Exception exception)
+        where TItem : Entity
+    {
+        await BehaviorDispatcher.DispatchOnWriteFailedAsync(options.WriteBehaviors, context, exception);
+    }
+
     protected virtual RepositoryWriteResult BuildWriteResult<TItem>(
         RepositoryWriteContext<TItem> context,
         WriteOutcome outcome,

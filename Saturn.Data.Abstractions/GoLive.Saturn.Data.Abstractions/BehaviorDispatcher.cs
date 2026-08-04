@@ -116,4 +116,28 @@ public static class BehaviorDispatcher
             }
         }
     }
+
+    public static async ValueTask DispatchOnWriteFailedAsync<TItem>(
+        IList<IRepositoryWriteBehavior> behaviors,
+        RepositoryWriteContext<TItem> context,
+        Exception exception)
+        where TItem : Entity
+    {
+        if (behaviors == null || behaviors.Count == 0 || context.Suppress)
+        {
+            return;
+        }
+
+        foreach (var behavior in behaviors)
+        {
+            try
+            {
+                await behavior.OnWriteFailed(context, exception);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OnWriteFailed hook '{behavior.GetType().Name}' threw: {ex}");
+            }
+        }
+    }
 }

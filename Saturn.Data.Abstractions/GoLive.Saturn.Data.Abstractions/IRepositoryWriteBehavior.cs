@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Entities;
 
@@ -74,6 +75,10 @@ public interface IRepositoryWriteBehavior
         => ValueTask.CompletedTask;
 
     ValueTask AfterIncrement<TItem>(RepositoryWriteContext<TItem> context, RepositoryWriteResult result)
+        where TItem : Entity
+        => ValueTask.CompletedTask;
+
+    ValueTask OnWriteFailed<TItem>(RepositoryWriteContext<TItem> context, Exception exception)
         where TItem : Entity
         => ValueTask.CompletedTask;
 }

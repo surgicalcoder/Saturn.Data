@@ -23,14 +23,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, ids: normalizedIds, filter: item => normalizedIds.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
+                : null;
 
-        await DeleteCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
+            await DeleteCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Insert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -43,10 +51,18 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
-        await GetCollection<TItem>().Insert(entity, ResolveLiteTransaction(transaction), cancellationToken);
+        try
+        {
+            await GetCollection<TItem>().Insert(entity, ResolveLiteTransaction(transaction), cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
-            BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+                BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Insert<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -60,12 +76,20 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
-        await GetCollection<TItem>().Insert(list, ResolveLiteTransaction(transaction), cancellationToken);
+        try
+        {
+            await GetCollection<TItem>().Insert(list, ResolveLiteTransaction(transaction), cancellationToken);
 
-        var ids = list.Select(entity => entity.Id).ToList();
+            var ids = list.Select(entity => entity.Id).ToList();
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
-            BuildWriteResult(context, WriteOutcome.Inserted, list.Count, ids));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
+                BuildWriteResult(context, WriteOutcome.Inserted, list.Count, ids));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Save<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -78,10 +102,18 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
-        var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+        try
+        {
+            var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
-            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+                BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Save<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -101,24 +133,32 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Save, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Save, context);
 
-        var anyInserted = false;
-        for (var i = 0; i < list.Count; i++)
+        try
         {
-            if (string.IsNullOrEmpty(list[i].Id))
+            var anyInserted = false;
+            for (var i = 0; i < list.Count; i++)
             {
-                list[i].Id = ObjectId.NewObjectId().ToString();
+                if (string.IsNullOrEmpty(list[i].Id))
+                {
+                    list[i].Id = ObjectId.NewObjectId().ToString();
+                }
+
+                if (await GetCollection<TItem>().Upsert(list[i], cancellationToken))
+                {
+                    anyInserted = true;
+                }
             }
 
-            if (await GetCollection<TItem>().Upsert(list[i], cancellationToken))
-            {
-                anyInserted = true;
-            }
+            var ids = list.Select(entity => entity.Id).ToList();
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
+                BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
         }
-
-        var ids = list.Select(entity => entity.Id).ToList();
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
-            BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Update<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -126,15 +166,23 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, id: entity.Id, items: new[] { entity }, filter: e => e.Id == entity.Id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
 
-        var updateResult = await GetCollection<TItem>().Update(entity, cancellationToken);
-
-        if (!updateResult)
+        try
         {
-            throw new FailedToUpdateException();
-        }
+            var updateResult = await GetCollection<TItem>().Update(entity, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
-            BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id }));
+            if (!updateResult)
+            {
+                throw new FailedToUpdateException();
+            }
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+                BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id }));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Update<TItem>(Expression<Func<TItem, bool>> conditionPredicate, TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -142,18 +190,26 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, id: entity.Id, items: new[] { entity }, filter: conditionPredicate, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
 
-        var coll = GetCollection<TItem>();
-        var id = await coll.FindOne(conditionPredicate, cancellationToken);
-
-        if (id == null)
+        try
         {
-            throw new FailedToUpdateException();
+            var coll = GetCollection<TItem>();
+            var id = await coll.FindOne(conditionPredicate, cancellationToken);
+
+            if (id == null)
+            {
+                throw new FailedToUpdateException();
+            }
+
+            await coll.Update(id.Id, entity, cancellationToken);
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+                BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { id.Id }));
         }
-
-        await coll.Update(id.Id, entity, cancellationToken);
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
-            BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { id.Id }));
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Update<TItem>(IEnumerable<TItem> entities, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new CancellationToken()) where TItem : Entity
@@ -173,22 +229,30 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Update, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Update, context);
 
-        var coll = GetCollection<TItem>();
-
-        for (var i = 0; i < list.Count; i++)
+        try
         {
-            var res = await coll.Update(list[i], cancellationToken);
+            var coll = GetCollection<TItem>();
 
-            if (!res)
+            for (var i = 0; i < list.Count; i++)
             {
-                throw new FailedToUpdateException();
+                var res = await coll.Update(list[i], cancellationToken);
+
+                if (!res)
+                {
+                    throw new FailedToUpdateException();
+                }
             }
+
+            var ids = list.Select(entity => entity.Id).ToList();
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
+                BuildWriteResult(context, WriteOutcome.Updated, list.Count, ids));
         }
-
-        var ids = list.Select(entity => entity.Id).ToList();
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
-            BuildWriteResult(context, WriteOutcome.Updated, list.Count, ids));
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
     
     public virtual async Task Upsert<TItem>(TItem entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -201,10 +265,18 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
-        var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
+        try
+        {
+            var inserted = await GetCollection<TItem>().Upsert(entity, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
-            BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+                BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: inserted));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Upsert<TItem>(IEnumerable<TItem> entity, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = new()) where TItem : Entity
@@ -225,24 +297,32 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Upsert, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Upsert, context);
 
-        var anyInserted = false;
-        for (var i = 0; i < list.Count; i++)
+        try
         {
-            if (string.IsNullOrEmpty(list[i].Id))
+            var anyInserted = false;
+            for (var i = 0; i < list.Count; i++)
             {
-                list[i].Id = ObjectId.NewObjectId().ToString();
+                if (string.IsNullOrEmpty(list[i].Id))
+                {
+                    list[i].Id = ObjectId.NewObjectId().ToString();
+                }
+
+                if (await coll.Upsert(list[i], cancellationToken))
+                {
+                    anyInserted = true;
+                }
             }
 
-            if (await coll.Upsert(list[i], cancellationToken))
-            {
-                anyInserted = true;
-            }
+            var ids = list.Select(entity => entity.Id).ToList();
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
+                BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
         }
-
-        var ids = list.Select(entity => entity.Id).ToList();
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
-            BuildWriteResult(context, WriteOutcome.Merged, list.Count, ids, wasCreated: anyInserted));
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Delete<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -250,14 +330,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync(filter, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync(filter, cancellationToken)
+                : null;
 
-        await DeleteCore<TItem>(filter, cancellationToken);
+            await DeleteCore<TItem>(filter, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public virtual async Task Delete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -265,14 +353,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Delete, id: id, filter: f => f.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Delete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(f => f.Id == id, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(f => f.Id == id, cancellationToken)
+                : null;
 
-        await DeleteCore<TItem>(f => f.Id == id, cancellationToken);
+            await DeleteCore<TItem>(f => f.Id == id, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     private async Task DeleteCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -313,14 +409,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync(filter, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync(filter, cancellationToken)
+                : null;
 
-        await GetCollection<TItem>().DeleteMany(filter, cancellationToken);
+            await GetCollection<TItem>().DeleteMany(filter, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task HardDelete<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -329,14 +433,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+                : null;
 
-        await GetCollection<TItem>().DeleteMany(item => item.Id == id, cancellationToken);
+            await GetCollection<TItem>().DeleteMany(item => item.Id == id, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task HardDelete<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -346,14 +458,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.HardDelete, ids: ids, filter: item => ids.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.HardDelete, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(item => ids.Contains(item.Id), cancellationToken)
+                : null;
 
-        await GetCollection<TItem>().DeleteMany(item => ids.Contains(item.Id), cancellationToken);
+            await GetCollection<TItem>().DeleteMany(item => ids.Contains(item.Id), cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
-            BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
+                BuildWriteResult(context, WriteOutcome.Deleted, matchedIds?.Count ?? 0, ids, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Restore<TItem>(string id, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -362,14 +482,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, id: id, filter: item => item.Id == id, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(item => item.Id == id, cancellationToken)
+                : null;
 
-        await RestoreCore<TItem>(item => item.Id == id, cancellationToken);
+            await RestoreCore<TItem>(item => item.Id == id, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
-            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+                BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, new[] { id }, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Restore<TItem>(IEnumerable<string> IDs, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
@@ -385,14 +513,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, ids: normalizedIds, filter: item => normalizedIds.Contains(item.Id), transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken)
+                : null;
 
-        await RestoreCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
+            await RestoreCore<TItem>(item => normalizedIds.Contains(item.Id), cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
-            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+                BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, normalizedIds, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     public async Task Restore<TItem>(Expression<Func<TItem, bool>> filter, IDatabaseTransaction transaction = null,
@@ -401,14 +537,22 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Restore, filter: filter, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Restore, context);
 
-        IReadOnlyList<string>? matchedIds = HasWriteBehaviors
-            ? await MaterializeIdsAsync(filter, cancellationToken)
-            : null;
+        try
+        {
+            IReadOnlyList<string>? matchedIds = HasWriteBehaviors
+                ? await MaterializeIdsAsync(filter, cancellationToken)
+                : null;
 
-        await RestoreCore<TItem>(filter, cancellationToken);
+            await RestoreCore<TItem>(filter, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
-            BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
+                BuildWriteResult(context, WriteOutcome.Restored, matchedIds?.Count ?? 0, entityIds: matchedIds, matchedIds: matchedIds));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 
     private async Task RestoreCore<TItem>(Expression<Func<TItem, bool>> filter, CancellationToken cancellationToken) where TItem : Entity
@@ -454,77 +598,85 @@ public partial class LiteDbRepository : IRepository
             updateDefinition: updateDefinition, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Patch, context);
 
-        var collection = GetCollection<TItem>();
-        var existing = await collection.FindById(id, cancellationToken);
-
-        if (existing == null)
+        try
         {
-            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
-        }
+            var collection = GetCollection<TItem>();
+            var existing = await collection.FindById(id, cancellationToken);
 
-        if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
-        {
-            throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
-        }
-
-        var working = existing;
-
-        if (!string.IsNullOrWhiteSpace(jsonDocument))
-        {
-            var existingNode = JsonNode.Parse(JsonSerializer.Serialize(existing)) as JsonObject;
-            var patchNode = JsonNode.Parse(jsonDocument) as JsonObject;
-
-            if (existingNode == null || patchNode == null)
+            if (existing == null)
             {
-                throw new ApplicationException("Patch JSON must be a JSON object.");
+                throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
             }
 
-            var mergeNode = patchNode;
-            if (patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject)
+            if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
             {
-                mergeNode = setObject;
+                throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
             }
 
-            foreach (var property in mergeNode)
+            var working = existing;
+
+            if (!string.IsNullOrWhiteSpace(jsonDocument))
             {
-                if (property.Key == "_id")
+                var existingNode = JsonNode.Parse(JsonSerializer.Serialize(existing)) as JsonObject;
+                var patchNode = JsonNode.Parse(jsonDocument) as JsonObject;
+
+                if (existingNode == null || patchNode == null)
                 {
-                    continue;
+                    throw new ApplicationException("Patch JSON must be a JSON object.");
                 }
 
-                existingNode[property.Key] = property.Value?.DeepClone();
+                var mergeNode = patchNode;
+                if (patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject)
+                {
+                    mergeNode = setObject;
+                }
+
+                foreach (var property in mergeNode)
+                {
+                    if (property.Key == "_id")
+                    {
+                        continue;
+                    }
+
+                    existingNode[property.Key] = property.Value?.DeepClone();
+                }
+
+                working = existingNode.Deserialize<TItem>();
+
+                if (working == null)
+                {
+                    throw new ApplicationException("Deserialization failed.");
+                }
             }
 
-            working = existingNode.Deserialize<TItem>();
-
-            if (working == null)
+            if (updateDefinition != null)
             {
-                throw new ApplicationException("Deserialization failed.");
-            }
-        }
+                if (updateDefinition is not LiteDbDataUpdateDefinition<TItem> liteDbUpdateDefinition)
+                {
+                    throw new NotSupportedException($"Update definition type '{updateDefinition.GetType().Name}' is not supported by LiteDbX.");
+                }
 
-        if (updateDefinition != null)
-        {
-            if (updateDefinition is not LiteDbDataUpdateDefinition<TItem> liteDbUpdateDefinition)
+                liteDbUpdateDefinition.Apply(working);
+            }
+
+            working.Id = existing.Id;
+            working.Version = (existing.Version ?? 0) + 1;
+
+            var updated = await collection.Update(working, cancellationToken);
+
+            if (!updated)
             {
-                throw new NotSupportedException($"Update definition type '{updateDefinition.GetType().Name}' is not supported by LiteDbX.");
+                throw new FailedToUpdateException();
             }
 
-            liteDbUpdateDefinition.Apply(working);
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+                BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
         }
-
-        working.Id = existing.Id;
-        working.Version = (existing.Version ?? 0) + 1;
-
-        var updated = await collection.Update(working, cancellationToken);
-
-        if (!updated)
+        catch (Exception ex)
         {
-            throw new FailedToUpdateException();
+            await ApplyOnWriteFailed(context, ex);
+            throw;
         }
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
-            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
     }
 
     public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null,
@@ -570,38 +722,46 @@ public partial class LiteDbRepository : IRepository
             incrementDelta: delta, transaction: null, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Increment, context);
 
-        var collection = GetCollection<TItem>();
-        var existing = await collection.FindById(id, cancellationToken);
-
-        if (existing == null)
+        try
         {
-            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
-        }
+            var collection = GetCollection<TItem>();
+            var existing = await collection.FindById(id, cancellationToken);
 
-        if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
+            if (existing == null)
+            {
+                throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
+            }
+
+            if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
+            {
+                throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
+            }
+
+            var current = propertyInfo.GetValue(existing);
+
+            if (current is not TNumber currentValue)
+            {
+                throw new ApplicationException($"Field '{propertyInfo.Name}' value type does not match increment type '{typeof(TNumber).Name}'.");
+            }
+
+            propertyInfo.SetValue(existing, add(currentValue, delta));
+            existing.Version = (existing.Version ?? 0) + 1;
+
+            var updated = await collection.Update(existing, cancellationToken);
+
+            if (!updated)
+            {
+                throw new FailedToUpdateException();
+            }
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
+                BuildWriteResult(context, WriteOutcome.Incremented, 1, new[] { existing.Id }));
+        }
+        catch (Exception ex)
         {
-            throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
+            await ApplyOnWriteFailed(context, ex);
+            throw;
         }
-
-        var current = propertyInfo.GetValue(existing);
-
-        if (current is not TNumber currentValue)
-        {
-            throw new ApplicationException($"Field '{propertyInfo.Name}' value type does not match increment type '{typeof(TNumber).Name}'.");
-        }
-
-        propertyInfo.SetValue(existing, add(currentValue, delta));
-        existing.Version = (existing.Version ?? 0) + 1;
-
-        var updated = await collection.Update(existing, cancellationToken);
-
-        if (!updated)
-        {
-            throw new FailedToUpdateException();
-        }
-
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
-            BuildWriteResult(context, WriteOutcome.Incremented, 1, new[] { existing.Id }));
     }
 
     public virtual async Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default) where TItem : Entity
@@ -610,34 +770,42 @@ public partial class LiteDbRepository : IRepository
             cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Patch, context);
 
-        var collection = GetCollection<TItem>();
-        
-        var existingEntity = await collection.FindOne(e => e.Id == id, cancellationToken);
-
-        if (existingEntity == null)
+        try
         {
-            throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
-        }
-        
-        var updateDoc = JsonSerializer.Deserialize<BsonDocument>(json);
-        
-        if (existingEntity.Version != version)
-        {
-            throw new ApplicationException($"Entity version mismatch. Current version: {existingEntity.Version}, requested version: {version}");
-        }
-        
-        var updatedEntity = BsonMapper.Global.ToObject<TItem>(updateDoc);
-        updatedEntity.Id = id;
-        updatedEntity.Version = version + 1;
-        
-        var result = await collection.Update(updatedEntity, cancellationToken);
+            var collection = GetCollection<TItem>();
+            
+            var existingEntity = await collection.FindOne(e => e.Id == id, cancellationToken);
 
-        if (!result)
-        {
-            throw new FailedToUpdateException();
-        }
+            if (existingEntity == null)
+            {
+                throw new ApplicationException($"Entity of type {typeof(TItem).Name} with ID {id} was not found.");
+            }
+            
+            var updateDoc = JsonSerializer.Deserialize<BsonDocument>(json);
+            
+            if (existingEntity.Version != version)
+            {
+                throw new ApplicationException($"Entity version mismatch. Current version: {existingEntity.Version}, requested version: {version}");
+            }
+            
+            var updatedEntity = BsonMapper.Global.ToObject<TItem>(updateDoc);
+            updatedEntity.Id = id;
+            updatedEntity.Version = version + 1;
+            
+            var result = await collection.Update(updatedEntity, cancellationToken);
 
-        await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
-            BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
+            if (!result)
+            {
+                throw new FailedToUpdateException();
+            }
+
+            await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
+                BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { id }));
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnWriteFailed(context, ex);
+            throw;
+        }
     }
 }
