@@ -43,7 +43,7 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: new[] { entity }, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
-        await GetCollection<TItem>().Insert(entity, cancellationToken);
+        await GetCollection<TItem>().Insert(entity, ResolveLiteTransaction(transaction), cancellationToken);
 
         await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
             BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id }));
@@ -60,7 +60,7 @@ public partial class LiteDbRepository : IRepository
         var context = BuildWriteContext<TItem>(RepositoryWriteOperation.Insert, items: list, transaction: transaction, cancellationToken: cancellationToken);
         await DispatchWriteBehaviorsAsync(RepositoryWriteOperation.Insert, context);
 
-        await GetCollection<TItem>().Insert(list, cancellationToken);
+        await GetCollection<TItem>().Insert(list, ResolveLiteTransaction(transaction), cancellationToken);
 
         var ids = list.Select(entity => entity.Id).ToList();
 

@@ -11,6 +11,10 @@ public class UnitTestableLiteDb(RepositoryOptions repositoryOptions, LiteDBRepos
         return mapper.Serialize(typeof(TItem), entity).AsDocument;
     }
 
+    public LiteDatabase Database => database;
+
+    public RepositoryOptions Options => options;
+
     public void DropRecreateDatabase()
     {
         database.DisposeAsync().AsTask().Wait();

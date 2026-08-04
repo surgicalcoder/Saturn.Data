@@ -215,7 +215,7 @@ public partial class MongoDbRepository : IRepository
         );
 
         await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
-            BuildWriteResult(context, WriteOutcome.Restored, (int)updateResult.ModifiedCount, matchedIds: matchedIds, rawResult: updateResult));
+            BuildWriteResult(context, WriteOutcome.Restored, (int)updateResult.ModifiedCount, entityIds: matchedIds, matchedIds: matchedIds, rawResult: updateResult));
     }
 
     public async Task Patch<TItem>(string id, long? expectedVersion = null, string jsonDocument = null, IDataUpdateDefinition<TItem> updateDefinition = null,

@@ -4,6 +4,7 @@ using System.Reflection;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using LiteDbX;
+using LiteDbX.Engine;
 
 namespace Saturn.Data.LiteDbX;
 
@@ -38,6 +39,11 @@ public partial class LiteDbRepository //: IRepository
     public async Task<IDatabaseTransaction> CreateTransaction()
     {
         return new LiteDbXTransactionWrapper(await database.BeginTransaction());
+    }
+
+    internal ILiteTransaction ResolveLiteTransaction(IDatabaseTransaction transaction)
+    {
+        return transaction is LiteDbXTransactionWrapper wrapper ? wrapper.Inner : null;
     }
 
     protected virtual string GetCollectionNameForType<T>()

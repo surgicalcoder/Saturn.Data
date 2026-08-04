@@ -5,6 +5,8 @@ namespace Saturn.Data.LiteDbX;
 
 public class LiteDbXTransactionWrapper(ILiteTransaction item) : IDatabaseTransaction
 {
+    internal ILiteTransaction Inner => item;
+
     public async ValueTask DisposeAsync()
     {
         await item.DisposeAsync();

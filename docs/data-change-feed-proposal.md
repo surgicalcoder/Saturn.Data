@@ -15,7 +15,7 @@ is a self-contained commit unit on `master`.
 | 0 | Chokepoint           | `[x]` done 2026-08-03 | `BehaviorDispatcher` in abstractions; LiteDbX + Stellar dispatch `Before*`; existing suites green    |
 | 1 | After\* contract     | `[x]` done 2026-08-03 | `After*` members + `RepositoryWriteResult`; Mongo dispatches after-write; Mongo tests 1–8 green      |
 | 2 | Provider after-hooks | `[x]` done 2026-08-03 | LiteDbX + Stellar `buildResult()` + `After*` dispatch; their tests 1–8 green                         |
-| 3 | Feed core            | `[ ]` not started     | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
+| 3 | Feed core            | `[x]` done 2026-08-04 | `DataChangeEvent`, `IChangeFeedSink`, `OutboxChangeFeedSink`, `ChangeFeedBehavior`; tests 9–12 green |
 | 4 | Delivery             | `[ ]` not started     | `ChangeFeedPoller`, `IChangeFeed<TItem>`; tests 11–13 green                                          |
 | 5 | Docs                 | `[ ]` not started     | This tracker ticked; `docs/data-change-feed.md` usage guide written                                  |
 
@@ -24,7 +24,7 @@ Per-phase task list (detailed below in §11). Sub-items tick as completed:
 - [x] **Phase 0** — dispatcher + provider `Before*` wiring
 - [x] **Phase 1** — `After*` contract + Mongo after-dispatch
 - [x] **Phase 2** — LiteDbX + Stellar after-hooks
-- [ ] **Phase 3** — feed core
+- [x] **Phase 3** — feed core
 - [ ] **Phase 4** — delivery / poller
 - [ ] **Phase 5** — docs
 
@@ -523,12 +523,12 @@ Each phase lands on `master` behind the existing `publish-changed-nugets.yml` wo
 
 ### Phase 3 — Feed core
 
-- [ ] `DataChangeEvent` + `DataChangeEvent<TItem>` (incl. `IsPartial`, `HasFullItems`)
-- [ ] `IChangeFeedSink` (`AppendAsync`, `ReadAsync`)
-- [ ] `ChangeFeedBehavior` implementing all `After*` → sink, honoring `PayloadMode` (§7.2)
-- [ ] `OutboxChangeFeedSink` base + provider subclasses (Mongo/LiteDbX/Stellar) with `__change_feed` collections
-- [ ] `__change_feed_counters` monotonic sequence counter (§7.3)
-- [ ] Tests 9–12 green (tx atomicity, isolation, ordering, dedupe)
+- [x] `DataChangeEvent` + `DataChangeEvent<TItem>` (incl. `IsPartial`, `HasFullItems`)
+- [x] `IChangeFeedSink` (`AppendAsync`, `ReadAsync`)
+- [x] `ChangeFeedBehavior` implementing all `After*` → sink, honoring `PayloadMode` (§7.2)
+- [x] `OutboxChangeFeedSink` base + provider subclasses (Mongo/LiteDbX/Stellar) with `__change_feed` collections
+- [x] `__change_feed_counters` monotonic sequence counter (§7.3)
+- [x] Tests 9–12 green (tx atomicity, isolation, ordering, dedupe)
 
 ### Phase 4 — Delivery
 
