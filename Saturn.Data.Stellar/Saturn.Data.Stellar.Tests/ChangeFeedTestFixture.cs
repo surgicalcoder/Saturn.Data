@@ -36,7 +36,8 @@ public class ChangeFeedTestFixture : IDisposable, IRepositoryTestFixture<UnitTes
         }, stellarOptions);
 
         Sink = new StellarOutboxChangeFeedSink(Repository.Database, "test-source");
-        Repository.Options.WriteBehaviors.Add(new ChangeFeedBehavior(Sink, "test-source"));
+        Repository.Options.WriteBehaviors.Add(
+            new ChangeFeedBehavior(Sink, "test-source", new ChangeFeedBehaviorOptions { Enabled = true }));
         WriteBehaviors = Repository.Options.WriteBehaviors;
     }
 

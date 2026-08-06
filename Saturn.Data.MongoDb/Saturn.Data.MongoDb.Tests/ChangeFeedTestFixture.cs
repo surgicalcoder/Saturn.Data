@@ -34,7 +34,7 @@ public class ChangeFeedTestFixture : IDisposable, IRepositoryTestFixture<UnitTes
         var behaviors = new List<IRepositoryWriteBehavior>
         {
             Recorder,
-            new ChangeFeedBehavior(Sink, "test-source")
+            new ChangeFeedBehavior(Sink, "test-source", new ChangeFeedBehaviorOptions { Enabled = true })
         };
 
         WriteBehaviors = behaviors;

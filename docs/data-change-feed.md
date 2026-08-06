@@ -83,7 +83,8 @@ var options = new RepositoryOptions
     WriteBehaviors = new List<IRepositoryWriteBehavior>
     {
         new CascadeWriteBehavior(),                       // existing behaviors, order preserved
-        new ChangeFeedBehavior(sink, "main")              // source must match registration
+        new ChangeFeedBehavior(sink, "main",
+            new ChangeFeedBehaviorOptions { Enabled = true })  // enable feed logging
     }
 };
 
@@ -102,12 +103,16 @@ repo.Options.WriteBehaviors.Add(new ChangeFeedBehavior(sink, "main"));
 ```csharp
 var options = new ChangeFeedBehaviorOptions
 {
+    Enabled = true,                   // REQUIRED — off by default (no logging until enabled)
     PayloadMode = FeedPayloadMode.Item,   // or FeedPayloadMode.IdOnly
-    FeedPartialOps = true                 // emit Patch/Increment events (default true)
+    FeedPartialOps = true             // emit Patch/Increment events (default true)
 };
 
 new ChangeFeedBehavior(sink, "main", options);
 ```
+
+- **`Enabled`** (default `false`): **off by default**. The behavior writes nothing until you set
+  `Enabled = true`. Add it to opt the repository into feed logging.
 
 - **`PayloadMode.Item`** (default): events carry post-write entity snapshots in `Items` /
   `TypedItems` (`HasFullItems = true`) whenever the write materialized the items.
@@ -226,6 +231,8 @@ cache. Sequence counters are keyed by `Source|EntityType.FullName`.
 
 ## 12. References
 
+- Follow-up features guide: [docs/change-feed-followups-guide.md](change-feed-followups-guide.md)
+  (`OnWriteFailed` hook, `QueueChangeFeedSink` push delivery)
 - Proposal: [docs/data-change-feed-proposal.md](data-change-feed-proposal.md)
 - Contract tests (13 per provider): `Saturn.Data.Testing.Shared/ChangeFeed/ChangeFeedContractTests.cs`
 - Poller tests (4 per provider): `Saturn.Data.Testing.Shared/ChangeFeed/ChangeFeedPollerTests.cs`

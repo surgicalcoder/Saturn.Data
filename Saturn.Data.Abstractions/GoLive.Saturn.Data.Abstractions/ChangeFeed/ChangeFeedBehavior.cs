@@ -62,6 +62,11 @@ public sealed class ChangeFeedBehavior : IRepositoryWriteBehavior
         bool isPartial)
         where TItem : Entity
     {
+        if (!options.Enabled)
+        {
+            return;
+        }
+
         if (!options.FeedPartialOps && isPartial)
         {
             return;
