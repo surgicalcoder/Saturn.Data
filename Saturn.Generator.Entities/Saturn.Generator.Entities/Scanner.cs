@@ -150,6 +150,8 @@ public static class Scanner
                             Initializer = wildcard.Initializer,
                             ComputedProperty = wildcard.ComputedProperty,
                             DisableComputedPropertyDefault = wildcard.DisableComputedPropertyDefault,
+                            ComputedExpression = wildcard.ComputedExpression,
+                            ComputedSelectorExpression = wildcard.ComputedSelectorExpression,
                             ReadOnly = wildcard.ReadOnly,
                         });
                     }
@@ -509,6 +511,14 @@ public static class Scanner
                         if (e.NamedArguments.Any(r => r.Key == "DisableComputedPropertyDefault"))
                         {
                             retr.DisableComputedPropertyDefault = (bool)e.NamedArguments.FirstOrDefault(r => r.Key == "DisableComputedPropertyDefault").Value.Value;
+                        }
+                        if (e.NamedArguments.Any(r => r.Key == "ComputedExpression"))
+                        {
+                            retr.ComputedExpression = (string)e.NamedArguments.FirstOrDefault(r => r.Key == "ComputedExpression").Value.Value;
+                        }
+                        if (e.NamedArguments.Any(r => r.Key == "ComputedSelectorExpression"))
+                        {
+                            retr.ComputedSelectorExpression = (string)e.NamedArguments.FirstOrDefault(r => r.Key == "ComputedSelectorExpression").Value.Value;
                         }
                     }
 

@@ -8,5 +8,7 @@ public class LimitedViewToGenerate
     public string Initializer { get; set; }
     public string ComputedProperty { get; set; }
     public bool DisableComputedPropertyDefault { get; set; }
+    public string ComputedExpression { get; set; }
+    public string ComputedSelectorExpression { get; set; }
     public bool ReadOnly { get; set; }
 }

@@ -272,6 +272,33 @@ public static class SourceCodeGenerator
         return limitedView;
     }
 
+    private static string BuildComputedValueExpression((MemberToGenerate classDef, LimitedViewToGenerate LimitedView) v1, bool selectorContext)
+    {
+        var valueExpression = $"source.{v1.classDef.Name.FirstCharToUpper()}";
+
+        if (selectorContext && !string.IsNullOrWhiteSpace(v1.LimitedView.ComputedSelectorExpression))
+        {
+            return v1.LimitedView.ComputedSelectorExpression.Replace("{value}", valueExpression);
+        }
+
+        if (!string.IsNullOrWhiteSpace(v1.LimitedView.ComputedExpression))
+        {
+            return v1.LimitedView.ComputedExpression.Replace("{value}", valueExpression);
+        }
+
+        if (v1.LimitedView.ComputedProperty != null)
+        {
+            var dotAccess = $"{valueExpression}.{v1.LimitedView.ComputedProperty}";
+            if (v1.LimitedView.DisableComputedPropertyDefault)
+            {
+                return dotAccess;
+            }
+            return selectorContext ? $"{valueExpression} != null ? {dotAccess} : default" : $"{valueExpression}?.{v1.LimitedView.ComputedProperty} ?? default";
+        }
+
+        return valueExpression;
+    }
+
     private static void outputViewTwoWayMethod(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey, IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
     {
         if (item.Any(e => e.LimitedView.TwoWay))
@@ -328,23 +355,7 @@ public static class SourceCodeGenerator
 
         foreach (var v1 in item)
         {
-            var strBuilder = new StringBuilder();
-            strBuilder.Append($"this.{v1.classDef.Name.FirstCharToUpper()} = source.{v1.classDef.Name.FirstCharToUpper()}");
-            
-            if (v1.LimitedView.ComputedProperty != null)
-            {
-                if (v1.LimitedView.DisableComputedPropertyDefault)
-                {
-                    strBuilder.Append($".{v1.LimitedView.ComputedProperty}");
-                }
-                else
-                {
-                    strBuilder.Append($"?.{v1.LimitedView.ComputedProperty} ?? default");
-                }
-            }
-
-            strBuilder.Append(";");
-            source.AppendLine(strBuilder.ToString());
+            source.AppendLine($"this.{v1.classDef.Name.FirstCharToUpper()} = {BuildComputedValueExpression(v1, false)};");
         }
 
         if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews) && classToGen.ParentItemToGenerate is { Count: > 0 } && (classToGen.ParentItemToGenerate.Any(r => r.ViewName == itemKey) || classToGen.ParentItemToGenerate.Any(r => r.ViewName == "*")))
@@ -390,16 +401,7 @@ public static class SourceCodeGenerator
 
         foreach (var v1 in item)
         {
-            var valueExpression = $"source.{v1.classDef.Name.FirstCharToUpper()}";
-
-            if (v1.LimitedView.ComputedProperty != null)
-            {
-                valueExpression = v1.LimitedView.DisableComputedPropertyDefault
-                    ? $"{valueExpression}.{v1.LimitedView.ComputedProperty}"
-                    : $"{valueExpression} != null ? {valueExpression}.{v1.LimitedView.ComputedProperty} : default";
-            }
-
-            source.AppendLine($"{v1.classDef.Name.FirstCharToUpper()} = {valueExpression},");
+            source.AppendLine($"{v1.classDef.Name.FirstCharToUpper()} = {BuildComputedValueExpression(v1, true)},");
         }
 
         if ((!classToGen.InheritsParentLimitedViews || classToGen.FlattenParentLimitedViews)
