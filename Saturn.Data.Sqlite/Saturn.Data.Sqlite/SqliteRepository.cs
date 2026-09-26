@@ -90,9 +90,17 @@ public partial class SqliteRepository : IDisposable
 
     internal async Task<SqliteConnectionLease> RentConnectionAsync(IDatabaseTransaction? transaction, CancellationToken cancellationToken)
     {
+        if (transaction is SqliteTransactionWrapper wrapper)
+        {
+            return new SqliteConnectionLease(wrapper.Connection, ownsConnection: false);
+        }
+
         var connection = await connectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);
         return new SqliteConnectionLease(connection, ownsConnection: true);
     }
+
+    internal Task<SqliteConnectionLease> RentConnectionInternalAsync(IDatabaseTransaction? transaction, CancellationToken cancellationToken)
+        => RentConnectionAsync(transaction, cancellationToken);
 
     protected Task EnsureTableAsync<TItem>(SqliteConnection connection, CancellationToken cancellationToken) where TItem : Entity
         => EnsureTableAsync(GetCollectionNameForType<TItem>(), connection, cancellationToken);
@@ -123,7 +131,7 @@ public partial class SqliteRepository : IDisposable
 
         await using var command = connection.CreateCommand();
         command.CommandText = ddl;
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
 
         knownTables.TryAdd(collection, 0);
     }

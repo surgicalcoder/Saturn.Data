@@ -64,6 +64,23 @@ public sealed class UnitTestableSqliteRepository : SqliteRepository
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
     }
 
+    public async Task<List<string>> ReadAllDocumentsAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await ConnectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT _doc FROM {SqliteRepository.Quote(collection)};";
+
+        var result = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            result.Add(reader.GetString(0));
+        }
+
+        return result;
+    }
+
     public async Task<List<string>> ListIndexesAsync(string collection, CancellationToken cancellationToken = default)
     {
         await using var connection = await ConnectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);

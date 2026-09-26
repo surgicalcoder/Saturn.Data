@@ -60,7 +60,7 @@ public partial class SqliteRepository
                 command.Parameters.AddWithValue("@expectedVersion", expectedVersion.Value);
             }
 
-            var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var affected = await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
 
             if (affected == 0)
             {

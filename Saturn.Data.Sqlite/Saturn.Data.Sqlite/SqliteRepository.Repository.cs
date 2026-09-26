@@ -40,7 +40,7 @@ public partial class SqliteRepository : IRepository
         command.CommandText = string.Format(InsertSqlTemplate, Quote(GetCollectionNameForType<TItem>()));
         command.Parameters.AddWithValue("@id", entity.Id);
         command.Parameters.AddWithValue("@doc", serializer.Serialize(entity));
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<int> ExecuteUpsertAsync<TItem>(SqliteConnection connection, TItem entity, CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ public partial class SqliteRepository : IRepository
         command.CommandText = string.Format(UpsertSqlTemplate, Quote(GetCollectionNameForType<TItem>()));
         command.Parameters.AddWithValue("@id", entity.Id);
         command.Parameters.AddWithValue("@doc", serializer.Serialize(entity));
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<int> ExecuteUpdateByIdAsync<TItem>(SqliteConnection connection, TItem entity, CancellationToken cancellationToken)
@@ -73,7 +73,7 @@ public partial class SqliteRepository : IRepository
             """;
         command.Parameters.AddWithValue("@id", entity.Id);
         command.Parameters.AddWithValue("@doc", serializer.Serialize(entity));
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<int> ExecuteUpdateWhereAsync<TItem>(SqliteConnection connection, TItem entity, SqlFragment predicate, CancellationToken cancellationToken)
@@ -99,7 +99,7 @@ public partial class SqliteRepository : IRepository
             command.Parameters.Add(CloneParameter(parameter));
         }
 
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> ExistsByIdAsync<TItem>(SqliteConnection connection, string id, CancellationToken cancellationToken)
@@ -159,7 +159,7 @@ public partial class SqliteRepository : IRepository
         }
 
         command.Parameters.AddWithValue("@now", now.ToString("O"));
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<int> ExecuteRestoreAsync<TItem>(SqliteConnection connection, SqlFragment predicate, CancellationToken cancellationToken)
@@ -184,7 +184,7 @@ public partial class SqliteRepository : IRepository
             command.Parameters.Add(CloneParameter(parameter));
         }
 
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<int> ExecuteHardDeleteAsync<TItem>(SqliteConnection connection, SqlFragment predicate, CancellationToken cancellationToken)
@@ -200,7 +200,7 @@ public partial class SqliteRepository : IRepository
             command.Parameters.Add(CloneParameter(parameter));
         }
 
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private static void EnsureId<TItem>(TItem entity) where TItem : Entity
@@ -638,8 +638,30 @@ public partial class SqliteRepository : IRepository
         }
     }
 
-    public Task<IDatabaseTransaction> CreateTransaction()
-        => throw new NotImplementedException("Transactions are implemented in Phase 5.");
+    public async Task<IDatabaseTransaction> CreateTransaction()
+    {
+        await InitializeAsync(CancellationToken.None).ConfigureAwait(false);
+        var connection = await connectionFactory.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+        return new SqliteTransactionWrapper(connection);
+    }
+
+    public async Task RebuildAsync(CancellationToken cancellationToken = default)
+    {
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (var checkpoint = connection.CreateCommand())
+        {
+            checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            await checkpoint.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using (var vacuum = connection.CreateCommand())
+        {
+            vacuum.CommandText = "VACUUM;";
+            await vacuum.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     public Task<CascadeReport> DeleteCascade<TItem>(string id, CascadeMode mode = CascadeMode.Default, CascadeDepth depth = CascadeDepth.Single,
         IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)

@@ -43,6 +43,10 @@ public class SqliteRepositoryOptions
 
     public bool AllowNestedTransactions { get; set; }
 
+    public int BusyRetryCount { get; set; } = 5;
+
+    public int BusyRetryBaseDelayMs { get; set; } = 25;
+
     public bool ServerSideProjection { get; set; }
 
     public bool EnableFullTextSearch { get; set; }

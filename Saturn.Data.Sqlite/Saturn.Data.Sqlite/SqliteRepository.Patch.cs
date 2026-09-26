@@ -119,7 +119,7 @@ public partial class SqliteRepository
             command.Parameters.Add(parameter);
         }
 
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private static string BuildPatchExpression(JsonElement root, List<SqliteParameter> parameters)
@@ -231,7 +231,7 @@ public partial class SqliteRepository
             """;
         command.Parameters.AddWithValue("@id", id);
         command.Parameters.AddWithValue("@doc", serializer.Serialize(existing));
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<TItem> ReadDocumentAsync<TItem>(SqliteConnection connection, string id, CancellationToken cancellationToken)
