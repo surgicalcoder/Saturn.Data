@@ -54,4 +54,13 @@ public sealed class UnitTestableSqliteRepository : SqliteRepository
         command.CommandText = "PRAGMA journal_mode;";
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string ?? string.Empty;
     }
+
+    public async Task<string> ReadDocumentAsync(string collection, string id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await ConnectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT _doc FROM {SqliteRepository.Quote(collection)} WHERE _id = @id;";
+        command.Parameters.AddWithValue("@id", id);
+        return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+    }
 }
