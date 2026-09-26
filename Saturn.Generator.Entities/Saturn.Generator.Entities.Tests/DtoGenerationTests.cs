@@ -161,6 +161,16 @@ public class DtoGenerationTests
     }
 
     [Fact]
+    public void Dto_Emits_PatchableMembers()
+    {
+        var dto = DtoBlock(GeneratorTestHarness.GeneratedFor(Source, "Order.g.cs"));
+
+        Assert.Contains("PatchableMembers", dto);
+        Assert.Contains("\"Customer\"", dto);
+        Assert.Contains("\"Total\"", dto);
+    }
+
+    [Fact]
     public void Dto_FromRef_Is_Null_Safe()
     {
         Assert.Contains("source?.Item is null ? null : FromEntity(source.Item)", GeneratorTestHarness.GeneratedFor(Source, "Order.g.cs"));

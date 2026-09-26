@@ -21,6 +21,8 @@ Top-level folders and their primary purpose:
 - `Saturn.Data.MongoDb.EntitySerializers/` - BSON/entity serializer packages for MongoDB integration.
 - `Saturn.Data.Stellar/` - Stellar FastDB-backed repository implementation and tests.
 - `Saturn.Data.Sqlite/` - SQLite JSON-document provider implementation and tests.
+- `Saturn.Data.ChangeTracking/` - optional change tracking runtime, PATCH update documents and tests.
+- `Saturn.Generator.Entities/` - source generator for entities, limited views, DTOs and change tracking, plus tests.
 - `Saturn.Data.Testing.Shared/` - provider-agnostic repository contract test base classes and fixtures.
 - `Saturn.Data.Template/` - template package for Saturn.Data usage patterns.
 - `Saturn.Generator.Entities/` - source generator and resources projects.
@@ -64,6 +66,7 @@ Provider libraries then map those contracts to specific backends:
 | `Saturn.Data.MongoDb/Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj` | `GoLive.Saturn.Data.MongoDb` | MongoDB-backed repository implementation. |
 | `Saturn.Data.Stellar/Saturn.Data.Stellar/Saturn.Data.Stellar.csproj` | `GoLive.Saturn.Data.Stellar` | Stellar FastDB-backed repository implementation. |
 | `Saturn.Data.Sqlite/Saturn.Data.Sqlite/Saturn.Data.Sqlite.csproj` | `GoLive.Saturn.Data.Sqlite` | SQLite JSON-document repository implementation. |
+| `Saturn.Data.ChangeTracking/GoLive.Saturn.Data.ChangeTracking/GoLive.Saturn.Data.ChangeTracking.csproj` | `GoLive.Saturn.Data.ChangeTracking` | Optional change tracking and PATCH update documents. |
 
 ### MongoDB serializer packages
 
@@ -140,6 +143,8 @@ dotnet test .\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.Tests\Saturn.Data.LiteDbX.
 dotnet test .\Saturn.Data.MongoDb\Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.Tests.csproj -c Release
 dotnet test .\Saturn.Data.Stellar\Saturn.Data.Stellar.Tests\Saturn.Data.Stellar.Tests.csproj -c Release
 dotnet test .\Saturn.Data.Sqlite\Saturn.Data.Sqlite.Tests\Saturn.Data.Sqlite.Tests.csproj -c Release
+dotnet test .\Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.Tests\GoLive.Saturn.Data.ChangeTracking.Tests.csproj -c Release
+dotnet test .\Saturn.Generator.Entities\Saturn.Generator.Entities.Tests\Saturn.Generator.Entities.Tests.csproj -c Release
 ```
 
 Notes:

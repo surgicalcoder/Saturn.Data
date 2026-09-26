@@ -122,6 +122,19 @@ public static class DtoGenerator
         }
 
         source.AppendLine(2);
+        source.AppendLine("public static readonly global::System.Collections.Generic.HashSet<string> PatchableMembers = new(global::System.StringComparer.Ordinal)");
+
+        source.AppendOpenCurlyBracketLine();
+
+        foreach (var member in members.Where(member => !member.Source.ReadOnly && !member.Source.WriteOnly))
+        {
+            source.AppendLine($"\"{member.Name}\",");
+        }
+
+        source.AppendCloseCurlyBracketLine();
+        source.AppendLine(";");
+
+        source.AppendLine(2);
         source.AppendLine($"public static implicit operator {dtoName}({entityName} source) => FromEntity(source);");
         source.AppendLine($"public static implicit operator {dtoName}?(Ref<{entityName}> source) => FromRef(source);");
         source.AppendLine();
