@@ -1,5 +1,7 @@
 using System.Collections;
+using System.Globalization;
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.Data.Sqlite;
 
 namespace Saturn.Data.Sqlite.Query;
@@ -66,22 +68,17 @@ public sealed class SqliteExpressionTranslator
                 return SqlFragment.Combine(Visit(node.Left), Visit(node.Right), "OR");
 
             case ExpressionType.Equal:
-                return VisitComparison(node, "=");
-
             case ExpressionType.NotEqual:
-                return VisitComparison(node, "<>");
-
             case ExpressionType.GreaterThan:
-                return VisitComparison(node, ">");
-
             case ExpressionType.GreaterThanOrEqual:
-                return VisitComparison(node, ">=");
-
             case ExpressionType.LessThan:
-                return VisitComparison(node, "<");
-
             case ExpressionType.LessThanOrEqual:
-                return VisitComparison(node, "<=");
+                if (TryTranslateReferenceComparison(node, out var reference))
+                {
+                    return reference;
+                }
+
+                return VisitComparison(node, MapOperator(node.NodeType));
 
             default:
                 throw new SqliteTranslationException($"Unsupported binary operator '{node.NodeType}'.");
@@ -106,11 +103,89 @@ public sealed class SqliteExpressionTranslator
         throw new SqliteTranslationException($"Cannot translate comparison between '{left}' and '{right}'.");
     }
 
-    private SqlFragment BuildComparison(string path, bool isColumn, string op, object? value)
+    private bool TryTranslateReferenceComparison(BinaryExpression node, out SqlFragment fragment)
     {
-        var operand = isColumn ? path : JsonExtract(path);
-        var parameter = CreateParameter(value);
-        return new SqlFragment { Sql = $"{operand} {op} {parameter.ParameterName}", Parameters = new[] { parameter } };
+        fragment = null!;
+
+        if (node.Method is null || !IsReferenceOperator(node.Method))
+        {
+            return false;
+        }
+
+        var left = SqliteJsonPathResolver.Unwrap(node.Left);
+        var right = SqliteJsonPathResolver.Unwrap(node.Right);
+        var op = MapOperator(node.NodeType);
+
+        if (SqliteJsonPathResolver.TryResolve(left, out var leftPath, out var leftIsColumn) && TryResolveReferenceValue(right, out var rightValue))
+        {
+            fragment = BuildComparison(leftPath, leftIsColumn, op, rightValue);
+            return true;
+        }
+
+        if (SqliteJsonPathResolver.TryResolve(right, out var rightPath, out var rightIsColumn) && TryResolveReferenceValue(left, out var leftValue))
+        {
+            fragment = BuildComparison(rightPath, rightIsColumn, op, leftValue);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsReferenceOperator(MethodInfo method)
+    {
+        if (!method.Name.StartsWith("op_", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var declaring = method.DeclaringType;
+
+        if (declaring is null)
+        {
+            return false;
+        }
+
+        if (declaring == typeof(GoLive.Saturn.Data.Entities.WeakRef))
+        {
+            return true;
+        }
+
+        return declaring.IsGenericType
+               && (declaring.GetGenericTypeDefinition() == typeof(GoLive.Saturn.Data.Entities.Ref<>)
+                   || declaring.GetGenericTypeDefinition() == typeof(GoLive.Saturn.Data.Entities.WeakRef<>));
+    }
+
+    private static bool TryResolveReferenceValue(Expression expression, out object? value)
+    {
+        value = null;
+
+        if (!TryEvaluate(expression, out var evaluated))
+        {
+            return false;
+        }
+
+        switch (evaluated)
+        {
+            case null:
+                value = null;
+                return true;
+            case string text:
+                value = text;
+                return true;
+            case GoLive.Saturn.Data.Entities.WeakRef weak:
+                value = weak.Id;
+                return true;
+        }
+
+        var idProperty = evaluated.GetType().GetProperty("Id");
+
+        if (idProperty is null)
+        {
+            return false;
+        }
+
+        value = idProperty.GetValue(evaluated) as string;
+        return true;
     }
 
     private SqlFragment VisitBooleanMember(MemberExpression member)
@@ -126,22 +201,103 @@ public sealed class SqliteExpressionTranslator
 
     private SqlFragment VisitMethodCall(MethodCallExpression node)
     {
-        if (TryTranslateContains(node, out var contains))
+        if (TryTranslateStringMethod(node, out var stringMethod))
         {
-            return contains;
+            return stringMethod;
+        }
+
+        if (TryTranslateCollectionContains(node, out var collectionContains))
+        {
+            return collectionContains;
+        }
+
+        if (TryTranslateStaticContains(node, out var staticContains))
+        {
+            return staticContains;
         }
 
         throw new SqliteTranslationException($"Unsupported method call '{node.Method.Name}'.");
     }
 
-    private bool TryTranslateContains(MethodCallExpression node, out SqlFragment fragment)
+    private bool TryTranslateStringMethod(MethodCallExpression node, out SqlFragment fragment)
     {
         fragment = null!;
 
-        if (node.Method.Name != nameof(Enumerable.Contains))
+        if (node.Object is null || node.Object.Type != typeof(string))
         {
             return false;
         }
+
+        var target = SqliteJsonPathResolver.Unwrap(node.Object);
+
+        if (!SqliteJsonPathResolver.TryResolve(target, out var path, out var isColumn))
+        {
+            return false;
+        }
+
+        var operand = isColumn ? path : JsonExtract(path);
+
+        switch (node.Method.Name)
+        {
+            case nameof(string.Contains) when node.Arguments.Count == 1 && TryEvaluate(node.Arguments[0], out var containsValue):
+            {
+                var parameter = CreateParameter(containsValue);
+                fragment = new SqlFragment { Sql = $"instr({operand}, {parameter.ParameterName}) > 0", Parameters = new[] { parameter } };
+                return true;
+            }
+
+            case nameof(string.StartsWith) when node.Arguments.Count == 1 && TryEvaluate(node.Arguments[0], out var startsWithValue):
+            {
+                var parameter = CreateParameter(EscapeLike(Convert.ToString(startsWithValue, CultureInfo.InvariantCulture)) + "%");
+                fragment = new SqlFragment { Sql = $"{operand} LIKE {parameter.ParameterName} ESCAPE '\\'", Parameters = new[] { parameter } };
+                return true;
+            }
+
+            case nameof(string.EndsWith) when node.Arguments.Count == 1 && TryEvaluate(node.Arguments[0], out var endsWithValue):
+            {
+                var parameter = CreateParameter("%" + EscapeLike(Convert.ToString(endsWithValue, CultureInfo.InvariantCulture)));
+                fragment = new SqlFragment { Sql = $"{operand} LIKE {parameter.ParameterName} ESCAPE '\\'", Parameters = new[] { parameter } };
+                return true;
+            }
+
+            default:
+                return false;
+        }
+    }
+
+    private bool TryTranslateCollectionContains(MethodCallExpression node, out SqlFragment fragment)
+    {
+        fragment = null!;
+
+        if (node.Object is null || node.Arguments.Count != 1 || node.Method.Name != nameof(IList.Contains))
+        {
+            return false;
+        }
+
+        var target = SqliteJsonPathResolver.Unwrap(node.Object);
+
+        if (target.Type == typeof(string) || !typeof(IEnumerable).IsAssignableFrom(target.Type))
+        {
+            return false;
+        }
+
+        if (!SqliteJsonPathResolver.TryResolve(target, out var path, out _) || !TryEvaluate(node.Arguments[0], out var value))
+        {
+            return false;
+        }
+
+        var parameter = CreateParameter(value);
+        fragment = new SqlFragment
+        {
+            Sql = $"EXISTS (SELECT 1 FROM json_each(_doc, '{path}') WHERE value = {parameter.ParameterName})",
+            Parameters = new[] { parameter }
+        };
+        return true;
+    }
+
+    private bool TryTranslateStaticContains(MethodCallExpression node, out SqlFragment fragment)
+    {
+        fragment = null!;
 
         Expression collectionExpression;
         Expression itemExpression;
@@ -166,7 +322,7 @@ public sealed class SqliteExpressionTranslator
             return false;
         }
 
-        if (!TryEvaluate(collectionExpression, out var collectionValue) || collectionValue is not IEnumerable collection)
+        if (!TryEvaluateCollection(collectionExpression, out var collection))
         {
             return false;
         }
@@ -194,22 +350,103 @@ public sealed class SqliteExpressionTranslator
         return true;
     }
 
+    private SqlFragment BuildComparison(string path, bool isColumn, string op, object? value)
+    {
+        var operand = isColumn ? path : JsonExtract(path);
+
+        if (value is null)
+        {
+            return op switch
+            {
+                "=" => new SqlFragment { Sql = $"{operand} IS NULL" },
+                "<>" => new SqlFragment { Sql = $"{operand} IS NOT NULL" },
+                _ => throw new SqliteTranslationException($"Cannot apply operator '{op}' to null.")
+            };
+        }
+
+        var parameter = CreateParameter(value);
+        return new SqlFragment { Sql = $"{operand} {op} {parameter.ParameterName}", Parameters = new[] { parameter } };
+    }
+
     private SqliteParameter CreateParameter(object? value)
         => new($"@p{parameterIndex++}", value ?? DBNull.Value);
 
+    private static string MapOperator(ExpressionType nodeType) => nodeType switch
+    {
+        ExpressionType.Equal => "=",
+        ExpressionType.NotEqual => "<>",
+        ExpressionType.GreaterThan => ">",
+        ExpressionType.GreaterThanOrEqual => ">=",
+        ExpressionType.LessThan => "<",
+        ExpressionType.LessThanOrEqual => "<=",
+        _ => throw new SqliteTranslationException($"Unsupported operator '{nodeType}'.")
+    };
+
     private static string JsonExtract(string path) => $"json_extract(_doc, '{path}')";
+
+    private static string EscapeLike(string? value)
+        => (value ?? string.Empty).Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    private static bool TryEvaluateCollection(Expression expression, out IEnumerable collection)
+    {
+        collection = null!;
+
+        var node = SqliteJsonPathResolver.Unwrap(expression);
+
+        while (node.Type.IsByRefLike)
+        {
+            switch (node)
+            {
+                case NewExpression { Arguments.Count: >= 1 } newExpression:
+                    node = SqliteJsonPathResolver.Unwrap(newExpression.Arguments[0]);
+                    break;
+                case MethodCallExpression { Arguments.Count: >= 1 } call:
+                    node = SqliteJsonPathResolver.Unwrap(call.Arguments[0]);
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        if (!TryEvaluate(node, out var value) || value is not IEnumerable enumerable)
+        {
+            return false;
+        }
+
+        collection = enumerable;
+        return true;
+    }
 
     private static bool TryEvaluate(Expression expression, out object? value)
     {
-        if (expression is ConstantExpression constant)
+        var node = SqliteJsonPathResolver.Unwrap(expression);
+
+        if (node.Type.IsByRefLike)
         {
-            value = constant.Value;
-            return true;
+            value = null;
+            return false;
         }
 
-        if (!ReferencesParameter(expression))
+        switch (node)
         {
-            value = Expression.Lambda(expression).Compile().DynamicInvoke();
+            case ConstantExpression constant:
+                value = constant.Value;
+                return true;
+
+            case MemberExpression { Expression: ConstantExpression owner } member:
+                value = member.Member switch
+                {
+                    FieldInfo field => field.GetValue(owner.Value),
+                    PropertyInfo property => property.GetValue(owner.Value),
+                    _ => null
+                };
+                return true;
+        }
+
+        if (!ReferencesParameter(node))
+        {
+            var lambda = Expression.Lambda<Func<object?>>(Expression.Convert(node, typeof(object)));
+            value = lambda.Compile(preferInterpretation: true)();
             return true;
         }
 

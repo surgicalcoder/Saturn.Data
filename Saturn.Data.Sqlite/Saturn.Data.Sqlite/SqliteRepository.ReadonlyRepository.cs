@@ -96,31 +96,73 @@ public partial class SqliteRepository : IReadonlyRepository
 
     private static string? BuildOrderBy<TItem>(IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
     {
-        if (sortOrders is null)
-        {
-            return null;
-        }
-
         var clauses = new List<string>();
+        var hasIdClause = false;
 
-        foreach (var sortOrder in sortOrders)
+        if (sortOrders is not null)
         {
-            if (sortOrder?.Field is null)
+            foreach (var sortOrder in sortOrders)
             {
-                continue;
-            }
+                if (sortOrder?.Field is null)
+                {
+                    continue;
+                }
 
-            if (!SqliteJsonPathResolver.TryResolve(UnwrapLambdaBody(sortOrder.Field), out var path, out var isColumn))
-            {
-                throw new SqliteTranslationException($"Cannot translate sort order '{sortOrder.Field}'.");
-            }
+                if (!SqliteJsonPathResolver.TryResolve(UnwrapLambdaBody(sortOrder.Field), out var path, out var isColumn))
+                {
+                    throw new SqliteTranslationException($"Cannot translate sort order '{sortOrder.Field}'.");
+                }
 
-            var operand = isColumn ? path : $"json_extract(_doc, '{path}')";
-            var direction = sortOrder.Direction == SortDirection.Ascending ? "ASC" : "DESC";
-            clauses.Add($"{operand} {direction}");
+                var operand = isColumn ? path : $"json_extract(_doc, '{path}')";
+                var direction = sortOrder.Direction == SortDirection.Ascending ? "ASC" : "DESC";
+                clauses.Add($"{operand} {direction}");
+
+                if (isColumn && path == "_id")
+                {
+                    hasIdClause = true;
+                }
+            }
         }
 
-        return clauses.Count == 0 ? null : string.Join(", ", clauses);
+        if (!hasIdClause)
+        {
+            clauses.Add("_id ASC");
+        }
+
+        return string.Join(", ", clauses);
+    }
+
+    private static bool IsIdAscending<TItem>(SortOrder<TItem> sortOrder) where TItem : Entity
+    {
+        if (sortOrder?.Field is null)
+        {
+            return false;
+        }
+
+        if (!SqliteJsonPathResolver.TryResolve(UnwrapLambdaBody(sortOrder.Field), out var path, out var isColumn))
+        {
+            return false;
+        }
+
+        return isColumn && path == "_id" && sortOrder.Direction == SortDirection.Ascending;
+    }
+
+    protected static bool CanApplyContinuation<TItem>(IEnumerable<SortOrder<TItem>>? sortOrders) where TItem : Entity
+        => sortOrders is null || !sortOrders.Any() || IsIdAscending(sortOrders.First());
+
+    private static SqlFragment ApplyContinuation<TItem>(SqlFragment predicate, IEnumerable<SortOrder<TItem>>? sortOrders, string continueFrom)
+        where TItem : Entity
+    {
+        var token = NormalizeId(continueFrom);
+
+        if (token is null || !CanApplyContinuation(sortOrders))
+        {
+            return predicate;
+        }
+
+        var parameter = new SqliteParameter("@continueFrom", token);
+        var continuation = new SqlFragment { Sql = "_id > @continueFrom", Parameters = new[] { parameter } };
+        return SqlFragment.Combine(predicate, continuation, "AND");
     }
 
     private static Expression UnwrapLambdaBody(LambdaExpression lambda)
@@ -246,7 +288,7 @@ public partial class SqliteRepository : IReadonlyRepository
     public async Task<long> Count<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom, bool includeDeleted, IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
         where TItem : Entity
     {
-        var fragment = BuildReadPredicate(predicate, includeDeleted);
+        var fragment = ApplyContinuation<TItem>(BuildReadPredicate(predicate, includeDeleted), null, continueFrom);
 
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
         await using var lease = await RentConnectionAsync(transaction, cancellationToken).ConfigureAwait(false);
@@ -283,7 +325,7 @@ public partial class SqliteRepository : IReadonlyRepository
         IEnumerable<SortOrder<TItem>> sortOrders, bool includeDeleted, IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
         where TItem : Entity
     {
-        var fragment = BuildReadPredicate(predicate, includeDeleted);
+        var fragment = ApplyContinuation(BuildReadPredicate(predicate, includeDeleted), sortOrders, continueFrom);
         var orderBy = BuildOrderBy(sortOrders);
 
         int? limit = null;
@@ -322,7 +364,7 @@ public partial class SqliteRepository : IReadonlyRepository
         bool includeDeleted, IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
         where TItem : Entity
     {
-        var fragment = BuildReadPredicate(predicate, includeDeleted);
+        var fragment = ApplyContinuation(BuildReadPredicate(predicate, includeDeleted), sortOrders, continueFrom);
         var orderBy = BuildOrderBy(sortOrders);
         var list = await LoadListAsync<TItem>(fragment, orderBy, 1, null, transaction, cancellationToken).ConfigureAwait(false);
         return list.Count == 0 ? null! : list[0];

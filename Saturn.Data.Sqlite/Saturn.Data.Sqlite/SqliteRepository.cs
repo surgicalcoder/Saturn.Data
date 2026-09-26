@@ -81,6 +81,9 @@ public partial class SqliteRepository : IDisposable
         return result;
     }
 
+    internal static string TranslatePredicateSql<TItem>(Expression<Func<TItem, bool>> predicate) where TItem : Entity
+        => new Query.SqliteExpressionTranslator().Translate(predicate).Sql;
+
     internal static bool SupportsSoftDelete<TItem>() where TItem : Entity => typeof(ISoftDeletable).IsAssignableFrom(typeof(TItem));
 
     internal static bool SupportsArchivable<TItem>() where TItem : Entity => typeof(IArchivable).IsAssignableFrom(typeof(TItem));
