@@ -19,7 +19,7 @@ public static class DtoGenerator
         public bool Projectable { get; set; }
     }
 
-    public static void Generate(SourceStringBuilder source, ClassToGenerate classToGen, bool expandRefs, bool useFullId, string namespaceName)
+    public static void Generate(SourceStringBuilder source, ClassToGenerate classToGen, bool expandRefs, bool useFullId, string namespaceName, bool trackChanges)
     {
         var members = new List<DtoMember>();
 
@@ -81,9 +81,13 @@ public static class DtoGenerator
         var dtoName = classToGen.DtoName;
         var entityName = classToGen.Name;
 
+        var interfaces = trackChanges
+            ? $", global::GoLive.Saturn.Data.ChangeTracking.ITrackable, global::GoLive.Saturn.Data.ChangeTracking.ITrackableMetadata"
+            : string.Empty;
+
         source.AppendLine(2);
         source.AppendLine("[global::System.CodeDom.Compiler.GeneratedCode(\"Saturn.Generator.Entities\", \"1.0.0\")]");
-        source.AppendLine($"public partial class {dtoName} : ICreatableFrom<{entityName}>, IUpdatableFrom<{entityName}>");
+        source.AppendLine($"public partial class {dtoName} : ICreatableFrom<{entityName}>, IUpdatableFrom<{entityName}>{interfaces}");
         source.AppendOpenCurlyBracketLine();
 
         source.AppendLine("public const string DtoSchemaVersion = \"1\";");
@@ -93,7 +97,28 @@ public static class DtoGenerator
 
         foreach (var member in members)
         {
-            source.AppendLine($"public {member.DtoType} {member.Name} {{ get; set; }}");
+            if (!trackChanges)
+            {
+                source.AppendLine($"public {member.DtoType} {member.Name} {{ get; set; }}");
+                continue;
+            }
+
+            var backing = Camel(member.Name);
+            source.AppendLine($"private {member.DtoType} {backing};");
+            source.AppendLine($"public {member.DtoType} {member.Name}");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"get => {backing};");
+            source.AppendLine("set");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"if (global::System.Collections.Generic.EqualityComparer<{member.DtoType}>.Default.Equals({backing}, value))");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine("return;");
+            source.AppendCloseCurlyBracketLine();
+            source.AppendLine($"var previous = {backing};");
+            source.AppendLine($"{backing} = value;");
+            source.AppendLine($"OnFieldChanged(\"{member.Name}\", previous, value);");
+            source.AppendCloseCurlyBracketLine();
+            source.AppendCloseCurlyBracketLine();
         }
 
         source.AppendLine(2);
@@ -181,8 +206,26 @@ public static class DtoGenerator
             source.AppendLine(";");
         }
 
+        if (trackChanges)
+        {
+            TrackingGenerator.EmitDtoTracking(source, members
+                .Select(member => new TrackedMember
+                {
+                    Name = member.Name,
+                    TypeText = member.DtoType,
+                    IsValueType = !member.IsReference && !member.IsCollection && !member.IsEntity && member.Source.Type?.IsValueType == true,
+                    IsCollection = member.IsCollection,
+                    ElementTypeText = member.IsCollection ? ElementDtoType(member) : null,
+                    Visibility = member.Source.WriteOnly ? "WriteOnly" : member.Source.ReadOnly ? "ReadOnly" : "ReadWrite"
+                })
+                .ToList());
+        }
+
         source.AppendCloseCurlyBracketLine();
     }
+
+    private static string Camel(string name)
+        => string.IsNullOrEmpty(name) ? name : char.ToLowerInvariant(name[0]) + name.Substring(1);
 
     private static string FromEntityExpression(DtoMember member)
     {

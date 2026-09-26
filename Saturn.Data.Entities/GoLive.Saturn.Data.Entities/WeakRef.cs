@@ -3,10 +3,12 @@ using System.Collections.Generic;
 
 namespace GoLive.Saturn.Data.Entities;
 
-public class WeakRef : IComparable<WeakRef>
+public class WeakRef : IComparable<WeakRef>, IEntityReference
 {
     private string _refId;
     private Entity item;
+
+    public string RefId => Id;
 
     public virtual Entity Item
     {

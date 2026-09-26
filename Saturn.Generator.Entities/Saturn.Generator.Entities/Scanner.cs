@@ -29,6 +29,9 @@ public static class Scanner
     private const string ATTRIBUTE_ExcludeFromDto = $"{ATTRIBUTE_NAMESPACE}.ExcludeFromDtoAttribute";
     private const string ATTRIBUTE_Embedded = $"{ATTRIBUTE_NAMESPACE}.EmbeddedAttribute";
     private const string ATTRIBUTE_NAMESPACE = "GoLive.Saturn.Generator.Entities.Resources";
+    private const string TRACKING_NAMESPACE = "GoLive.Saturn.Data.ChangeTracking";
+    private const string ATTRIBUTE_ChangeTracking = $"{TRACKING_NAMESPACE}.ChangeTrackingAttribute";
+    private const string ATTRIBUTE_NoChangeTracking = $"{TRACKING_NAMESPACE}.NoChangeTrackingAttribute";
 
     public static bool CanBeEntity(SyntaxNode node)
     {
@@ -123,6 +126,28 @@ public static class Scanner
 
         retr.DtoName ??= $"{retr.Name}Dto";
         retr.DtoAlreadyExists = DtoTypeExists(input.symbol, retr.Namespace, retr.DtoName);
+
+        retr.NoChangeTracking = input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_NoChangeTracking);
+
+        var trackingAttribute = input.symbol.GetAttributes().FirstOrDefault(e => e.AttributeClass?.ToString() == ATTRIBUTE_ChangeTracking);
+
+        if (trackingAttribute is not null)
+        {
+            retr.TrackChanges = true;
+
+            foreach (var named in trackingAttribute.NamedArguments)
+            {
+                switch (named.Key)
+                {
+                    case "Mode":
+                        retr.TrackingMode = named.Value.Value is int mode ? mode : 0;
+                        break;
+                    case "TrackRefItemChanges":
+                        retr.TrackRefItem = named.Value.Value is bool trackRefItem && trackRefItem;
+                        break;
+                }
+            }
+        }
         
         if (input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews))
         {

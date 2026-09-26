@@ -31,6 +31,12 @@ public static class SourceCodeGenerator
         source.AppendLine(GeneratedCodeAttribute);
         source.AppendLine($"public partial class {classToGen.Name} : INotifyPropertyChanged");
 
+        if (classToGen.TrackChanges)
+        {
+            source.AppendLine(", global::GoLive.Saturn.Data.ChangeTracking.ITrackable");
+            source.AppendLine(", global::GoLive.Saturn.Data.ChangeTracking.ITrackableMetadata");
+        }
+
         var updatableFromChildren = classToGen.Members.SelectMany(e => e.LimitedViews.Where(f => f.TwoWay).Select(f => f.Name)).Distinct().ToList();
 
         if (updatableFromChildren.Any())
@@ -153,6 +159,10 @@ public static class SourceCodeGenerator
             source.AppendLine($"public {classToGen.ParentClassName}_{viewName} To_{viewName}() => {classToGen.ParentClassName}_{viewName}.Generate(this);");
         }
 
+        if (classToGen.TrackChanges)
+        {
+            TrackingGenerator.EmitEntityTracking(source, classToGen);
+        }
 
         source.AppendLine("}");
 
@@ -277,7 +287,7 @@ public static class SourceCodeGenerator
 
         if (classToGen.GenerateDto && !classToGen.DtoAlreadyExists)
         {
-            DtoGenerator.Generate(source, classToGen, classToGen.DtoExpandRefs, classToGen.DtoUseFullId, classToGen.Namespace);
+            DtoGenerator.Generate(source, classToGen, classToGen.DtoExpandRefs, classToGen.DtoUseFullId, classToGen.Namespace, classToGen.DtoTrackChanges);
         }
     }
 

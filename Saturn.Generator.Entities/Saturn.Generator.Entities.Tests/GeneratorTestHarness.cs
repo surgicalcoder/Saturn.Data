@@ -28,6 +28,7 @@ public static class GeneratorTestHarness
 
         references.Add(MetadataReference.CreateFromFile(typeof(Entity).Assembly.Location));
         references.Add(MetadataReference.CreateFromFile(typeof(AddToLimitedViewAttribute).Assembly.Location));
+        references.Add(MetadataReference.CreateFromFile(typeof(GoLive.Saturn.Data.ChangeTracking.ChangeTrackingAttribute).Assembly.Location));
 
         return CSharpCompilation.Create(
             "GeneratorTests",
@@ -36,7 +37,7 @@ public static class GeneratorTestHarness
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 
-    public static IReadOnlyList<(string HintName, string Text)> Run(string source, bool generateDtosByDefault = false)
+    public static IReadOnlyList<(string HintName, string Text)> Run(string source, bool generateDtosByDefault = false, bool trackChangesByDefault = false)
     {
         var compilation = CreateCompilation(source);
 
@@ -45,6 +46,11 @@ public static class GeneratorTestHarness
         if (generateDtosByDefault)
         {
             options["build_property.SaturnGenerateDtos"] = "true";
+        }
+
+        if (trackChangesByDefault)
+        {
+            options["build_property.SaturnChangeTracking"] = "true";
         }
 
         var driver = CSharpGeneratorDriver.Create(
@@ -66,8 +72,8 @@ public static class GeneratorTestHarness
             .ToList();
     }
 
-    public static string GeneratedFor(string source, string hintNameFragment, bool generateDtosByDefault = false)
-        => Run(source, generateDtosByDefault).Single(generated => generated.HintName.Contains(hintNameFragment)).Text;
+    public static string GeneratedFor(string source, string hintNameFragment, bool generateDtosByDefault = false, bool trackChangesByDefault = false)
+        => Run(source, generateDtosByDefault, trackChangesByDefault).Single(generated => generated.HintName.Contains(hintNameFragment)).Text;
 
     private sealed class TestAnalyzerConfigOptions : AnalyzerConfigOptions
     {

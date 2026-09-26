@@ -9,9 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
-        <PackageReference Include="ObservableCollections" Version="3.3.4" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
             <PrivateAssets>all</PrivateAssets>
@@ -24,10 +22,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Saturn.Generator.Entities\Saturn.Generator.Entities.csproj" />
-        <ProjectReference Include="..\Saturn.Generator.Entities.Resources\Saturn.Generator.Entities.Resources.csproj" />
+        <ProjectReference Include="..\GoLive.Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.csproj" />
         <ProjectReference Include="..\..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
-        <ProjectReference Include="..\..\Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.csproj" />
     </ItemGroup>
 
 </Project>

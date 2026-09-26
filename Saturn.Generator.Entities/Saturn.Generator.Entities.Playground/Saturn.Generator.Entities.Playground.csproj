@@ -15,9 +15,9 @@
       <ProjectReference Include="..\Saturn.Generator.Entities.Resources\Saturn.Generator.Entities.Resources.csproj" />
       <ProjectReference Include="..\Saturn.Generator.Entities\Saturn.Generator.Entities.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
       <ProjectReference Include="..\..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
+      <ProjectReference Include="..\..\Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.csproj" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="GoLive.Saturn.Data" Version="5.0.36" />
         <PackageReference Include="ObservableCollections" Version="3.3.4" />
     </ItemGroup>
 </Project>

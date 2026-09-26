@@ -57,20 +57,20 @@ public class SaturnGenerator : IIncrementalGenerator
             .Where(static c => c != default)
             .Select(static (c, _) => Scanner.ConvertToMapping(c));
 
-        var generateDtosByDefault = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
-            provider.GlobalOptions.TryGetValue("build_property.SaturnGenerateDtos", out var value)
-            && bool.TryParse(value, out var enabled)
-            && enabled);
+        var options = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) => (
+            GenerateDtosByDefault: provider.GlobalOptions.TryGetValue("build_property.SaturnGenerateDtos", out var dtos) && bool.TryParse(dtos, out var dtosEnabled) && dtosEnabled,
+            TrackChangesByDefault: provider.GlobalOptions.TryGetValue("build_property.SaturnChangeTracking", out var tracking) && bool.TryParse(tracking, out var trackingEnabled) && trackingEnabled));
 
-        context.RegisterSourceOutput(classDeclarations.Collect().Combine(generateDtosByDefault),
+        context.RegisterSourceOutput(classDeclarations.Collect().Combine(options),
             static (spc, source) => Execute(spc, source.Left, source.Right));
     }
 
-    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate, bool generateDtosByDefault)
+    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate, (bool GenerateDtosByDefault, bool TrackChangesByDefault) options)
     {
         foreach (var toGenerate in classesToGenerate)
         {
-            toGenerate.GenerateDto = (toGenerate.GenerateDto || (generateDtosByDefault && !toGenerate.NoGenerateDto)) && !toGenerate.DtoAlreadyExists;
+            toGenerate.GenerateDto = (toGenerate.GenerateDto || (options.GenerateDtosByDefault && !toGenerate.NoGenerateDto)) && !toGenerate.DtoAlreadyExists;
+            toGenerate.TrackChanges = toGenerate.TrackChanges || (options.TrackChangesByDefault && !toGenerate.NoChangeTracking);
 
             EmitDiagnostics(spc, toGenerate);
 

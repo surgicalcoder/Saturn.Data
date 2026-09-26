@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace GoLive.Saturn.Data.Entities;
 
-public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged where T : Entity, new()
+public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged, IEntityReference where T : Entity, new()
 {
     public Ref(string refId)
     {
@@ -26,6 +26,8 @@ public partial class Ref<T> : IEquatable<Ref<T>>, INotifyPropertyChanged where T
 
     private string _refId;
     private T item;
+
+    public string RefId => Id;
 
     public virtual T Item
     {

@@ -230,12 +230,18 @@ public abstract class Entity : IEquatable<Entity>, INotifyPropertyChanged, IUniq
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
+    protected virtual void OnFieldChanged(string propertyName, object oldValue, object newValue)
+    {
+    }
+
     protected virtual bool SetField<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, newValue)) return false;
 
+        var oldValue = field;
         field = newValue;
         OnPropertyChanged(propertyName);
+        OnFieldChanged(propertyName, oldValue, newValue);
 
         if (propertyName != null && Changes != null && EnableChangeTracking)
         {
