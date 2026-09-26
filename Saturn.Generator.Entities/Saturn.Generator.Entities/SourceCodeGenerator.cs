@@ -76,6 +76,12 @@ public static class SourceCodeGenerator
                     continue;
                 }
 
+                if (classToGen.TrackChanges)
+                {
+                    source.AppendLine($"{collTargetName}.CollectionChanged += On{collTargetName}Changed;");
+                    continue;
+                }
+
                 var keySuffix = CollectionItemKeySuffix(coll.CollectionType);
 
                 source.AppendLine($"{collTargetName}.CollectionChanged += (in ObservableCollections.NotifyCollectionChangedEventArgs<{coll.CollectionType.ToDisplayString()}> eventArgs) =>");
@@ -119,7 +125,7 @@ public static class SourceCodeGenerator
         {
             if (member.IsCollection)
             {
-                GenerateCollectionMember(source, member);
+                GenerateCollectionMember(source, member, classToGen.TrackChanges);
             }
             else
             {
@@ -161,6 +167,11 @@ public static class SourceCodeGenerator
 
         if (classToGen.TrackChanges)
         {
+            foreach (var coll in classToGen.Members.Where(f => f.IsCollection && !f.DoNotTrackChanges))
+            {
+                GenerateTrackedCollectionHandler(source, coll);
+            }
+
             TrackingGenerator.EmitEntityTracking(source, classToGen);
         }
 
@@ -473,6 +484,23 @@ public static class SourceCodeGenerator
         }
     }
 
+    private static bool IsEntityType(ITypeSymbol type)
+    {
+        var current = type as INamedTypeSymbol;
+
+        while (current is not null)
+        {
+            if (current.ToDisplayString() == "GoLive.Saturn.Data.Entities.Entity")
+            {
+                return true;
+            }
+
+            current = current.BaseType;
+        }
+
+        return false;
+    }
+
     internal static string RenderType(ITypeSymbol type)
     {
         if (type is null)
@@ -546,10 +574,11 @@ OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
 OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
     }
 
-    private static void GenerateCollectionMember(SourceStringBuilder source, MemberToGenerate item)
+    private static void GenerateCollectionMember(SourceStringBuilder source, MemberToGenerate item, bool trackChanges)
     {
         var itemName = item.Name;
-        source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} ObservableCollections.ObservableList<{RenderType(item.CollectionType!)}> {itemName.FirstCharToUpper()}");
+        var propertyName = itemName.FirstCharToUpper();
+        source.AppendLine($"public {(item.IsPartialProperty ? "partial" : string.Empty)} ObservableCollections.ObservableList<{RenderType(item.CollectionType!)}> {propertyName}");
         source.AppendOpenCurlyBracketLine();
         source.AppendLine($"get => {itemName};");
 
@@ -560,11 +589,88 @@ OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
             source.AppendLine(NoTrackingSetterBody(item, "value"));
             source.AppendCloseCurlyBracketLine();
         }
+        else if (trackChanges)
+        {
+            source.AppendLine("set");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"if (ReferenceEquals({itemName}, value)) return;");
+            source.AppendLine($"if ({itemName} is not null) {itemName}.CollectionChanged -= On{propertyName}Changed;");
+            source.AppendLine($"SetField(ref this.{itemName}, value);");
+            source.AppendLine($"if ({itemName} is not null) {itemName}.CollectionChanged += On{propertyName}Changed;");
+            source.AppendCloseCurlyBracketLine();
+        }
         else
         {
             source.AppendLine($"set => SetField(ref this.{itemName}, value);");
         }
 
+        source.AppendCloseCurlyBracketLine();
+    }
+
+    private static void GenerateTrackedCollectionHandler(SourceStringBuilder source, MemberToGenerate item)
+    {
+        var itemName = item.Name.FirstCharToUpper();
+        var elementType = RenderType(item.CollectionType!);
+
+        source.AppendLine(2);
+        source.AppendLine($"private void On{itemName}Changed(in global::ObservableCollections.NotifyCollectionChangedEventArgs<{elementType}> eventArgs)");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine("if (!IsTracking)");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine("return;");
+        source.AppendCloseCurlyBracketLine();
+        source.AppendLine($"var strategy = StrategyFor(nameof({itemName}));");
+        source.AppendLine($"var visibility = VisibilityFor(nameof({itemName}));");
+        source.AppendLine("switch (eventArgs.Action)");
+        source.AppendOpenCurlyBracketLine();
+        var wireParent = item.CollectionType is not null && IsEntityType(item.CollectionType);
+
+        source.AppendLine("case global::System.Collections.Specialized.NotifyCollectionChangedAction.Add:");
+        source.AppendLine($"tracker.RecordList(this, nameof({itemName}), null, eventArgs.NewItem, global::GoLive.Saturn.Data.ChangeTracking.ChangeKind.ListAdd, eventArgs.NewStartingIndex, strategy, visibility);");
+
+        if (wireParent)
+        {
+            source.AppendLine($"if (eventArgs.NewItem is global::GoLive.Saturn.Data.ChangeTracking.ITrackable addedItem)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine("addedItem.ChangeTrackingParent = this;");
+            source.AppendLine($"addedItem.ChangeTrackingPathSegment = nameof({itemName}) + \".\" + eventArgs.NewStartingIndex;");
+            source.AppendCloseCurlyBracketLine();
+        }
+
+        source.AppendLine("break;");
+        source.AppendLine("case global::System.Collections.Specialized.NotifyCollectionChangedAction.Remove:");
+        source.AppendLine($"tracker.RecordList(this, nameof({itemName}), eventArgs.OldItem, null, global::GoLive.Saturn.Data.ChangeTracking.ChangeKind.ListRemove, eventArgs.OldStartingIndex, strategy, visibility);");
+
+        if (wireParent)
+        {
+            source.AppendLine($"if (eventArgs.OldItem is global::GoLive.Saturn.Data.ChangeTracking.ITrackable removedItem)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine("removedItem.ChangeTrackingParent = null;");
+            source.AppendLine("removedItem.ChangeTrackingPathSegment = null;");
+            source.AppendCloseCurlyBracketLine();
+        }
+
+        source.AppendLine("break;");
+        source.AppendLine("case global::System.Collections.Specialized.NotifyCollectionChangedAction.Replace:");
+        source.AppendLine($"tracker.RecordList(this, nameof({itemName}), eventArgs.OldItem, eventArgs.NewItem, global::GoLive.Saturn.Data.ChangeTracking.ChangeKind.ListReplace, eventArgs.NewStartingIndex, strategy, visibility);");
+
+        if (wireParent)
+        {
+            source.AppendLine($"if (eventArgs.NewItem is global::GoLive.Saturn.Data.ChangeTracking.ITrackable replacedItem)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine("replacedItem.ChangeTrackingParent = this;");
+            source.AppendLine($"replacedItem.ChangeTrackingPathSegment = nameof({itemName}) + \".\" + eventArgs.NewStartingIndex;");
+            source.AppendCloseCurlyBracketLine();
+        }
+
+        source.AppendLine("break;");
+        source.AppendLine("case global::System.Collections.Specialized.NotifyCollectionChangedAction.Move:");
+        source.AppendLine($"tracker.RecordList(this, nameof({itemName}), eventArgs.OldItem, eventArgs.NewItem, global::GoLive.Saturn.Data.ChangeTracking.ChangeKind.ListMove, eventArgs.NewStartingIndex, strategy, visibility);");
+        source.AppendLine("break;");
+        source.AppendLine("case global::System.Collections.Specialized.NotifyCollectionChangedAction.Reset:");
+        source.AppendLine($"tracker.RecordList(this, nameof({itemName}), null, {itemName} is null ? null : new List<{elementType}>({itemName}), global::GoLive.Saturn.Data.ChangeTracking.ChangeKind.ListClear, null, strategy, visibility);");
+        source.AppendLine("break;");
+        source.AppendCloseCurlyBracketLine();
         source.AppendCloseCurlyBracketLine();
     }
 

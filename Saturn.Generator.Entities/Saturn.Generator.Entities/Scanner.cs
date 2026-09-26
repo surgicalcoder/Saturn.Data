@@ -32,6 +32,7 @@ public static class Scanner
     private const string TRACKING_NAMESPACE = "GoLive.Saturn.Data.ChangeTracking";
     private const string ATTRIBUTE_ChangeTracking = $"{TRACKING_NAMESPACE}.ChangeTrackingAttribute";
     private const string ATTRIBUTE_NoChangeTracking = $"{TRACKING_NAMESPACE}.NoChangeTrackingAttribute";
+    private const string ATTRIBUTE_CollectionTracking = $"{TRACKING_NAMESPACE}.CollectionTrackingAttribute";
 
     public static bool CanBeEntity(SyntaxNode node)
     {
@@ -453,6 +454,24 @@ public static class Scanner
             if (AttributeExists(attr, ATTRIBUTE_Embedded))
             {
                 memberToGenerate.IsEmbedded = true;
+            }
+
+            var collectionTracking = attr.FirstOrDefault(r => r.AttributeClass?.ToString() == ATTRIBUTE_CollectionTracking);
+
+            if (collectionTracking is not null)
+            {
+                foreach (var named in collectionTracking.NamedArguments)
+                {
+                    switch (named.Key)
+                    {
+                        case "Strategy":
+                            memberToGenerate.CollectionStrategy = named.Value.Value is int strategy ? strategy : 0;
+                            break;
+                        case "Instrument":
+                            memberToGenerate.InstrumentCollection = named.Value.Value is bool instrument && instrument;
+                            break;
+                    }
+                }
             }
 
             var immutableArray = classSymbol.GetMembers($"{memberToGenerate.Name}_runAfterSet");

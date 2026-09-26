@@ -28,6 +28,8 @@ public class MemberToGenerate
 
     public bool ExcludeFromDto { get; set; }
     public bool IsEmbedded { get; set; }
+    public int CollectionStrategy { get; set; }
+    public bool InstrumentCollection { get; set; }
 
     public string RefType { get; set; }
 

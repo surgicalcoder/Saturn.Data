@@ -13,6 +13,7 @@ public sealed class TrackedMember
     public string ElementTypeText { get; set; }
     public bool NoTracking { get; set; }
     public string Visibility { get; set; } = "ReadWrite";
+    public string Strategy { get; set; } = "WholeArray";
 }
 
 public static class TrackingGenerator
@@ -30,9 +31,17 @@ public static class TrackingGenerator
                 IsCollection = member.IsCollection,
                 ElementTypeText = member.IsCollection ? SourceCodeGenerator.RenderType(member.CollectionType ?? member.Type) : null,
                 NoTracking = member.DoNotTrackChanges,
-                Visibility = member.WriteOnly ? "WriteOnly" : member.ReadOnly ? "ReadOnly" : "ReadWrite"
+                Visibility = member.WriteOnly ? "WriteOnly" : member.ReadOnly ? "ReadOnly" : "ReadWrite",
+                Strategy = StrategyName(member.CollectionStrategy)
             })
             .ToList();
+
+    private static string StrategyName(int strategy) => strategy switch
+    {
+        1 => "IndexedOps",
+        2 => "SetOps",
+        _ => "WholeArray"
+    };
 
     public static void EmitEntityTracking(SourceStringBuilder source, ClassToGenerate classToGen)
         => Emit(source, FromClass(classToGen), isEntity: true);
@@ -144,7 +153,17 @@ public static class TrackingGenerator
         source.AppendLine();
         source.AppendLine($"public {TrackingNamespace}.CollectionStrategy StrategyFor(string memberName)");
         source.AppendOpenCurlyBracketLine();
-        source.AppendLine($"return {TrackingNamespace}.CollectionStrategy.WholeArray;");
+        source.AppendLine("return memberName switch");
+        source.AppendOpenCurlyBracketLine();
+
+        foreach (var member in members.Where(member => member.Strategy != "WholeArray"))
+        {
+            source.AppendLine($"\"{member.Name}\" => {TrackingNamespace}.CollectionStrategy.{member.Strategy},");
+        }
+
+        source.AppendLine($"_ => {TrackingNamespace}.CollectionStrategy.WholeArray");
+        source.AppendCloseCurlyBracketLine();
+        source.AppendLine(";");
         source.AppendCloseCurlyBracketLine();
     }
 
