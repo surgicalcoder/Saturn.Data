@@ -28,6 +28,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Saturn.Data.Sqlite\Saturn.Data.Sqlite.csproj"/>
+        <ProjectReference Include="..\..\Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.csproj"/>
         <ProjectReference Include="..\..\Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj"/>
     </ItemGroup>
 

@@ -530,20 +530,53 @@ public partial class StellarRepository : IRepository
                     throw new ApplicationException("Patch JSON must be a JSON object.");
                 }
 
-                var mergeNode = patchNode;
-                if (patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject)
-                {
-                    mergeNode = setObject;
-                }
+                var hasOperators = patchNode.ContainsKey("$set") || patchNode.ContainsKey("$unset") || patchNode.ContainsKey("$inc");
 
-                foreach (var property in mergeNode)
+                if (hasOperators)
                 {
-                    if (property.Key == nameof(Entity.Id))
+                    var mergeNode = patchNode.TryGetPropertyValue("$set", out var setValue) && setValue is JsonObject setObject
+                        ? setObject
+                        : new JsonObject();
+
+                    foreach (var property in mergeNode)
                     {
-                        continue;
+                        if (property.Key == nameof(Entity.Id))
+                        {
+                            continue;
+                        }
+
+                        existingNode[property.Key] = property.Value?.DeepClone();
                     }
 
-                    existingNode[property.Key] = property.Value?.DeepClone();
+                    if (patchNode.TryGetPropertyValue("$unset", out var unsetValue) && unsetValue is JsonObject unsetObject)
+                    {
+                        foreach (var property in unsetObject)
+                        {
+                            existingNode.Remove(property.Key);
+                        }
+                    }
+
+                    if (patchNode.TryGetPropertyValue("$inc", out var incValue) && incValue is JsonObject incObject)
+                    {
+                        foreach (var property in incObject)
+                        {
+                            var currentValue = existingNode[property.Key]?.GetValue<decimal>() ?? 0m;
+                            var deltaValue = property.Value?.GetValue<decimal>() ?? 0m;
+                            existingNode[property.Key] = currentValue + deltaValue;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var property in patchNode)
+                    {
+                        if (property.Key == nameof(Entity.Id))
+                        {
+                            continue;
+                        }
+
+                        existingNode[property.Key] = property.Value?.DeepClone();
+                    }
                 }
 
                 working = existingNode.Deserialize<TItem>();
