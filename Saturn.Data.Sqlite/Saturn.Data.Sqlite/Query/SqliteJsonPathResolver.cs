@@ -55,6 +55,34 @@ public static class SqliteJsonPathResolver
             return true;
         }
 
+        if (segments.Count == 1 && segments[0] == "Scope")
+        {
+            path = "_scope";
+            isColumn = true;
+            return true;
+        }
+
+        if (segments.Count == 1 && segments[0] == "SecondScope")
+        {
+            path = "_scope2";
+            isColumn = true;
+            return true;
+        }
+
+        if (segments.Count == 1 && segments[0] == "ScopeId")
+        {
+            path = "_scope";
+            isColumn = true;
+            return true;
+        }
+
+        if (segments.Count == 1 && segments[0] == "SecondScopeId")
+        {
+            path = "_scope2";
+            isColumn = true;
+            return true;
+        }
+
         path = "$." + string.Join(".", segments);
         return true;
     }

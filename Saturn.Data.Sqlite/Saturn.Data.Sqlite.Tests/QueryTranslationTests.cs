@@ -65,7 +65,7 @@ public class QueryTranslationTests
     {
         var scope = "68bdd5525324ff2610c4361d";
         Expression<Func<ChildEntity, bool>> predicate = entity => entity.Scope == scope;
-        Assert.Equal("json_extract(_doc, '$.Scope') = @p0", SqliteRepository.TranslatePredicateSql(predicate));
+        Assert.Equal("_scope = @p0", SqliteRepository.TranslatePredicateSql(predicate));
     }
 
     [Fact]
