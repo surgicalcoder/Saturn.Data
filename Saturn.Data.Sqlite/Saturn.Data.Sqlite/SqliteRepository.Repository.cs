@@ -641,35 +641,6 @@ public partial class SqliteRepository : IRepository
     public Task<IDatabaseTransaction> CreateTransaction()
         => throw new NotImplementedException("Transactions are implemented in Phase 5.");
 
-    public Task JsonUpdate<TItem>(string id, int version, string json, IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("JsonUpdate is implemented in Phase 4.");
-
-    public Task Patch<TItem>(string id, long? expectedVersion = null, string jsonDocument = null!, IDataUpdateDefinition<TItem> updateDefinition = null!,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Patch is implemented in Phase 4.");
-
-    public Task Increment<TItem>(string id, Expression<Func<TItem, int>> field, int delta, long? expectedVersion = null,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Increment is implemented in Phase 4.");
-
-    public Task Increment<TItem>(string id, Expression<Func<TItem, long>> field, long delta, long? expectedVersion = null,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Increment is implemented in Phase 4.");
-
-    public Task Increment<TItem>(string id, Expression<Func<TItem, double>> field, double delta, long? expectedVersion = null,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Increment is implemented in Phase 4.");
-
-    public Task Increment<TItem>(string id, Expression<Func<TItem, decimal>> field, decimal delta, long? expectedVersion = null,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Increment is implemented in Phase 4.");
-
     public Task<CascadeReport> DeleteCascade<TItem>(string id, CascadeMode mode = CascadeMode.Default, CascadeDepth depth = CascadeDepth.Single,
         IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
         where TItem : Entity

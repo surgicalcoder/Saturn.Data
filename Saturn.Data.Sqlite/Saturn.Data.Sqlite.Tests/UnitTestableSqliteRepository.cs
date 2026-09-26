@@ -63,4 +63,21 @@ public sealed class UnitTestableSqliteRepository : SqliteRepository
         command.Parameters.AddWithValue("@id", id);
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
     }
+
+    public async Task<List<string>> ListIndexesAsync(string collection, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await ConnectionFactory.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA index_list('{collection}');";
+
+        var result = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            result.Add(reader.GetString(1));
+        }
+
+        return result;
+    }
 }
