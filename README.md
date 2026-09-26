@@ -5,7 +5,7 @@ Saturn.Data is an experimental .NET data access ecosystem built around shared re
 This repository is organized as a multi-project workspace with:
 - core contracts (`GoLive.Saturn.Data.Abstractions`)
 - entity primitives (`GoLive.Saturn.Data.Entities`)
-- backend providers (`LiteDbX`, `MongoDb`, `Stellar`)
+- backend providers (`LiteDbX`, `MongoDb`, `Stellar`, `Sqlite`)
 - serializer support for MongoDB entities
 - shared repository contract tests
 - source-generator tooling projects
@@ -20,6 +20,7 @@ Top-level folders and their primary purpose:
 - `Saturn.Data.MongoDb/` - MongoDB-backed repository implementation and tests.
 - `Saturn.Data.MongoDb.EntitySerializers/` - BSON/entity serializer packages for MongoDB integration.
 - `Saturn.Data.Stellar/` - Stellar FastDB-backed repository implementation and tests.
+- `Saturn.Data.Sqlite/` - SQLite JSON-document provider implementation and tests.
 - `Saturn.Data.Testing.Shared/` - provider-agnostic repository contract test base classes and fixtures.
 - `Saturn.Data.Template/` - template package for Saturn.Data usage patterns.
 - `Saturn.Generator.Entities/` - source generator and resources projects.
@@ -43,6 +44,7 @@ Provider libraries then map those contracts to specific backends:
 - `Saturn.Data.LiteDbX`
 - `Saturn.Data.MongoDb`
 - `Saturn.Data.Stellar`
+- `Saturn.Data.Sqlite`
 
 ## Project and package map
 
@@ -61,6 +63,7 @@ Provider libraries then map those contracts to specific backends:
 | `Saturn.Data.LiteDbX/Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.csproj` | `GoLive.Saturn.Data.LiteDb` | LiteDbX-backed repository implementation. |
 | `Saturn.Data.MongoDb/Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj` | `GoLive.Saturn.Data.MongoDb` | MongoDB-backed repository implementation. |
 | `Saturn.Data.Stellar/Saturn.Data.Stellar/Saturn.Data.Stellar.csproj` | `GoLive.Saturn.Data.Stellar` | Stellar FastDB-backed repository implementation. |
+| `Saturn.Data.Sqlite/Saturn.Data.Sqlite/Saturn.Data.Sqlite.csproj` | `GoLive.Saturn.Data.Sqlite` | SQLite JSON-document repository implementation. |
 
 ### MongoDB serializer packages
 
@@ -83,6 +86,7 @@ Provider libraries then map those contracts to specific backends:
 - `Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.Tests/`
 - `Saturn.Data.MongoDb/Saturn.Data.MongoDb.Tests/`
 - `Saturn.Data.Stellar/Saturn.Data.Stellar.Tests/`
+- `Saturn.Data.Sqlite/Saturn.Data.Sqlite.Tests/`
 - `Saturn.Data.Testing.Shared/`
 - `Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.Playground/`
 - `Saturn.Generator.Entities/Saturn.Generator.Entities.Playground/`
@@ -135,11 +139,13 @@ Set-Location "D:\Work\Saturn.Data"
 dotnet test .\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.Tests\Saturn.Data.LiteDbX.Tests.csproj -c Release
 dotnet test .\Saturn.Data.MongoDb\Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.Tests.csproj -c Release
 dotnet test .\Saturn.Data.Stellar\Saturn.Data.Stellar.Tests\Saturn.Data.Stellar.Tests.csproj -c Release
+dotnet test .\Saturn.Data.Sqlite\Saturn.Data.Sqlite.Tests\Saturn.Data.Sqlite.Tests.csproj -c Release
 ```
 
 Notes:
 - MongoDB tests depend on a reachable local MongoDB instance.
 - LiteDbX and Stellar tests use local filesystem paths in their test fixtures.
+- SQLite tests use a temporary database file per fixture; no external service is required.
 
 ## Build and publish workflow (canonical)
 
