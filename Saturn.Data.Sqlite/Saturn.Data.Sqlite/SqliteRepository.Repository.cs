@@ -663,13 +663,4 @@ public partial class SqliteRepository : IRepository
         }
     }
 
-    public Task<CascadeReport> DeleteCascade<TItem>(string id, CascadeMode mode = CascadeMode.Default, CascadeDepth depth = CascadeDepth.Single,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Cascade is implemented in Phase 6.");
-
-    public Task<CascadeReport> HardDeleteCascade<TItem>(string id, CascadeMode mode = CascadeMode.Default, CascadeDepth depth = CascadeDepth.Single,
-        IDatabaseTransaction transaction = null!, CancellationToken cancellationToken = default)
-        where TItem : Entity
-        => throw new NotSupportedException("Cascade is implemented in Phase 6.");
 }
