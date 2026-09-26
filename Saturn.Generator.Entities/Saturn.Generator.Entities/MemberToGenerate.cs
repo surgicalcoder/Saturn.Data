@@ -26,6 +26,9 @@ public class MemberToGenerate
     public bool HasRunAfterSetMethodIsRefItem { get; set; }
     public bool HasRunAfterSetMethodIsString { get; set; }
 
+    public bool ExcludeFromDto { get; set; }
+    public bool IsEmbedded { get; set; }
+
     public string RefType { get; set; }
 
     public bool IsPartialProperty { get; set; }

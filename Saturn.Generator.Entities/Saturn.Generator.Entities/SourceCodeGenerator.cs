@@ -22,6 +22,7 @@ public static class SourceCodeGenerator
         source.AppendLine("using GoLive.Saturn.Generator.Entities.Resources;");
         source.AppendLine("using GoLive.Saturn.Data.Entities;");
         source.AppendLine("using System.Collections.Specialized;");
+        source.AppendLine("using System.Collections.Generic;");
         /*source.AppendLine("using FastMember;");*/
         source.AppendLine("using System.Linq;");
 
@@ -273,6 +274,11 @@ public static class SourceCodeGenerator
 
             source.AppendCloseCurlyBracketLine();
         }
+
+        if (classToGen.GenerateDto && !classToGen.DtoAlreadyExists)
+        {
+            DtoGenerator.Generate(source, classToGen, classToGen.DtoExpandRefs, classToGen.DtoUseFullId, classToGen.Namespace);
+        }
     }
 
     private static string getLimitedViewName(ITypeSymbol input, string limitedView)
@@ -457,7 +463,7 @@ public static class SourceCodeGenerator
         }
     }
 
-    private static string RenderType(ITypeSymbol type)
+    internal static string RenderType(ITypeSymbol type)
     {
         if (type is null)
         {

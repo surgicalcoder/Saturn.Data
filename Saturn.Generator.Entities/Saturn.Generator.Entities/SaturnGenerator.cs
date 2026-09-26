@@ -57,13 +57,21 @@ public class SaturnGenerator : IIncrementalGenerator
             .Where(static c => c != default)
             .Select(static (c, _) => Scanner.ConvertToMapping(c));
 
-        context.RegisterSourceOutput(classDeclarations.Collect(), static (spc, source) => Execute(spc, source));
+        var generateDtosByDefault = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
+            provider.GlobalOptions.TryGetValue("build_property.SaturnGenerateDtos", out var value)
+            && bool.TryParse(value, out var enabled)
+            && enabled);
+
+        context.RegisterSourceOutput(classDeclarations.Collect().Combine(generateDtosByDefault),
+            static (spc, source) => Execute(spc, source.Left, source.Right));
     }
 
-    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate)
+    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate, bool generateDtosByDefault)
     {
         foreach (var toGenerate in classesToGenerate)
         {
+            toGenerate.GenerateDto = (toGenerate.GenerateDto || (generateDtosByDefault && !toGenerate.NoGenerateDto)) && !toGenerate.DtoAlreadyExists;
+
             EmitDiagnostics(spc, toGenerate);
 
             var sourceStringBuilder = new SourceStringBuilder();

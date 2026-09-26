@@ -24,6 +24,10 @@ public static class Scanner
     private const string ATTRIBUTE_AddParentItemsLimitedViews = $"{ATTRIBUTE_NAMESPACE}.AddParentItemsLimitedViews";
     private const string ATTRIBUTE_ExcludeFromLimitedView = $"{ATTRIBUTE_NAMESPACE}.ExcludeFromLimitedViewAttribute";
     private const string ATTRIBUTE_ReadonlyInView = $"{ATTRIBUTE_NAMESPACE}.ReadonlyInViewAttribute";
+    private const string ATTRIBUTE_GenerateDto = $"{ATTRIBUTE_NAMESPACE}.GenerateDtoAttribute";
+    private const string ATTRIBUTE_NoGenerateDto = $"{ATTRIBUTE_NAMESPACE}.NoGenerateDtoAttribute";
+    private const string ATTRIBUTE_ExcludeFromDto = $"{ATTRIBUTE_NAMESPACE}.ExcludeFromDtoAttribute";
+    private const string ATTRIBUTE_Embedded = $"{ATTRIBUTE_NAMESPACE}.EmbeddedAttribute";
     private const string ATTRIBUTE_NAMESPACE = "GoLive.Saturn.Generator.Entities.Resources";
 
     public static bool CanBeEntity(SyntaxNode node)
@@ -85,6 +89,40 @@ public static class Scanner
         retr.ParentItemToGenerate = GetParentItemsToGenerate(input.symbol, input.syntax).ToList();
         retr.HasInitMethod = input.symbol.GetMembers().OfType<IMethodSymbol>().Any(m => m.Name == "_init" && m.DeclaredAccessibility == Accessibility.Private);
         retr.IsMultiscopedEntity = InheritsFromGeneric(input.symbol, "GoLive.Saturn.Data.Entities.MultiscopedEntity<T>");
+
+        retr.NoGenerateDto = input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_NoGenerateDto);
+
+        var dtoAttribute = input.symbol.GetAttributes().FirstOrDefault(e => e.AttributeClass?.ToString() == ATTRIBUTE_GenerateDto);
+
+        if (dtoAttribute is not null)
+        {
+            retr.GenerateDto = true;
+
+            foreach (var named in dtoAttribute.NamedArguments)
+            {
+                switch (named.Key)
+                {
+                    case "Name":
+                        retr.DtoName = named.Value.Value as string;
+                        break;
+                    case "IncludeProperties":
+                        retr.DtoIncludeProperties = named.Value.Value is bool includeProperties && includeProperties;
+                        break;
+                    case "TrackChanges":
+                        retr.DtoTrackChanges = named.Value.Value is bool trackChanges && trackChanges;
+                        break;
+                    case "ExpandRefs":
+                        retr.DtoExpandRefs = named.Value.Value is bool expandRefs && expandRefs;
+                        break;
+                    case "UseFullId":
+                        retr.DtoUseFullId = named.Value.Value is bool useFullId && useFullId;
+                        break;
+                }
+            }
+        }
+
+        retr.DtoName ??= $"{retr.Name}Dto";
+        retr.DtoAlreadyExists = DtoTypeExists(input.symbol, retr.Namespace, retr.DtoName);
         
         if (input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_AddParentItemsLimitedViews))
         {
@@ -382,6 +420,16 @@ public static class Scanner
                 memberToGenerate.WriteOnly = true;
             }
 
+            if (AttributeExists(attr, ATTRIBUTE_ExcludeFromDto))
+            {
+                memberToGenerate.ExcludeFromDto = true;
+            }
+
+            if (AttributeExists(attr, ATTRIBUTE_Embedded))
+            {
+                memberToGenerate.IsEmbedded = true;
+            }
+
             var immutableArray = classSymbol.GetMembers($"{memberToGenerate.Name}_runAfterSet");
 
             if (immutableArray.Length > 0)
@@ -469,6 +517,26 @@ public static class Scanner
     private static bool AttributeExists(ImmutableArray<AttributeData> attr, string AttributeName)
     {
         return attr.Any(e => e.AttributeClass?.ToString() == AttributeName);
+    }
+
+    private static bool DtoTypeExists(INamedTypeSymbol classSymbol, string namespaceName, string dtoName)
+    {
+        var metadataName = string.IsNullOrWhiteSpace(namespaceName) ? dtoName : $"{namespaceName}.{dtoName}";
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (assembly.IsDynamic)
+            {
+                continue;
+            }
+
+            if (assembly.GetType(metadataName) is not null && assembly != typeof(object).Assembly)
+            {
+                return true;
+            }
+        }
+
+        return classSymbol.ContainingAssembly.GetTypeByMetadataName(metadataName) is not null;
     }
 
     private static bool IsCopyableAttribute(INamedTypeSymbol attributeClass)

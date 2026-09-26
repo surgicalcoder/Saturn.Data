@@ -22,6 +22,15 @@ public class ClassToGenerate
     public bool FlattenParentLimitedViews { get; set; }
     public string ParentClassName { get; set; }
 
+    public bool GenerateDto { get; set; }
+    public bool NoGenerateDto { get; set; }
+    public bool DtoTrackChanges { get; set; }
+    public bool DtoExpandRefs { get; set; }
+    public bool DtoUseFullId { get; set; }
+    public bool DtoIncludeProperties { get; set; }
+    public string DtoName { get; set; }
+    public bool DtoAlreadyExists { get; set; }
+
     /// <summary>
     /// View names that exist on the parent class but have no members added by this child class.
     /// Used to generate To_ViewName() delegation methods on the child.
