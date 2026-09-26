@@ -407,7 +407,7 @@ public static class Scanner
 
                     if (runAfterSetMethod.Parameters[0].Type.OriginalDefinition.SpecialType == SpecialType.System_String)
                     {
-                        memberToGenerate.HasRunAfterSetMethodIsRefItem = true;
+                        memberToGenerate.HasRunAfterSetMethodIsString = true;
                     }
                 }
             }
@@ -416,9 +416,15 @@ public static class Scanner
 
             
 
-            if ( member is not IPropertySymbol && attr.Any(r => !r.AttributeClass.ToString().StartsWith(ATTRIBUTE_NAMESPACE)))
+            var copyableAttributes = attr
+                .Where(r => r.AttributeClass is not null
+                            && IsCopyableAttribute(r.AttributeClass)
+                            && AllowsPropertyTarget(r))
+                .ToList();
+
+            if (copyableAttributes.Count > 0)
             {
-                foreach (var at in attr.Where(r => !r.AttributeClass.ToString().StartsWith(ATTRIBUTE_NAMESPACE)))
+                foreach (var at in copyableAttributes)
                 {
                     MemberAttribute memAt = new();
 
@@ -463,6 +469,29 @@ public static class Scanner
     private static bool AttributeExists(ImmutableArray<AttributeData> attr, string AttributeName)
     {
         return attr.Any(e => e.AttributeClass?.ToString() == AttributeName);
+    }
+
+    private static bool IsCopyableAttribute(INamedTypeSymbol attributeClass)
+    {
+        var name = attributeClass.ToString();
+
+        return !name.StartsWith(ATTRIBUTE_NAMESPACE, StringComparison.Ordinal)
+               && !name.StartsWith("GoLive.Saturn.Data.Entities", StringComparison.Ordinal)
+               && !name.StartsWith("System.Runtime.CompilerServices", StringComparison.Ordinal)
+               && !name.StartsWith("System.CodeDom.Compiler", StringComparison.Ordinal);
+    }
+
+    private static bool AllowsPropertyTarget(AttributeData attribute)
+    {
+        var usage = attribute.AttributeClass?.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToString() == "System.AttributeUsageAttribute");
+
+        if (usage is null || usage.ConstructorArguments.Length == 0)
+        {
+            return true;
+        }
+
+        return usage.ConstructorArguments[0].Value is int flags && ((AttributeTargets)flags & AttributeTargets.Property) != 0;
     }
 
     private static IParameterSymbol getFirstGenericParameter(IFieldSymbol fieldSymbol)

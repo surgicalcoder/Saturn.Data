@@ -8,14 +8,16 @@
         <IsPackable>false</IsPackable>
         <IsPublishable>false</IsPublishable>
         <LangVersion>default</LangVersion>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
     <ItemGroup>
       <ProjectReference Include="..\Saturn.Generator.Entities.Resources\Saturn.Generator.Entities.Resources.csproj" />
       <ProjectReference Include="..\Saturn.Generator.Entities\Saturn.Generator.Entities.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+      <ProjectReference Include="..\..\Saturn.Data.Entities\GoLive.Saturn.Data.Entities\GoLive.Saturn.Data.Entities.csproj" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="GoLive.Saturn.Data" Version="5.0.36" />
-        <PackageReference Include="GoLive.Saturn.Data.Entities" Version="3.4.28" />
         <PackageReference Include="ObservableCollections" Version="3.3.4" />
     </ItemGroup>
 </Project>
