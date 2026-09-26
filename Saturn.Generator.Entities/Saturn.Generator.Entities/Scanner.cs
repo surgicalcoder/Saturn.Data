@@ -551,6 +551,33 @@ public static class Scanner
                         memberToGenerate.CollectionType = s1.TypeArguments.FirstOrDefault();
 
                         break;
+
+                    case IArrayTypeSymbol arrayType when arrayType.ElementType.SpecialType != SpecialType.System_Byte:
+                        memberToGenerate.PlainCollectionKind = 2;
+                        memberToGenerate.ElementTypeName = arrayType.ElementType.ToDisplayString();
+                        break;
+
+                    case INamedTypeSymbol s2 when s2.TypeArguments.Length == 1
+                                                   && (s2.OriginalDefinition.ToString() == "System.Collections.Generic.List<T>"
+                                                       || s2.OriginalDefinition.ToString() == "System.Collections.Generic.IList<T>"):
+                        memberToGenerate.PlainCollectionKind = 1;
+                        memberToGenerate.ElementTypeName = s2.TypeArguments[0].ToDisplayString();
+                        break;
+
+                    case INamedTypeSymbol s3 when s3.TypeArguments.Length == 1
+                                                   && (s3.OriginalDefinition.ToString() == "System.Collections.Generic.HashSet<T>"
+                                                       || s3.OriginalDefinition.ToString() == "System.Collections.Generic.ISet<T>"):
+                        memberToGenerate.PlainCollectionKind = 3;
+                        memberToGenerate.ElementTypeName = s3.TypeArguments[0].ToDisplayString();
+                        break;
+
+                    case INamedTypeSymbol s4 when s4.TypeArguments.Length == 2
+                                                   && (s4.OriginalDefinition.ToString() == "System.Collections.Generic.Dictionary<TKey, TValue>"
+                                                       || s4.OriginalDefinition.ToString() == "System.Collections.Generic.IDictionary<TKey, TValue>"):
+                        memberToGenerate.PlainCollectionKind = 4;
+                        memberToGenerate.KeyTypeName = s4.TypeArguments[0].ToDisplayString();
+                        memberToGenerate.ValueTypeName = s4.TypeArguments[1].ToDisplayString();
+                        break;
                 }
             }
 

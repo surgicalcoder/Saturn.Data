@@ -11,4 +11,6 @@ public partial class TrackingTest : Entity
     public partial int Count { get; set; }
 
     private ObservableCollections.ObservableList<string> tags = new();
+
+    private List<string> scores = new();
 }

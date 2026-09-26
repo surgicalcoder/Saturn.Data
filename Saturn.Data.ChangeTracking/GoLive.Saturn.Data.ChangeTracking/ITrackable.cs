@@ -31,6 +31,8 @@ public interface ITrackable : IChangeTracked
 
     void RestoreBaseline();
 
+    IEnumerable<FieldChange> ComputeBaselineDiff();
+
     ChangeTracker GetTracker();
 
     IDisposable SuppressTracking();

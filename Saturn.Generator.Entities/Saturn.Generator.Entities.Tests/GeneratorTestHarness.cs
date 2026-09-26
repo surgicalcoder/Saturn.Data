@@ -30,9 +30,13 @@ public static class GeneratorTestHarness
         references.Add(MetadataReference.CreateFromFile(typeof(AddToLimitedViewAttribute).Assembly.Location));
         references.Add(MetadataReference.CreateFromFile(typeof(GoLive.Saturn.Data.ChangeTracking.ChangeTrackingAttribute).Assembly.Location));
 
+        var globalUsings = CSharpSyntaxTree.ParseText(
+            "global using System; global using System.Collections.Generic; global using System.Linq; global using System.Threading.Tasks;",
+            path: "GlobalUsings.cs");
+
         return CSharpCompilation.Create(
             "GeneratorTests",
-            new[] { CSharpSyntaxTree.ParseText(source, path: "TestInput.cs") },
+            new[] { CSharpSyntaxTree.ParseText(source, path: "TestInput.cs"), globalUsings },
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }

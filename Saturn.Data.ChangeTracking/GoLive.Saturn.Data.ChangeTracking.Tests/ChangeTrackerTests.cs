@@ -153,6 +153,8 @@ public class ChangeTrackerTests
 
         public void RestoreBaseline() => Name = tracker.BaselineValue("Name") as string;
 
+        public IEnumerable<FieldChange> ComputeBaselineDiff() => Array.Empty<FieldChange>();
+
         public ChangeTracker GetTracker() => tracker;
 
         public IDisposable SuppressTracking() => tracker.Suppress();

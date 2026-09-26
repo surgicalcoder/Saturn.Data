@@ -78,6 +78,39 @@ public class CollectionTrackingTests
         Assert.Contains("global::GoLive.Saturn.Data.ChangeTracking.CollectionStrategy.SetOps", generated);
     }
 
+    private const string PlainListSource = """
+        using GoLive.Saturn.Data.ChangeTracking;
+        using GoLive.Saturn.Data.Entities;
+
+        namespace Sample;
+
+        [ChangeTracking]
+        public partial class Bag : Entity
+        {
+            private List<string> scores = new();
+        }
+        """;
+
+    [Fact]
+    public void Plain_List_Emits_Baseline_Capture_And_Diff()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(PlainListSource, "Bag.g.cs");
+
+        Assert.Contains("CaptureValue(\"Scores\"", generated);
+        Assert.Contains("new List<string>(Scores)", generated);
+        Assert.Contains("ComputeBaselineDiff()", generated);
+        Assert.Contains("CollectionDiff.ListEqual", generated);
+    }
+
+    [Fact]
+    public void Observable_Collection_Only_Emits_Empty_Baseline_Diff()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(TrackedSource, "Bag.g.cs");
+
+        Assert.Contains("yield break;", generated);
+        Assert.DoesNotContain("CollectionDiff.ListEqual", generated);
+    }
+
     [Fact]
     public void Untracked_Collection_Keeps_Legacy_Changes_Behaviour()
     {

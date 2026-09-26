@@ -30,6 +30,10 @@ public class MemberToGenerate
     public bool IsEmbedded { get; set; }
     public int CollectionStrategy { get; set; }
     public bool InstrumentCollection { get; set; }
+    public int PlainCollectionKind { get; set; }
+    public string ElementTypeName { get; set; }
+    public string KeyTypeName { get; set; }
+    public string ValueTypeName { get; set; }
 
     public string RefType { get; set; }
 

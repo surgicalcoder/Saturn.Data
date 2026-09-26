@@ -61,13 +61,16 @@ public sealed class ChangeTracker
 
     public EntityChangeSet Build(ITrackable owner)
     {
+        var fields = journal.ToList();
+        fields.AddRange(owner.ComputeBaselineDiff());
+
         return new EntityChangeSet
         {
             EntityType = owner.GetType().Name,
             Id = owner.Id,
             ExpectedVersion = owner.Version,
             CapturedAtUtc = DateTimeOffset.UtcNow,
-            Fields = journal.ToList()
+            Fields = fields
         };
     }
 
