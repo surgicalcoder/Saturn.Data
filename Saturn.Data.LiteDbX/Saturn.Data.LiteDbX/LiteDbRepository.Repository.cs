@@ -610,7 +610,7 @@ public partial class LiteDbRepository : IRepository
 
             if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
             {
-                throw new ApplicationException($"Entity version mismatch. Current version: {existing.Version}, requested version: {expectedVersion.Value}");
+                throw new FailedToUpdateException();
             }
 
             var working = existing;
