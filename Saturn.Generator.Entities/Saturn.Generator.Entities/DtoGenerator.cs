@@ -17,9 +17,14 @@ public static class DtoGenerator
         public ITypeSymbol ReferenceTarget { get; set; }
         public string DtoType { get; set; }
         public bool Projectable { get; set; }
+        public string NestedDtoType { get; set; }
+        public string ElementDtoType { get; set; }
+        public bool ExpandedRef { get; set; }
+        public string ExpandedRefEntityType { get; set; }
     }
 
-    public static void Generate(SourceStringBuilder source, ClassToGenerate classToGen, bool expandRefs, bool useFullId, string namespaceName, bool trackChanges)
+    public static void Generate(SourceStringBuilder source, ClassToGenerate classToGen, bool expandRefs, bool useFullId, string namespaceName,
+        bool trackChanges, IReadOnlyDictionary<string, string> knownDtos)
     {
         var members = new List<DtoMember>();
 
@@ -36,7 +41,11 @@ public static class DtoGenerator
             {
                 var element = member.CollectionType ?? member.Type;
                 var elementReference = TryGetReferenceTarget(element, out var referenceTarget);
-                var dtoElement = elementReference ? (expandRefs ? SourceCodeGenerator.RenderType(referenceTarget) : "string?") : SourceCodeGenerator.RenderType(element);
+                var elementDto = elementReference ? ResolveDto(referenceTarget, knownDtos) : ResolveDto(element, knownDtos);
+
+                var dtoElement = elementReference
+                    ? (expandRefs ? (elementDto ?? SourceCodeGenerator.RenderType(referenceTarget)) : "string?")
+                    : (elementDto ?? SourceCodeGenerator.RenderType(element));
 
                 members.Add(new DtoMember
                 {
@@ -47,6 +56,7 @@ public static class DtoGenerator
                     ElementType = element,
                     ReferenceTarget = referenceTarget,
                     DtoType = $"List<{dtoElement}>",
+                    ElementDtoType = elementReference && !expandRefs ? null : elementDto,
                     Projectable = false
                 });
 
@@ -55,26 +65,45 @@ public static class DtoGenerator
 
             if (TryGetReferenceTarget(member.Type, out var target))
             {
+                var targetDto = ResolveDto(target, knownDtos);
+
                 members.Add(new DtoMember
                 {
                     Source = member,
                     Name = name,
                     IsReference = true,
                     ReferenceTarget = target,
-                    DtoType = expandRefs ? SourceCodeGenerator.RenderType(target) : "string?",
+                    ExpandedRef = expandRefs,
+                    ExpandedRefEntityType = SourceCodeGenerator.RenderType(target),
+                    NestedDtoType = targetDto,
+                    DtoType = expandRefs ? (targetDto is null ? SourceCodeGenerator.RenderType(target) : targetDto) : "string?",
                     Projectable = !expandRefs
                 });
 
                 continue;
             }
 
+            var isEntity = IsEntityType(member.Type);
+            var entityDto = isEntity ? ResolveDto(member.Type, knownDtos) : null;
+
             members.Add(new DtoMember
             {
                 Source = member,
                 Name = name,
-                IsEntity = IsEntityType(member.Type),
-                DtoType = SourceCodeGenerator.RenderType(member.Type),
-                Projectable = !IsEntityType(member.Type) && member.Type.TypeKind != TypeKind.Interface
+                IsEntity = isEntity,
+                NestedDtoType = entityDto,
+                DtoType = entityDto ?? SourceCodeGenerator.RenderType(member.Type),
+                Projectable = !isEntity && member.Type.TypeKind != TypeKind.Interface
+            });
+        }
+
+        if (classToGen.DtoIncludeProperties)
+        {
+            members.Add(new DtoMember
+            {
+                Name = "Properties",
+                DtoType = "Dictionary<string, object>?",
+                Projectable = false
             });
         }
 
@@ -126,7 +155,7 @@ public static class DtoGenerator
 
         source.AppendOpenCurlyBracketLine();
 
-        foreach (var member in members.Where(member => !member.Source.ReadOnly && !member.Source.WriteOnly))
+        foreach (var member in members.Where(member => member.Source?.ReadOnly != true))
         {
             source.AppendLine($"\"{member.Name}\",");
         }
@@ -170,7 +199,7 @@ public static class DtoGenerator
         source.AppendLine();
         source.AppendLine($"public static ICreatableFrom<{entityName}> Create({entityName} input) => FromEntity(input);");
 
-        var writableMembers = members.Where(m => !m.Source.ReadOnly).ToList();
+        var writableMembers = members.Where(m => m.Source is null || !m.Source.ReadOnly).ToList();
 
         source.AppendLine();
         source.AppendLine($"public {entityName} ToEntity()");
@@ -222,6 +251,7 @@ public static class DtoGenerator
         if (trackChanges)
         {
             TrackingGenerator.EmitDtoTracking(source, members
+                .Where(member => member.Source is not null)
                 .Select(member => new TrackedMember
                 {
                     Name = member.Name,
@@ -242,6 +272,11 @@ public static class DtoGenerator
 
     private static string FromEntityExpression(DtoMember member)
     {
+        if (member.Source is null)
+        {
+            return "source.Properties is null ? null : new Dictionary<string, object>(source.Properties)";
+        }
+
         if (member.IsCollection)
         {
             var elementFrom = ElementFromExpression(member);
@@ -251,7 +286,19 @@ public static class DtoGenerator
 
         if (member.IsReference)
         {
-            return member.DtoType == "string?" ? $"source.{member.Name}?.Id" : $"source.{member.Name}?.Item";
+            if (!member.ExpandedRef)
+            {
+                return $"source.{member.Name}?.Id";
+            }
+
+            return member.NestedDtoType is null
+                ? $"source.{member.Name}?.Item"
+                : $"source.{member.Name}?.Item is null ? null : {member.NestedDtoType}.FromEntity(source.{member.Name}.Item)";
+        }
+
+        if (member.NestedDtoType is not null)
+        {
+            return $"source.{member.Name} is null ? null : {member.NestedDtoType}.FromEntity(source.{member.Name})";
         }
 
         return $"source.{member.Name}";
@@ -261,7 +308,14 @@ public static class DtoGenerator
         => member.IsReference ? $"source.{member.Name} != null ? source.{member.Name}.Id : null" : $"source.{member.Name}";
 
     private static string ElementFromExpression(DtoMember member)
-        => member.IsReference ? (member.DtoType.StartsWith("List<string") ? "item?.Id" : "item?.Item") : "item";
+    {
+        if (member.IsReference)
+        {
+            return member.ExpandedRef ? (member.NestedDtoType is null ? "item?.Item" : $"item?.Item is null ? null : {member.NestedDtoType}.FromEntity(item.Item)") : "item?.Id";
+        }
+
+        return member.ElementDtoType is null ? "item" : $"item is null ? null : {member.ElementDtoType}.FromEntity(item)";
+    }
 
     private static string ElementDtoType(DtoMember member)
     {
@@ -275,26 +329,67 @@ public static class DtoGenerator
     {
         var name = member.Name;
 
+        if (member.Source is null)
+        {
+            return $"target.Properties = {name} is null ? null : new Dictionary<string, object>({name});";
+        }
+
         if (member.IsCollection)
         {
             var reverse = ElementToExpression(member);
-            return $"target.{name} = {name} is null ? new global::ObservableCollections.ObservableList<{SourceCodeGenerator.RenderType(member.ElementType)}>() : new global::ObservableCollections.ObservableList<{SourceCodeGenerator.RenderType(member.ElementType)}>({name}.Select(item => {reverse}));";
+            var elementType = SourceCodeGenerator.RenderType(member.ElementType);
+
+            return $"target.{name} = {name} is null ? new global::ObservableCollections.ObservableList<{elementType}>() : new global::ObservableCollections.ObservableList<{elementType}>({name}.Select(item => {reverse}));";
         }
 
         if (member.IsReference)
         {
             var target = SourceCodeGenerator.RenderType(member.ReferenceTarget);
 
-            return member.DtoType == "string?"
-                ? $"target.{name} = {name} is null ? null : new Ref<{target}>({name});"
-                : $"target.{name} = {name} is null ? null : new Ref<{target}>({name}.Id);";
+            if (!member.ExpandedRef)
+            {
+                return $"target.{name} = {name} is null ? null : new Ref<{target}>({name});";
+            }
+
+            return $"target.{name} = {name} is null ? null : new Ref<{target}>({name}.Id);";
+        }
+
+        if (member.NestedDtoType is not null)
+        {
+            return $"target.{name} = {name} is null ? null : {name}.ToEntity();";
         }
 
         return $"target.{name} = {name};";
     }
 
     private static string ElementToExpression(DtoMember member)
-        => member.IsReference ? (member.DtoType.StartsWith("List<string") ? $"new Ref<{SourceCodeGenerator.RenderType(member.ReferenceTarget)}>(item)" : $"new Ref<{SourceCodeGenerator.RenderType(member.ReferenceTarget)}>(item?.Id)") : "item";
+    {
+        if (member.IsReference)
+        {
+            var target = SourceCodeGenerator.RenderType(member.ReferenceTarget);
+
+            return member.ExpandedRef ? $"new Ref<{target}>(item?.Id)" : $"new Ref<{target}>(item)";
+        }
+
+        return member.ElementDtoType is null ? "item" : "item?.ToEntity()";
+    }
+
+    private static string ResolveDto(ITypeSymbol type, IReadOnlyDictionary<string, string> knownDtos)
+    {
+        if (type is null || knownDtos is null)
+        {
+            return null;
+        }
+
+        var key = type.ToDisplayString();
+
+        if (knownDtos.TryGetValue(key, out var dto))
+        {
+            return dto;
+        }
+
+        return knownDtos.TryGetValue(key.TrimEnd('?'), out dto) ? dto : null;
+    }
 
     private static bool TryGetReferenceTarget(ITypeSymbol type, out ITypeSymbol target)
     {

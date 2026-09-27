@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -73,9 +74,21 @@ public class SaturnGenerator : IIncrementalGenerator
             toGenerate.TrackChanges = toGenerate.TrackChanges || (options.TrackChangesByDefault && !toGenerate.NoChangeTracking);
 
             EmitDiagnostics(spc, toGenerate);
+        }
 
+        var knownDtos = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var toGenerate in classesToGenerate.Where(candidate => candidate.GenerateDto))
+        {
+            var typeName = string.IsNullOrWhiteSpace(toGenerate.Namespace) ? toGenerate.Name : $"{toGenerate.Namespace}.{toGenerate.Name}";
+            var dtoTypeName = string.IsNullOrWhiteSpace(toGenerate.Namespace) ? toGenerate.DtoName : $"{toGenerate.Namespace}.{toGenerate.DtoName}";
+            knownDtos[typeName] = dtoTypeName;
+        }
+
+        foreach (var toGenerate in classesToGenerate)
+        {
             var sourceStringBuilder = new SourceStringBuilder();
-            SourceCodeGenerator.Generate(sourceStringBuilder, toGenerate);
+            SourceCodeGenerator.Generate(sourceStringBuilder, toGenerate, knownDtos);
 
             if (sourceStringBuilder.ToString() is { Length: > 0 } s)
             {

@@ -160,6 +160,77 @@ public class DtoGenerationTests
         Assert.DoesNotContain("Secret", DtoBlock(GeneratorTestHarness.GeneratedFor(Source, "Order.g.cs")));
     }
 
+    private const string NestedSource = """
+        using GoLive.Saturn.Data.Entities;
+        using GoLive.Saturn.Generator.Entities.Resources;
+
+        namespace Sample;
+
+        [GenerateDto]
+        public partial class Parent : Entity
+        {
+            public partial string? Name { get; set; }
+        }
+
+        [GenerateDto]
+        public partial class Order : Entity
+        {
+            public Parent? Child { get; set; }
+
+            private ObservableCollections.ObservableList<Parent> children = new();
+        }
+        """;
+
+    private const string PropertiesSource = """
+        using GoLive.Saturn.Data.Entities;
+        using GoLive.Saturn.Generator.Entities.Resources;
+
+        namespace Sample;
+
+        [GenerateDto(IncludeProperties = true)]
+        public partial class Order : Entity
+        {
+            public partial string? Name { get; set; }
+        }
+        """;
+
+    [Fact]
+    public void Dto_Maps_Nested_Entity_To_Dto()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(NestedSource, "Order.g.cs");
+
+        Assert.Contains("public Sample.ParentDto Child { get; set; }", generated);
+        Assert.Contains("Sample.ParentDto.FromEntity(source.Child)", generated);
+        Assert.Contains("Child is null ? null : Child.ToEntity()", generated);
+    }
+
+    [Fact]
+    public void Dto_Maps_Collection_Of_Entities_To_Dto_List()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(NestedSource, "Order.g.cs");
+
+        Assert.Contains("public List<Sample.ParentDto> Children { get; set; }", generated);
+        Assert.Contains("Sample.ParentDto.FromEntity(item)", generated);
+    }
+
+    [Fact]
+    public void Dto_Excludes_Nested_Entity_From_Selector()
+    {
+        var dto = DtoBlock(GeneratorTestHarness.GeneratedFor(NestedSource, "Order.g.cs"));
+        var selector = dto[dto.IndexOf("Selector =>", StringComparison.Ordinal)..];
+
+        Assert.DoesNotContain("FromEntity", selector);
+    }
+
+    [Fact]
+    public void Dto_Includes_Property_Bag_When_Configured()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(PropertiesSource, "Order.g.cs");
+
+        Assert.Contains("public Dictionary<string, object>? Properties { get; set; }", generated);
+        Assert.Contains("target.Properties = Properties", generated);
+    }
+
     [Fact]
     public void Dto_Emits_PatchableMembers()
     {
