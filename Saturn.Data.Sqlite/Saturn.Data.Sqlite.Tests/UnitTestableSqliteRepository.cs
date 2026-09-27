@@ -17,7 +17,7 @@ public sealed class UnitTestableSqliteRepository : SqliteRepository
 
     public void DropRecreateDatabase()
     {
-        SqliteConnection.ClearAllPools();
+        ConnectionFactory.ClearPool();
 
         if (File.Exists(DatabasePath))
         {

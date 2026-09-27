@@ -30,6 +30,12 @@ internal sealed class SqliteConnectionFactory
 
     public bool IsMemory => string.Equals(options.DataSource, ":memory:", StringComparison.Ordinal);
 
+    public void ClearPool()
+    {
+        using var connection = new SqliteConnection(connectionString);
+        SqliteConnection.ClearPool(connection);
+    }
+
     public async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(connectionString);

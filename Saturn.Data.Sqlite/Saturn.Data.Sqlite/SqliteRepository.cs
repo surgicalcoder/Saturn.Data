@@ -251,7 +251,7 @@ public partial class SqliteRepository : IDisposable
 
         disposed = true;
         writeGate.Dispose();
-        SqliteConnection.ClearAllPools();
+        connectionFactory.ClearPool();
         GC.SuppressFinalize(this);
     }
 }
