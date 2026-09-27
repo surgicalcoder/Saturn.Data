@@ -56,6 +56,12 @@ public class TrackingGenerationTests
     }
 
     [Fact]
+    public void Tracked_Entity_Implements_SuppressTracking()
+    {
+        Assert.Contains("global::GoLive.Saturn.Data.Entities.ISuppressTracking", GeneratorTestHarness.GeneratedFor(TrackedSource, "Tracked.g.cs"));
+    }
+
+    [Fact]
     public void Tracking_Not_Emitted_By_Default()
     {
         var generated = GeneratorTestHarness.GeneratedFor(UntrackedSource, "Tracked.g.cs");

@@ -35,6 +35,7 @@ public static class SourceCodeGenerator
         {
             source.AppendLine(", global::GoLive.Saturn.Data.ChangeTracking.ITrackable");
             source.AppendLine(", global::GoLive.Saturn.Data.ChangeTracking.ITrackableMetadata");
+            source.AppendLine(", global::GoLive.Saturn.Data.Entities.ISuppressTracking");
         }
 
         var updatableFromChildren = classToGen.Members.SelectMany(e => e.LimitedViews.Where(f => f.TwoWay).Select(f => f.Name)).Distinct().ToList();
@@ -138,7 +139,13 @@ public static class SourceCodeGenerator
         {
             foreach (var s in updatableFromChildren)
             {
-                source.AppendLine($"public void UpdateFrom({classToGen.Name}_{s} input) => input.UpdateParent(this);");
+                source.AppendLine($"public void UpdateFrom({classToGen.Name}_{s} input)");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("using (this is global::GoLive.Saturn.Data.Entities.ISuppressTracking suppress ? suppress.SuppressTracking() : null)");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("input.UpdateParent(this);");
+                source.AppendCloseCurlyBracketLine();
+                source.AppendCloseCurlyBracketLine();
                 source.AppendLine($"public static ICreatableFrom<{classToGen.Name}_{s}> Create({classToGen.Name}_{s} input )");
                 source.AppendOpenCurlyBracketLine();
                 source.AppendLine($"var item = new {classToGen.Name}();");

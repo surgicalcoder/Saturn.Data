@@ -82,7 +82,7 @@ public static class DtoGenerator
         var entityName = classToGen.Name;
 
         var interfaces = trackChanges
-            ? $", global::GoLive.Saturn.Data.ChangeTracking.ITrackable, global::GoLive.Saturn.Data.ChangeTracking.ITrackableMetadata"
+            ? $", global::GoLive.Saturn.Data.ChangeTracking.ITrackable, global::GoLive.Saturn.Data.ChangeTracking.ITrackableMetadata, global::GoLive.Saturn.Data.Entities.ISuppressTracking"
             : string.Empty;
 
         source.AppendLine(2);
