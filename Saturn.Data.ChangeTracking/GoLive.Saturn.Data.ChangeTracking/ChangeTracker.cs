@@ -24,6 +24,8 @@ public sealed class ChangeTracker
 
     public IReadOnlyList<FieldChange> Journal => journal;
 
+    public IChangeTrackingObserver? Observer { get; set; }
+
     public void Begin(ITrackable owner, bool acceptCurrentState)
     {
         journal.Clear();
@@ -63,6 +65,8 @@ public sealed class ChangeTracker
     {
         var fields = journal.ToList();
         fields.AddRange(owner.ComputeBaselineDiff());
+
+        Observer?.OnChangeSetCaptured(owner.GetType().Name, fields.Count, fields.Count(change => change.Visibility == ChangeVisibility.WriteOnly));
 
         return new EntityChangeSet
         {

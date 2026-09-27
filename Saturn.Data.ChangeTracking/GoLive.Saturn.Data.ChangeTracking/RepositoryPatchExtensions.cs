@@ -5,13 +5,21 @@ namespace GoLive.Saturn.Data.ChangeTracking;
 
 public static class RepositoryPatchExtensions
 {
-    public static Task PatchChanges<TEntity>(this IRepository repository, string id, long? expectedVersion, EntityChangeSet changes,
-        IDatabaseTransaction? transaction = null, CancellationToken cancellationToken = default)
+    public static async Task PatchChanges<TEntity>(this IRepository repository, string id, long? expectedVersion, EntityChangeSet changes,
+        IChangeTrackingObserver? observer = null, IDatabaseTransaction? transaction = null, CancellationToken cancellationToken = default)
         where TEntity : Entity
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(changes);
 
-        return repository.Patch<TEntity>(id, expectedVersion, changes.ToUpdateDocument(), null, transaction, cancellationToken);
+        try
+        {
+            await repository.Patch<TEntity>(id, expectedVersion, changes.ToUpdateDocument(), null, transaction, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FailedToUpdateException)
+        {
+            observer?.OnPatchConflict(typeof(TEntity).Name, id, expectedVersion);
+            throw;
+        }
     }
 }

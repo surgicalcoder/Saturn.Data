@@ -293,6 +293,8 @@ public static class SourceCodeGenerator
 
             source.AppendLine($"public static ICreatableFrom<{classToGen.Name}> Create({classToGen.Name} input) => Generate(input);");
 
+            GenerateViewPatchableMembers(source, classToGen, item.Key, item.Select(r => (r.classDef, r.LimitedView)));
+
             source.AppendCloseCurlyBracketLine();
         }
 
@@ -465,6 +467,52 @@ public static class SourceCodeGenerator
 
         source.AppendCloseCurlyBracketLine();
         source.AppendLine(";");
+    }
+
+    private static void GenerateViewPatchableMembers(SourceStringBuilder source, ClassToGenerate classToGen, string itemKey,
+        IEnumerable<(MemberToGenerate classDef, LimitedViewToGenerate LimitedView)> item)
+    {
+        var inheritsParent = classToGen.InheritsParentLimitedViews
+                             && !classToGen.FlattenParentLimitedViews
+                             && !string.IsNullOrWhiteSpace(classToGen.ParentClassName);
+
+        source.AppendLine(2);
+        source.AppendLine("public static readonly global::System.Collections.Generic.HashSet<string> PatchableMembers = BuildPatchableMembers();");
+        source.AppendLine("private static global::System.Collections.Generic.HashSet<string> BuildPatchableMembers()");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine("var set = new global::System.Collections.Generic.HashSet<string>(global::System.StringComparer.Ordinal)");
+        source.AppendOpenCurlyBracketLine();
+
+        foreach (var v1 in item)
+        {
+            if (v1.LimitedView.ReadOnly || v1.classDef.WriteOnly)
+            {
+                continue;
+            }
+
+            source.AppendLine($"\"{v1.classDef.Name.FirstCharToUpper()}\",");
+        }
+
+        foreach (var toGenerate in classToGen.ParentItemToGenerate ?? new List<LimitedViewParentItemToGenerate>())
+        {
+            if (toGenerate.ViewName != itemKey && toGenerate.ViewName != "*")
+            {
+                continue;
+            }
+
+            source.AppendLine($"\"{toGenerate.ChildPropertyName}\",");
+        }
+
+        source.AppendCloseCurlyBracketLine();
+        source.AppendLine(";");
+
+        if (inheritsParent)
+        {
+            source.AppendLine($"set.UnionWith({classToGen.ParentClassName}_{itemKey}.PatchableMembers);");
+        }
+
+        source.AppendLine("return set;");
+        source.AppendCloseCurlyBracketLine();
     }
 
     private static void outputAttributes(SourceStringBuilder source, MemberToGenerate classDef)
