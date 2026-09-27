@@ -43,6 +43,49 @@ public class CollectionInstrumentationTests
     }
 
     [Fact]
+    public void TrackedSet_Raises_Add_And_Remove()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add);
+
+        set.Add("a");
+        set.Remove("a");
+
+        Assert.Contains(changes, change => change.Kind == ChangeKind.ListAdd && change.NewValue == "a");
+        Assert.Contains(changes, change => change.Kind == ChangeKind.ListRemove && change.OldValue == "a");
+    }
+
+    [Fact]
+    public void TrackedSet_Ignores_Duplicate_Add()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add) { "a" };
+
+        changes.Clear();
+        var added = set.Add("a");
+
+        Assert.False(added);
+        Assert.Empty(changes);
+    }
+
+    [Fact]
+    public void TrackedDictionary_Raises_Set_And_Unset_With_Key()
+    {
+        var changes = new List<TrackedDictionaryChange<string, int>>();
+        var dictionary = new TrackedDictionary<string, int>(changes.Add);
+
+        dictionary["a"] = 1;
+        dictionary["a"] = 2;
+        dictionary.Remove("a");
+
+        Assert.Equal(3, changes.Count);
+        Assert.Equal(ChangeKind.Set, changes[0].Kind);
+        Assert.Equal("a", changes[0].Key);
+        Assert.Equal(2, changes[1].NewValue);
+        Assert.Equal(ChangeKind.Unset, changes[2].Kind);
+    }
+
+    [Fact]
     public void CollectionDiff_ListEqual_Is_Positional()
     {
         Assert.True(CollectionDiff.ListEqual(new List<string> { "a", "b" }, new List<string> { "a", "b" }, StringComparer.Ordinal));

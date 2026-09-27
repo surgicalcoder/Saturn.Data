@@ -57,7 +57,10 @@ public static class SourceCodeGenerator
             source.AppendLine($"private {RenderType(memberToGenerate.Type)} {memberToGenerate.Name};");
         }
 
-        if (classToGen.Members.Any(f => f.IsCollection) || classToGen.HasInitMethod)
+        var hasInstrumentedCollections = classToGen.TrackChanges
+                                         && classToGen.Members.Any(f => !f.IsCollection && f.InstrumentCollection && f.PlainCollectionKind is 1 or 3 or 4);
+
+        if (classToGen.Members.Any(f => f.IsCollection) || classToGen.HasInitMethod || hasInstrumentedCollections)
         {
             source.AppendLine($"public {classToGen.Name}()");
             source.AppendOpenCurlyBracketLine();
@@ -119,6 +122,16 @@ public static class SourceCodeGenerator
                 source.AppendLine(";");
             }
 
+            if (classToGen.TrackChanges)
+            {
+                foreach (var coll in classToGen.Members.Where(f => !f.IsCollection && f.InstrumentCollection && f.PlainCollectionKind is 1 or 3 or 4))
+                {
+                    var propertyName = coll.Name.FirstCharToUpper();
+                    var handler = coll.PlainCollectionKind == 4 ? $"On{propertyName}KeyChanged" : $"On{propertyName}Changed";
+                    source.AppendLine($"{propertyName} = new {InstrumentedWrapperType(coll)}({handler});");
+                }
+            }
+
             source.AppendCloseCurlyBracketLine();
         }
 
@@ -127,6 +140,10 @@ public static class SourceCodeGenerator
             if (member.IsCollection)
             {
                 GenerateCollectionMember(source, member, classToGen.TrackChanges);
+            }
+            else if (classToGen.TrackChanges && member.InstrumentCollection && member.PlainCollectionKind is 1 or 3 or 4)
+            {
+                GenerateInstrumentedCollectionMember(source, member);
             }
             else
             {
@@ -177,6 +194,11 @@ public static class SourceCodeGenerator
             foreach (var coll in classToGen.Members.Where(f => f.IsCollection && !f.DoNotTrackChanges))
             {
                 GenerateTrackedCollectionHandler(source, coll);
+            }
+
+            foreach (var coll in classToGen.Members.Where(f => !f.IsCollection && f.InstrumentCollection && f.PlainCollectionKind is 1 or 3 or 4))
+            {
+                GenerateInstrumentedCollectionHandler(source, coll);
             }
 
             TrackingGenerator.EmitEntityTracking(source, classToGen);
@@ -659,6 +681,59 @@ OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
             source.AppendLine($"set => SetField(ref this.{itemName}, value);");
         }
 
+        source.AppendCloseCurlyBracketLine();
+    }
+
+    private static string InstrumentedWrapperType(MemberToGenerate item) => item.PlainCollectionKind switch
+    {
+        1 => $"global::GoLive.Saturn.Data.ChangeTracking.TrackedList<{item.ElementTypeName}>",
+        3 => $"global::GoLive.Saturn.Data.ChangeTracking.TrackedSet<{item.ElementTypeName}>",
+        _ => $"global::GoLive.Saturn.Data.ChangeTracking.TrackedDictionary<{item.KeyTypeName}, {item.ValueTypeName}>"
+    };
+
+    private static void GenerateInstrumentedCollectionMember(SourceStringBuilder source, MemberToGenerate item)
+    {
+        var propertyName = item.Name.FirstCharToUpper();
+        var backing = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1) + "Tracked";
+        var wrapper = InstrumentedWrapperType(item);
+        var handler = item.PlainCollectionKind == 4 ? $"On{propertyName}KeyChanged" : $"On{propertyName}Changed";
+
+        source.AppendLine($"private {wrapper} {backing};");
+        source.AppendLine($"public {wrapper} {propertyName}");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine($"get => {backing};");
+        source.AppendLine("set");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine($"if (ReferenceEquals({backing}, value)) return;");
+        source.AppendLine($"{backing} = value is null ? null : (value is {wrapper} ? value : new {wrapper}(value, {handler}));");
+        source.AppendCloseCurlyBracketLine();
+        source.AppendCloseCurlyBracketLine();
+    }
+
+    private static void GenerateInstrumentedCollectionHandler(SourceStringBuilder source, MemberToGenerate item)
+    {
+        var itemName = item.Name.FirstCharToUpper();
+
+        if (item.PlainCollectionKind == 4)
+        {
+            source.AppendLine(2);
+            source.AppendLine($"private void On{itemName}KeyChanged(global::GoLive.Saturn.Data.ChangeTracking.TrackedDictionaryChange<{item.KeyTypeName}, {item.ValueTypeName}> change)");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine("if (!IsTracking) return;");
+            source.AppendLine($"var visibility = VisibilityFor(nameof({itemName}));");
+            source.AppendLine($"var path = nameof({itemName}) + \".\" + change.Key;");
+            source.AppendLine("tracker.RecordList(this, path, change.OldValue, change.NewValue, change.Kind, null, global::GoLive.Saturn.Data.ChangeTracking.CollectionStrategy.WholeArray, visibility);");
+            source.AppendCloseCurlyBracketLine();
+            return;
+        }
+
+        source.AppendLine(2);
+        source.AppendLine($"private void On{itemName}Changed(global::GoLive.Saturn.Data.ChangeTracking.TrackedCollectionChange<{item.ElementTypeName}> change)");
+        source.AppendOpenCurlyBracketLine();
+        source.AppendLine("if (!IsTracking) return;");
+        source.AppendLine($"var strategy = StrategyFor(nameof({itemName}));");
+        source.AppendLine($"var visibility = VisibilityFor(nameof({itemName}));");
+        source.AppendLine("tracker.RecordList(this, nameof(" + itemName + "), change.OldValue, change.NewValue, change.Kind, null, strategy, visibility);");
         source.AppendCloseCurlyBracketLine();
     }
 

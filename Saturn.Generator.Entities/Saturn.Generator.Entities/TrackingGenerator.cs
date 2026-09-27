@@ -17,6 +17,7 @@ public sealed class TrackedMember
     public int PlainCollectionKind { get; set; }
     public string KeyTypeText { get; set; }
     public string ValueTypeText { get; set; }
+    public bool Instrumented { get; set; }
 }
 
 public static class TrackingGenerator
@@ -40,7 +41,8 @@ public static class TrackingGenerator
                 Strategy = StrategyName(member.CollectionStrategy),
                 PlainCollectionKind = member.PlainCollectionKind,
                 KeyTypeText = member.KeyTypeName,
-                ValueTypeText = member.ValueTypeName
+                ValueTypeText = member.ValueTypeName,
+                Instrumented = classToGen.TrackChanges && member.InstrumentCollection && member.PlainCollectionKind is 1 or 3 or 4
             })
             .ToList();
 
@@ -128,7 +130,7 @@ public static class TrackingGenerator
         source.AppendLine($"public IEnumerable<{TrackingNamespace}.FieldChange> ComputeBaselineDiff()");
         source.AppendOpenCurlyBracketLine();
 
-        var plainCollections = tracked.Where(member => member.PlainCollectionKind != 0).ToList();
+        var plainCollections = tracked.Where(member => member.PlainCollectionKind != 0 && !member.Instrumented).ToList();
 
         if (plainCollections.Count == 0)
         {
@@ -203,6 +205,19 @@ public static class TrackingGenerator
     private static string RestoreStatement(TrackedMember member)
     {
         var value = Camel(member.Name);
+
+        if (member.Instrumented)
+        {
+            var handler = member.PlainCollectionKind == 4 ? $"On{member.Name}KeyChanged" : $"On{member.Name}Changed";
+
+            return member.PlainCollectionKind switch
+            {
+                1 => $"if (tracker.BaselineValue(\"{member.Name}\") is List<{member.ElementTypeText}> {value}Value) {member.Name} = new {TrackingNamespace}.TrackedList<{member.ElementTypeText}>({value}Value, {handler});",
+                3 => $"if (tracker.BaselineValue(\"{member.Name}\") is HashSet<{member.ElementTypeText}> {value}Value) {member.Name} = new {TrackingNamespace}.TrackedSet<{member.ElementTypeText}>({value}Value, {handler});",
+                4 => $"if (tracker.BaselineValue(\"{member.Name}\") is Dictionary<{member.KeyTypeText}, {member.ValueTypeText}> {value}Value) {member.Name} = new {TrackingNamespace}.TrackedDictionary<{member.KeyTypeText}, {member.ValueTypeText}>({value}Value, {handler});",
+                _ => string.Empty
+            };
+        }
 
         if (member.IsCollection)
         {

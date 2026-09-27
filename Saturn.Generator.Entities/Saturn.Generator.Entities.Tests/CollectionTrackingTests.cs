@@ -111,6 +111,63 @@ public class CollectionTrackingTests
         Assert.DoesNotContain("CollectionDiff.ListEqual", generated);
     }
 
+    private const string InstrumentedSource = """
+        using GoLive.Saturn.Data.ChangeTracking;
+        using GoLive.Saturn.Data.Entities;
+
+        namespace Sample;
+
+        [ChangeTracking]
+        public partial class Bag : Entity
+        {
+            [CollectionTracking(Instrument = true)]
+            private List<string> list = new();
+
+            [CollectionTracking(Instrument = true)]
+            private HashSet<string> set = new();
+
+            [CollectionTracking(Instrument = true)]
+            private Dictionary<string, int> dictionary = new();
+        }
+        """;
+
+    [Fact]
+    public void Instrument_List_Emits_TrackedList_Property()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(InstrumentedSource, "Bag.g.cs");
+
+        Assert.Contains("global::GoLive.Saturn.Data.ChangeTracking.TrackedList<string> List", generated);
+        Assert.Contains("OnListChanged", generated);
+    }
+
+    [Fact]
+    public void Instrument_Set_Emits_TrackedSet_Property()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(InstrumentedSource, "Bag.g.cs");
+
+        Assert.Contains("global::GoLive.Saturn.Data.ChangeTracking.TrackedSet<string> Set", generated);
+        Assert.Contains("OnSetChanged", generated);
+    }
+
+    [Fact]
+    public void Instrument_Dictionary_Emits_TrackedDictionary_Property()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(InstrumentedSource, "Bag.g.cs");
+
+        Assert.Contains("global::GoLive.Saturn.Data.ChangeTracking.TrackedDictionary<string, int> Dictionary", generated);
+        Assert.Contains("OnDictionaryKeyChanged", generated);
+    }
+
+    [Fact]
+    public void Instrumented_Collections_Are_Excluded_From_Baseline_Diff()
+    {
+        var generated = GeneratorTestHarness.GeneratedFor(InstrumentedSource, "Bag.g.cs");
+        var index = generated.IndexOf("ComputeBaselineDiff", StringComparison.Ordinal);
+        var block = generated[index..generated.IndexOf("VisibilityFor", index, StringComparison.Ordinal)];
+
+        Assert.DoesNotContain("CollectionDiff.ListEqual", block);
+    }
+
     [Fact]
     public void Untracked_Collection_Keeps_Legacy_Changes_Behaviour()
     {

@@ -13,4 +13,13 @@ public partial class TrackingTest : Entity
     private ObservableCollections.ObservableList<string> tags = new();
 
     private List<string> scores = new();
+
+    [CollectionTracking(Instrument = true)]
+    private List<string> instrumentedList = new();
+
+    [CollectionTracking(Instrument = true)]
+    private HashSet<string> instrumentedSet = new();
+
+    [CollectionTracking(Instrument = true)]
+    private Dictionary<string, int> instrumentedDictionary = new();
 }
