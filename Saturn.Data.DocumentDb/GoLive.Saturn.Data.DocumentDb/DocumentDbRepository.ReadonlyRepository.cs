@@ -17,9 +17,7 @@ public partial class DocumentDbRepository : IReadonlyRepository
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         var predicate = WithSoftDeleteFilter<TItem>(null, includeDeleted);
-        var list = predicate is null
-            ? (await store.Query<TItem>().ToList().ConfigureAwait(false)).ToList()
-            : (await store.Query<TItem>().Where(predicate).ToList().ConfigureAwait(false)).ToList();
+        var list = await QueryRunner.ExecuteAsync(predicate, null, false, null, null, cancellationToken).ConfigureAwait(false);
 
         return AsyncEnumerableFactory.From(list, cancellationToken);
     }
@@ -53,7 +51,7 @@ public partial class DocumentDbRepository : IReadonlyRepository
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         var predicate = WithSoftDeleteFilter<TItem>(item => normalized.Contains(item.Id), includeDeleted);
-        var list = (await store.Query<TItem>().Where(predicate).ToList().ConfigureAwait(false)).ToList();
+        var list = await QueryRunner.ExecuteAsync(predicate, null, false, null, null, cancellationToken).ConfigureAwait(false);
 
         return AsyncEnumerableFactory.From(list, cancellationToken);
     }
@@ -68,10 +66,16 @@ public partial class DocumentDbRepository : IReadonlyRepository
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         var effective = WithSoftDeleteFilter(predicate, includeDeleted);
+        var token = NormalizeId(continueFrom);
 
-        return effective is null
-            ? await store.Query<TItem>().Count().ConfigureAwait(false)
-            : await store.Query<TItem>().Where(effective).Count().ConfigureAwait(false);
+        if (token is null)
+        {
+            return await QueryRunner.CountAsync(effective, cancellationToken).ConfigureAwait(false);
+        }
+
+        var candidates = await QueryRunner.ExecuteAsync(effective, null, false, null, null, cancellationToken).ConfigureAwait(false);
+
+        return candidates.Count(item => string.CompareOrdinal(item.Id, token) > 0);
     }
 
     public IQueryable<TItem> IQueryable<TItem>() where TItem : Entity
@@ -82,9 +86,7 @@ public partial class DocumentDbRepository : IReadonlyRepository
         InitializeAsync().GetAwaiter().GetResult();
 
         var predicate = WithSoftDeleteFilter<TItem>(null, includeDeleted);
-        var list = predicate is null
-            ? store.Query<TItem>().ToList().GetAwaiter().GetResult().ToList()
-            : store.Query<TItem>().Where(predicate).ToList().GetAwaiter().GetResult().ToList();
+        var list = QueryRunner.ExecuteAsync(predicate, null, false, null, null, CancellationToken.None).GetAwaiter().GetResult();
 
         return list.AsQueryable();
     }
@@ -101,21 +103,30 @@ public partial class DocumentDbRepository : IReadonlyRepository
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         var effective = WithSoftDeleteFilter(predicate, includeDeleted);
+        var orderBy = BuildOrderBySelector(sortOrders, out var descending);
+        var token = CanApplyContinuation(sortOrders) ? NormalizeId(continueFrom) : null;
 
-        var query = effective is null
-            ? store.Query<TItem>()
-            : store.Query<TItem>().Where(effective);
+        int? skip = null;
+        int? take = pageSize;
 
-        if (pageSize.HasValue)
+        if (token is null && pageSize.HasValue && pageNumber.HasValue && pageNumber.Value > 1)
         {
-            var skip = pageNumber.HasValue && pageNumber.Value > 1
-                ? (pageNumber.Value - 1) * pageSize.Value
-                : 0;
-
-            query = query.Paginate(skip, pageSize.Value);
+            skip = (pageNumber.Value - 1) * pageSize.Value;
         }
 
-        var list = (await query.ToList().ConfigureAwait(false)).ToList();
+        var list = await QueryRunner.ExecuteAsync(effective, orderBy, descending, token is null ? skip : null, token is null ? take : null, cancellationToken).ConfigureAwait(false);
+
+        if (token is not null)
+        {
+            IEnumerable<TItem> filtered = list.Where(item => string.CompareOrdinal(item.Id, token) > 0);
+
+            if (take.HasValue)
+            {
+                filtered = filtered.Take(take.Value);
+            }
+
+            list = filtered.ToList();
+        }
 
         return AsyncEnumerableFactory.From(list, cancellationToken);
     }
@@ -142,7 +153,16 @@ public partial class DocumentDbRepository : IReadonlyRepository
         await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         var effective = WithSoftDeleteFilter(predicate, includeDeleted);
-        var list = (await store.Query<TItem>().Where(effective).ToList().ConfigureAwait(false)).ToList();
+        var orderBy = BuildOrderBySelector(sortOrders, out var descending);
+        var token = CanApplyContinuation(sortOrders) ? NormalizeId(continueFrom) : null;
+
+        if (token is null)
+        {
+            return await QueryRunner.FirstOrDefaultAsync(effective, orderBy, descending, cancellationToken).ConfigureAwait(false);
+        }
+
+        var candidates = await QueryRunner.ExecuteAsync(effective, orderBy, descending, null, null, cancellationToken).ConfigureAwait(false);
+        var list = candidates.Where(item => string.CompareOrdinal(item.Id, token) > 0).ToList();
 
         return list.Count == 0 ? null : list[0];
     }
@@ -150,12 +170,61 @@ public partial class DocumentDbRepository : IReadonlyRepository
     public Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate = null, string continueFrom = null, int count = 1,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : Entity
-        => throw new NotSupportedException("Random is implemented in Phase 2.");
+        => Random(predicate, continueFrom, count, includeDeleted: false, transaction, cancellationToken);
 
-    public Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom, int count,
+    public async Task<IAsyncEnumerable<TItem>> Random<TItem>(Expression<Func<TItem, bool>> predicate, string continueFrom, int count,
         bool includeDeleted, IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)
         where TItem : Entity
-        => throw new NotSupportedException("Random is implemented in Phase 2.");
+    {
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+
+        var effective = WithSoftDeleteFilter(predicate, includeDeleted);
+        var total = await QueryRunner.CountAsync(effective, cancellationToken).ConfigureAwait(false);
+
+        if (total <= 0 || count <= 0)
+        {
+            return AsyncEnumerableFactory.From(Array.Empty<TItem>(), cancellationToken);
+        }
+
+        var maxSkip = (int)Math.Max(0, Math.Min(total - 1, int.MaxValue - 1));
+        var skip = System.Random.Shared.Next(0, maxSkip + 1);
+        var list = await QueryRunner.ExecuteAsync(effective, null, false, skip, count, cancellationToken).ConfigureAwait(false);
+
+        return AsyncEnumerableFactory.From(list, cancellationToken);
+    }
+
+    private static Expression<Func<TItem, object>> BuildOrderBySelector<TItem>(IEnumerable<SortOrder<TItem>> sortOrders, out bool descending) where TItem : Entity
+    {
+        descending = false;
+
+        var first = sortOrders?.FirstOrDefault();
+
+        if (first?.Field is null)
+        {
+            return null;
+        }
+
+        descending = first.Direction == SortDirection.Descending;
+        return first.Field;
+    }
+
+    private static bool CanApplyContinuation<TItem>(IEnumerable<SortOrder<TItem>> sortOrders) where TItem : Entity
+    {
+        var first = sortOrders?.FirstOrDefault();
+
+        if (first?.Field is null)
+        {
+            return true;
+        }
+
+        if (!Query.MemberPathResolver.TryResolve(first.Field, out var path))
+        {
+            return false;
+        }
+
+        return string.Equals(path, nameof(Entity.Id), StringComparison.Ordinal)
+               && first.Direction == SortDirection.Ascending;
+    }
 
     private async Task<TItem> GetFilteredByIdAsync<TItem>(string id, bool includeDeleted, CancellationToken cancellationToken) where TItem : Entity
     {

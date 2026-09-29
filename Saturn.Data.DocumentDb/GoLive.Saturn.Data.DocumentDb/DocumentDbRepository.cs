@@ -17,6 +17,7 @@ public partial class DocumentDbRepository : IDisposable
     private readonly SemaphoreSlim initializationLock = new(1, 1);
 
     private DocumentDbCapabilities capabilities;
+    private Query.DocumentDbQueryRunner queryRunner;
     private bool initialized;
     private bool disposed;
 
@@ -71,6 +72,8 @@ public partial class DocumentDbRepository : IDisposable
     internal DocumentDbCapabilities Capabilities => capabilities;
 
     protected EntityJsonSerializer Serializer => serializer;
+
+    protected Query.DocumentDbQueryRunner QueryRunner => queryRunner;
 
     protected bool HasWriteBehaviors => options.WriteBehaviors is { Count: > 0 };
 
@@ -188,6 +191,7 @@ public partial class DocumentDbRepository : IDisposable
                               ?? store.GetType().Name;
 
             capabilities = DocumentDbCapabilities.Probe(store, databaseProvider, backendName);
+            queryRunner = new Query.DocumentDbQueryRunner(store, documentDbOptions, capabilities);
             initialized = true;
         }
         finally

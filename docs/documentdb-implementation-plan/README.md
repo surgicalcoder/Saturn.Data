@@ -169,6 +169,34 @@ SupportsChangeFeed=False             SupportsTemporal=True
 
 `SqliteDatabaseProvider.SupportsJsonMergePatch/SupportsChangeFeed` are **explicit interface implementations** — read them through an `IDatabaseProvider` reference, not the concrete type.
 
+### `IDocumentQuery<T>` surface (from the package XML docs)
+
+```
+Where(Expression<Func<T,bool>>)                      OrderBy(Expression<Func<T,object>>)
+OrderByDescending(Expression<Func<T,object>>)        Paginate(int skip, int take)
+ToList(ct)  First(ct)  FirstOrDefault(ct)            Single/ SingleOrDefault / Any / Count(ct)
+Sum/Min/Max/Average(selector, ct)                    ExecuteUpdate(Action<IDocumentUpdateBuilder<T>>, ct)
+ExecuteUpdate(Expression<Func<T,object>>, object, ct)  ExecuteDelete(ct)
+Select<TOut>(selector, JsonTypeInfo<TOut>)           Project(string, JsonTypeInfo<T>)
+GroupBy(...) / Join(...)                             IgnoreQueryFilters(...)
+ToCursorPage(cursor, take)                           ToAsyncEnumerable(ct)
+ToQueryString()                                      RawJsonRows(take?, ct)   SupportsRawJson
+```
+
+**`SortOrder<T>.Field` is `Expression<Func<T, object>>`, which matches `OrderBy`/`OrderByDescending` exactly — pass it straight through.** `ExecuteUpdate(selector, value)` is the per-field atomic patch primitive for Phase 4. There is **no `Where(string)` on the typed query** and **no `WhereIn`** — use `Where(x => captured.Contains(x.Id))`, which is confirmed to translate.
+
+### Second critical translation finding: no string comparison
+
+`string.CompareTo`, `string.CompareOrdinal` and `string.Compare` are **all rejected** as query values (`NotSupportedException`). There is therefore **no server-side way to express `Id > token`** in a compiled predicate.
+
+Consequence for `continueFrom`: Phase 2 implements it as *server-side predicate narrowing plus an in-memory keyset bound* —
+
+- the caller's predicate and the soft-delete filter run server-side (so the candidate set is narrowed),
+- the ordering is applied server-side,
+- the `Id > token` bound and the page size are applied in memory.
+
+This is correct but not O(log n) for continuation pages. The library's own keyset paging (`ToCursorPage`) is opaque-cursor based and cannot be driven by our Id token. If continuation over very large sets becomes a problem, the options are: expose an opt-in `ToCursorPage` mode with an opaque cursor on a new API, or drop `continueFrom` in favour of it. Recorded as a known limitation in Phase 7's README task.
+
 ### Confirmed working API surface (used and passing in Phases 0–1)
 
 ```csharp
