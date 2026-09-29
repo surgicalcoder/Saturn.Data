@@ -202,6 +202,14 @@ This is correct but not O(log n) for continuation pages. The library's own keyse
 - `CreateIndexAsync<T>(JsonTypeInfo<T>, IEnumerable<Expression<Func<T, object>>>)` lives on the **concrete `DocumentStore`**, not on `IDocumentStore`. `EnsureIndexes` resolves it by reflection on the runtime store type, supplies the `JsonTypeInfo<T>` from `Serializer.JsonOptions.GetTypeInfo(typeof(T))`, and reports through `OnUnsupportedIndexOption` when it is unavailable. Unique and sparse indexes, and `ExpireAfter`, are reported unsupported (unique is per-type config via `Mappings`).
 - `Patch` and `Increment` are **version-checked read-modify-write** (`Get` → validate `Version` → mutate → `Update` with an incremented `Version`), which is correct on every backend. The atomic fast path exists — `IDocumentQuery<T>.ExecuteUpdate(Expression<Func<T,object>>, object, ct)` sets one field server-side — and is the Phase 7 optimization for `$set`-only patches with no version check.
 
+### Transactions (Phase 5)
+
+- `IDatabaseTransaction` maps to `IDocumentStore.OpenSession()`; `CommitAsync` calls `SaveChanges()`, `RollbackAsync` simply discards the session (nothing is written until `SaveChanges`).
+- **`IDocumentSession` is a write buffer, and reads do not see buffered writes.** Confirmed on SQLite: after `Insert(entity, transaction)` a plain `ById` returns `null` until `CommitAsync`. The Phase 5 test asserts this deliberately (`Buffered_Write_Is_Not_Visible_Until_Commit`) rather than the SQLite provider's live-transaction semantics.
+- Session method shapes: `Add<T>(T)`, `AddRange<T>(IEnumerable<T>)`, `Update<T>(T)`, `Upsert<T>(T)`, **`Remove<T>(object id)` (generic is required — `Remove(id)` alone will not infer)**. There is no session-level batch upsert/remove; loop.
+- All write paths route through `InsertWithTransactionAsync` / `InsertManyWithTransactionAsync` / `UpsertWithTransactionAsync` / `UpsertManyWithTransactionAsync` / `UpdateWithTransactionAsync` / `RemoveWithTransactionAsync`, so a supplied transaction is always honoured.
+- `CreateTransaction()` throws when `Capabilities.SupportsTransactions` is false. `!RequiresSingleConnection` is used as the proxy for whether an explicit `BeginTransaction` should be issued. `ConcurrencyException` handling is deferred: it can only surface if a consumer opts into per-type `MapVersionProperty`, which this provider deliberately does not do.
+
 ### Confirmed working API surface (used and passing in Phases 0–1)
 
 ```csharp

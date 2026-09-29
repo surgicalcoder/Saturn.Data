@@ -19,7 +19,7 @@ public partial class DocumentDbRepository : IRepository
         try
         {
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await store.Insert(entity).ConfigureAwait(false);
+            await InsertWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
                 BuildWriteResult(context, WriteOutcome.Inserted, 1, new[] { entity.Id })).ConfigureAwait(false);
@@ -49,7 +49,7 @@ public partial class DocumentDbRepository : IRepository
         try
         {
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await store.BatchInsert(list).ConfigureAwait(false);
+            await InsertManyWithTransactionAsync(transaction, list, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Insert, context,
                 BuildWriteResult(context, WriteOutcome.Inserted, list.Count, list.Select(entity => entity.Id))).ConfigureAwait(false);
@@ -74,7 +74,7 @@ public partial class DocumentDbRepository : IRepository
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
             var existed = await ExistsAsync<TItem>(entity.Id, cancellationToken).ConfigureAwait(false);
-            await store.Upsert(entity).ConfigureAwait(false);
+            await UpsertWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
                 BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: !existed)).ConfigureAwait(false);
@@ -104,7 +104,7 @@ public partial class DocumentDbRepository : IRepository
         try
         {
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await store.BatchUpsert(list).ConfigureAwait(false);
+            await UpsertManyWithTransactionAsync(transaction, list, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Save, context,
                 BuildWriteResult(context, WriteOutcome.Merged, list.Count, list.Select(entity => entity.Id))).ConfigureAwait(false);
@@ -129,7 +129,7 @@ public partial class DocumentDbRepository : IRepository
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
 
             var existed = await ExistsAsync<TItem>(entity.Id, cancellationToken).ConfigureAwait(false);
-            await store.Upsert(entity).ConfigureAwait(false);
+            await UpsertWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
                 BuildWriteResult(context, WriteOutcome.Merged, 1, new[] { entity.Id }, wasCreated: !existed)).ConfigureAwait(false);
@@ -159,7 +159,7 @@ public partial class DocumentDbRepository : IRepository
         try
         {
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await store.BatchUpsert(list).ConfigureAwait(false);
+            await UpsertManyWithTransactionAsync(transaction, list, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Upsert, context,
                 BuildWriteResult(context, WriteOutcome.Merged, list.Count, list.Select(item => item.Id))).ConfigureAwait(false);
@@ -190,7 +190,7 @@ public partial class DocumentDbRepository : IRepository
                 throw new FailedToUpdateException();
             }
 
-            await store.Update(entity).ConfigureAwait(false);
+            await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
                 BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id })).ConfigureAwait(false);
@@ -222,7 +222,7 @@ public partial class DocumentDbRepository : IRepository
                 throw new FailedToUpdateException();
             }
 
-            await store.Update(entity).ConfigureAwait(false);
+            await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
                 BuildWriteResult(context, WriteOutcome.Updated, 1, new[] { entity.Id })).ConfigureAwait(false);
@@ -252,7 +252,18 @@ public partial class DocumentDbRepository : IRepository
         try
         {
             await InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await store.BatchUpdate(list).ConfigureAwait(false);
+
+            foreach (var entity in list)
+            {
+                var existed = await ExistsAsync<TItem>(entity.Id, cancellationToken).ConfigureAwait(false);
+
+                if (!existed)
+                {
+                    throw new FailedToUpdateException();
+                }
+
+                await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
+            }
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Update, context,
                 BuildWriteResult(context, WriteOutcome.Updated, list.Count, list.Select(entity => entity.Id))).ConfigureAwait(false);
@@ -311,12 +322,12 @@ public partial class DocumentDbRepository : IRepository
                     deletable.DeletedAt = DateTime.UtcNow;
                     deletable.DeletedBy = string.Empty;
 
-                    await store.Update(entity).ConfigureAwait(false);
+                    await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
                 }
             }
             else if (ids.Count > 0)
             {
-                await store.BatchRemove<TItem>(ids).ConfigureAwait(false);
+                await RemoveWithTransactionAsync<TItem>(transaction, ids, cancellationToken).ConfigureAwait(false);
             }
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Delete, context,
@@ -363,7 +374,7 @@ public partial class DocumentDbRepository : IRepository
 
             if (ids.Count > 0)
             {
-                await store.BatchRemove<TItem>(ids).ConfigureAwait(false);
+                await RemoveWithTransactionAsync<TItem>(transaction, ids, cancellationToken).ConfigureAwait(false);
             }
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.HardDelete, context,
@@ -426,7 +437,7 @@ public partial class DocumentDbRepository : IRepository
                 deletable.DeletedAt = null;
                 deletable.DeletedBy = null;
 
-                await store.Update(entity).ConfigureAwait(false);
+                await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
             }
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Restore, context,
@@ -439,8 +450,20 @@ public partial class DocumentDbRepository : IRepository
         }
     }
 
-    public Task<IDatabaseTransaction> CreateTransaction()
-        => throw new NotSupportedException("Transactions are implemented in Phase 5.");
+    public async Task<IDatabaseTransaction> CreateTransaction()
+    {
+        await InitializeAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (!capabilities.SupportsTransactions)
+        {
+            throw new NotSupportedException($"Shiny.DocumentDb backend '{capabilities.BackendName}' does not support transactions.");
+        }
+
+        var transaction = new DocumentDbTransaction(store, !capabilities.RequiresSingleConnection);
+        await transaction.Start().ConfigureAwait(false);
+
+        return transaction;
+    }
 
     public Task<CascadeReport> DeleteCascade<TItem>(string id, CascadeMode mode = CascadeMode.Default, CascadeDepth depth = CascadeDepth.Single,
         IDatabaseTransaction transaction = null, CancellationToken cancellationToken = default)

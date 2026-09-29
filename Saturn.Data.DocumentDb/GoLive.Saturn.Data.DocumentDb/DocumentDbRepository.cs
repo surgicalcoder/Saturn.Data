@@ -170,6 +170,87 @@ public partial class DocumentDbRepository : IDisposable
         return matches.Select(entity => entity.Id).ToList();
     }
 
+    protected async Task InsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            documentDbTransaction.Session.Add(entity);
+            return;
+        }
+
+        await store.Insert(entity).ConfigureAwait(false);
+    }
+
+    protected async Task InsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            documentDbTransaction.Session.AddRange(entities);
+            return;
+        }
+
+        await store.BatchInsert(entities).ConfigureAwait(false);
+    }
+
+    protected async Task UpsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            documentDbTransaction.Session.Upsert(entity);
+            return;
+        }
+
+        await store.Upsert(entity).ConfigureAwait(false);
+    }
+
+    protected async Task UpsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            foreach (var entity in entities)
+            {
+                documentDbTransaction.Session.Upsert(entity);
+            }
+
+            return;
+        }
+
+        await store.BatchUpsert(entities).ConfigureAwait(false);
+    }
+
+    protected async Task UpdateWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    {
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            documentDbTransaction.Session.Update(entity);
+            return;
+        }
+
+        await store.Update(entity).ConfigureAwait(false);
+    }
+
+    protected async Task RemoveWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IEnumerable<string> ids, CancellationToken cancellationToken) where TItem : Entity
+    {
+        var idList = ids.ToList();
+
+        if (idList.Count == 0)
+        {
+            return;
+        }
+
+        if (transaction is DocumentDbTransaction documentDbTransaction)
+        {
+            foreach (var id in idList)
+            {
+                documentDbTransaction.Session.Remove<TItem>(id);
+            }
+
+            return;
+        }
+
+        await store.BatchRemove<TItem>(idList).ConfigureAwait(false);
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         if (initialized)

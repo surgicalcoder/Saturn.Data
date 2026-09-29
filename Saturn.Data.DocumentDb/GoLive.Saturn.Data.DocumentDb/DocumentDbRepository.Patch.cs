@@ -61,7 +61,7 @@ public partial class DocumentDbRepository
             }
 
             entity.Version = (entity.Version ?? 0) + 1;
-            await store.Update(entity).ConfigureAwait(false);
+            await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Patch, context,
                 BuildWriteResult(context, WriteOutcome.Patched, 1, new[] { normalized })).ConfigureAwait(false);

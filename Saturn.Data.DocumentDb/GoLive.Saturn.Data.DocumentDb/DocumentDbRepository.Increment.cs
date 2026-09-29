@@ -65,7 +65,7 @@ public partial class DocumentDbRepository
             property.SetValue(entity, Convert.ChangeType(currentValue + deltaValue, targetType, CultureInfo.InvariantCulture));
 
             entity.Version = (entity.Version ?? 0) + 1;
-            await store.Update(entity).ConfigureAwait(false);
+            await UpdateWithTransactionAsync(transaction, entity, cancellationToken).ConfigureAwait(false);
 
             await ApplyAfterBehaviors(RepositoryWriteOperation.Increment, context,
                 BuildWriteResult(context, WriteOutcome.Incremented, 1, new[] { normalized })).ConfigureAwait(false);
