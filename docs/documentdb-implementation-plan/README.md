@@ -128,3 +128,74 @@ dotnet test "...\GoLive.Saturn.Data.DocumentDb.Tests.csproj" --filter "FullyQual
 - **Capability** — a backend feature probed at runtime (`SupportsTransactions` etc.).
 - **Fallback** — evaluating a predicate in memory because the backend cannot translate it.
 - **Docs** — the `_doc`-equivalent JSON body Shiny.DocumentDb stores; we never touch it directly except through the JSON collection lane.
+
+---
+
+## Discoveries from implementing Phases 0 and 1 (authoritative — trust these over §"Verified facts")
+
+Shiny.DocumentDb was inspected at **version 14.0.0** (`net10.0`). The following correct and extend the facts table above.
+
+### API shape corrections
+
+| Assumption in the plan | Reality |
+| --- | --- |
+| `DocumentStoreOptions` accepts a `ConfigureStore` action that sets `DatabaseProvider` | `DatabaseProvider` is a **`required`** member, so it must be set in the object initializer. `DocumentDbRepositoryOptions` therefore exposes a `DatabaseProvider` property; `ConfigureStore` is only for optional tweaks. |
+| `options.ConfigureDocument<T>(...)` | Does **not exist**. Per-type configuration lives on `DocumentStoreOptions.Mappings` (`DocumentMappingRegistry`): `MapVersionProperty<T>`, `AddQueryFilter<T>`, `AddUniqueIndex`, `MapIdProperty<T>`, `MapSpatialProperty<T>`, `MapTemporal<T>`, etc. This validates the decision to avoid per-type config for core semantics. |
+| `store.Query<T>()` returns something `IQueryable<T>`-compatible | It returns `IDocumentQuery<T>`, which is **not** `IQueryable<T>`. Do not assign it to `IQueryable<T>`. |
+| Capability probes | `IDocumentStore` exposes `SupportsTransactions`, `SupportsPessimisticLocking`, `SupportsSpatial`, `SupportsVector`, `SupportsFullText`, `MaxBlobSize`. There is **no `SupportsRawJson`**. `IDatabaseProvider` exposes `RequiresSingleConnection`, `SupportsUniqueIndexes`, `SupportsJsonMergePatch`, `SupportsBatchUpsert`, `SupportsBulkCopy`, `SupportsBulkReplace`, `SupportsChangeFeed`, `SupportsTemporal`, `SupportsComputedColumns`, `SupportsSoundex`, `SupportsUserFunctions`, `UpsertsConflictsOnAnyUniqueKey`, `MaxBlobSize`. |
+| `IDocumentStore.CreateIndexAsync` | Not on `IDocumentStore`. Index creation lives elsewhere (Phase 4 must locate it). Non-unique JSON indexes are created through a different surface; unique indexes are per-type config. |
+| `IDocumentSession.Remove<T>(id)` / `UpsertRange` | `Remove` is **non-generic** (`Remove(object id)`). `AddRange<T>` exists; there is **no `UpsertRange<T>`** — loop `Upsert` per item. `IDocumentSession` implements `IAsyncDisposable`. |
+| `ISoftDeletable.DeletedAt` used with `DateTimeOffset` | It is `DateTime?` (and `DeletedBy`/`DeletedArchivedBy` are `string`). Use `DateTime.UtcNow`. |
+
+### The critical translation finding
+
+**`PredicateHelper.And` (from `GoLive.Saturn.Data.Abstractions`) produces bitwise `Expression.And`, which Shiny.DocumentDb's expression lowerer rejects** with `NotSupportedException: Expression '... And ...' is not supported in a query predicate`. It requires `AndAlso`.
+
+Consequences for every later phase:
+
+- Never compose query predicates with `.And(...)`. Use `Saturn.Data.DocumentDb.Query.PredicateComposer.AndAlso(left, right)`, which rebuilds the tree with `Expression.AndAlso` and rebinds the parameter.
+- This applies to the soft-delete filter (Phase 1, done), scope predicates (Phase 3), continuation (Phase 2), and cascade predicates (Phase 6).
+
+### SQLite backend probe results (Phase 0)
+
+```
+SupportsTransactions=True            SupportsPessimisticLocking=False
+SupportsSpatial=True                 SupportsVector=False
+SupportsFullText=True                MaxBlobSize=1073741824
+RequiresSingleConnection=True        SupportsUniqueIndexes=True
+SupportsJsonMergePatch=True          SupportsBatchUpsert=True
+SupportsChangeFeed=False             SupportsTemporal=True
+```
+
+`SqliteDatabaseProvider.SupportsJsonMergePatch/SupportsChangeFeed` are **explicit interface implementations** — read them through an `IDatabaseProvider` reference, not the concrete type.
+
+### Confirmed working API surface (used and passing in Phases 0–1)
+
+```csharp
+await store.Insert(entity);                                  // Task
+await store.Get<T>(id);                                      // Task<T>
+await store.Update(entity);                                  // Task (full replace)
+await store.Update(entity, patch: true);                     // Task (merge)
+await store.Upsert(entity);                                  // Task (merge-or-insert)
+await store.Remove<T>(id);                                   // Task<bool>
+await store.BatchInsert(list);                               // Task<int>
+await store.BatchRemove<T>(ids);                             // Task<int>
+await store.BatchUpsert(list);                               // Task<int>
+await store.BatchUpdate(list);                               // Task<int>
+await store.SetProperty<T>(id, x => x.Name, value);          // Task
+await store.RemoveProperty<T>(id, x => x.Name);              // Task
+
+await store.Query<T>().Where(predicate).OrderBy(selector).Paginate(skip, take).ToList();
+await store.Query<T>().Where(predicate).Count();
+await store.Query<T>().Where(item => capturedIds.Contains(item.Id)).ToList();   // IN works
+
+await using var session = store.OpenSession();
+session.Add(entity);
+session.AddRange(entities);
+session.Update(entity);
+session.Upsert(entity);
+session.Remove(id);
+await session.SaveChanges();
+await session.BeginTransaction();
+```
+

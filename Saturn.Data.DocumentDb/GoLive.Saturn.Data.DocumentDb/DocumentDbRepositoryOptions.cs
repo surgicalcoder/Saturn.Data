@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Saturn.Data.DocumentDb.Serialization;
 using Shiny.DocumentDb;
 
 namespace Saturn.Data.DocumentDb;
@@ -14,13 +15,6 @@ public enum ChangeFeedMode
 {
     Outbox,
     Native
-}
-
-public sealed class DocumentDbEntitySerializerOptions
-{
-    public bool WriteIndented { get; set; }
-
-    public bool EnumAsString { get; set; } = true;
 }
 
 public sealed class DocumentDbRepositoryOptions
@@ -51,5 +45,5 @@ public sealed class DocumentDbRepositoryOptions
 
     public Action<string> OnClientSideFallback { get; set; }
 
-    public DocumentDbEntitySerializerOptions Serializer { get; set; } = new();
+    public EntityJsonSerializerOptions Serializer { get; set; } = new();
 }
