@@ -210,6 +210,12 @@ This is correct but not O(log n) for continuation pages. The library's own keyse
 - All write paths route through `InsertWithTransactionAsync` / `InsertManyWithTransactionAsync` / `UpsertWithTransactionAsync` / `UpsertManyWithTransactionAsync` / `UpdateWithTransactionAsync` / `RemoveWithTransactionAsync`, so a supplied transaction is always honoured.
 - `CreateTransaction()` throws when `Capabilities.SupportsTransactions` is false. `!RequiresSingleConnection` is used as the proxy for whether an explicit `BeginTransaction` should be issued. `ConcurrencyException` handling is deferred: it can only surface if a consumer opts into per-type `MapVersionProperty`, which this provider deliberately does not do.
 
+### Cascade and change feed (Phase 6)
+
+- Cascade reuses the attribute-based relation resolver unchanged; the child lookup is a server-side predicate (`ScopeId == parentId`, else `Scopes.Contains`, else `Id == parentId`), and the apply step is read-modify-write per child (or `BatchRemove` for hard delete).
+- The outbox sink stores rows in **non-entity internal types** (`ChangeFeedCounterRow`, `ChangeFeedOutboxRow` with `Id`, `Seq`, `Source`, `PayloadJson`). The library's generic document APIs require `T : class` (not `Entity`); the transaction write helpers were relaxed to `where TItem : class` to accommodate them. The row `Id` is the zero-padded sequence (`D20`), and the whole `ChangeFeedRecord` is serialized into `PayloadJson` so no per-field column mapping is needed.
+- The counter is **not CAS-guarded** (that would need per-type `MapVersionProperty`). Sequence gaps are possible under concurrency; a duplicate allocation would collide on the padded `Id` primary key. Acceptable for v1, documented here; tightening it is a Phase 7 candidate.
+
 ### Confirmed working API surface (used and passing in Phases 0–1)
 
 ```csharp

@@ -170,7 +170,7 @@ public partial class DocumentDbRepository : IDisposable
         return matches.Select(entity => entity.Id).ToList();
     }
 
-    protected async Task InsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task InsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : class
     {
         if (transaction is DocumentDbTransaction documentDbTransaction)
         {
@@ -181,7 +181,7 @@ public partial class DocumentDbRepository : IDisposable
         await store.Insert(entity).ConfigureAwait(false);
     }
 
-    protected async Task InsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task InsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : class
     {
         if (transaction is DocumentDbTransaction documentDbTransaction)
         {
@@ -192,7 +192,7 @@ public partial class DocumentDbRepository : IDisposable
         await store.BatchInsert(entities).ConfigureAwait(false);
     }
 
-    protected async Task UpsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task UpsertWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : class
     {
         if (transaction is DocumentDbTransaction documentDbTransaction)
         {
@@ -203,7 +203,7 @@ public partial class DocumentDbRepository : IDisposable
         await store.Upsert(entity).ConfigureAwait(false);
     }
 
-    protected async Task UpsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task UpsertManyWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IReadOnlyList<TItem> entities, CancellationToken cancellationToken) where TItem : class
     {
         if (transaction is DocumentDbTransaction documentDbTransaction)
         {
@@ -218,7 +218,7 @@ public partial class DocumentDbRepository : IDisposable
         await store.BatchUpsert(entities).ConfigureAwait(false);
     }
 
-    protected async Task UpdateWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task UpdateWithTransactionAsync<TItem>(IDatabaseTransaction transaction, TItem entity, CancellationToken cancellationToken) where TItem : class
     {
         if (transaction is DocumentDbTransaction documentDbTransaction)
         {
@@ -229,7 +229,7 @@ public partial class DocumentDbRepository : IDisposable
         await store.Update(entity).ConfigureAwait(false);
     }
 
-    protected async Task RemoveWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IEnumerable<string> ids, CancellationToken cancellationToken) where TItem : Entity
+    protected async Task RemoveWithTransactionAsync<TItem>(IDatabaseTransaction transaction, IEnumerable<string> ids, CancellationToken cancellationToken) where TItem : class
     {
         var idList = ids.ToList();
 
@@ -250,6 +250,15 @@ public partial class DocumentDbRepository : IDisposable
 
         await store.BatchRemove<TItem>(idList).ConfigureAwait(false);
     }
+
+    internal Task InsertCounterAsync(IDatabaseTransaction transaction, ChangeFeed.ChangeFeedCounterRow row, CancellationToken cancellationToken)
+        => InsertWithTransactionAsync(transaction, row, cancellationToken);
+
+    internal Task UpdateCounterAsync(IDatabaseTransaction transaction, ChangeFeed.ChangeFeedCounterRow row, CancellationToken cancellationToken)
+        => UpdateWithTransactionAsync(transaction, row, cancellationToken);
+
+    internal Task InsertOutboxRowAsync(IDatabaseTransaction transaction, ChangeFeed.ChangeFeedOutboxRow row, CancellationToken cancellationToken)
+        => InsertWithTransactionAsync(transaction, row, cancellationToken);
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
