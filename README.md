@@ -5,7 +5,7 @@ Saturn.Data is an experimental .NET data access ecosystem built around shared re
 This repository is organized as a multi-project workspace with:
 - core contracts (`GoLive.Saturn.Data.Abstractions`)
 - entity primitives (`GoLive.Saturn.Data.Entities`)
-- backend providers (`LiteDbX`, `MongoDb`, `Stellar`, `Sqlite`)
+- backend providers (`LiteDbX`, `MongoDb`, `Stellar`, `Sqlite`, `DocumentDb`)
 - serializer support for MongoDB entities
 - shared repository contract tests
 - source-generator tooling projects
@@ -21,6 +21,7 @@ Top-level folders and their primary purpose:
 - `Saturn.Data.MongoDb.EntitySerializers/` - BSON/entity serializer packages for MongoDB integration.
 - `Saturn.Data.Stellar/` - Stellar FastDB-backed repository implementation and tests.
 - `Saturn.Data.Sqlite/` - SQLite JSON-document provider implementation and tests.
+- `Saturn.Data.DocumentDb/` - Shiny.DocumentDb-backed provider (one adapter, every database Shiny.DocumentDb supports) and tests.
 - `Saturn.Data.ChangeTracking/` - optional change tracking runtime, PATCH update documents and tests.
 - `Saturn.Generator.Entities/` - source generator for entities, limited views, DTOs and change tracking, plus tests.
 - `Saturn.Data.Testing.Shared/` - provider-agnostic repository contract test base classes and fixtures.
@@ -47,6 +48,7 @@ Provider libraries then map those contracts to specific backends:
 - `Saturn.Data.MongoDb`
 - `Saturn.Data.Stellar`
 - `Saturn.Data.Sqlite`
+- `Saturn.Data.DocumentDb`
 
 ## Project and package map
 
@@ -66,6 +68,7 @@ Provider libraries then map those contracts to specific backends:
 | `Saturn.Data.MongoDb/Saturn.Data.MongoDb/Saturn.Data.MongoDb.csproj` | `GoLive.Saturn.Data.MongoDb` | MongoDB-backed repository implementation. |
 | `Saturn.Data.Stellar/Saturn.Data.Stellar/Saturn.Data.Stellar.csproj` | `GoLive.Saturn.Data.Stellar` | Stellar FastDB-backed repository implementation. |
 | `Saturn.Data.Sqlite/Saturn.Data.Sqlite/Saturn.Data.Sqlite.csproj` | `GoLive.Saturn.Data.Sqlite` | SQLite JSON-document repository implementation. |
+| `Saturn.Data.DocumentDb/GoLive.Saturn.Data.DocumentDb/GoLive.Saturn.Data.DocumentDb.csproj` | `GoLive.Saturn.Data.DocumentDb` | Shiny.DocumentDb-backed provider for every backend Shiny.DocumentDb supports (PostgreSQL, SQL Server, MySQL/MariaDB, Oracle, CockroachDB, DuckDB, Cosmos DB, Redis, RavenDB, Firestore, Azure Table, DynamoDB, Amazon DocumentDB, IndexedDB, SQLCipher). |
 | `Saturn.Data.ChangeTracking/GoLive.Saturn.Data.ChangeTracking/GoLive.Saturn.Data.ChangeTracking.csproj` | `GoLive.Saturn.Data.ChangeTracking` | Optional change tracking and PATCH update documents. |
 
 ### MongoDB serializer packages
@@ -90,6 +93,7 @@ Provider libraries then map those contracts to specific backends:
 - `Saturn.Data.MongoDb/Saturn.Data.MongoDb.Tests/`
 - `Saturn.Data.Stellar/Saturn.Data.Stellar.Tests/`
 - `Saturn.Data.Sqlite/Saturn.Data.Sqlite.Tests/`
+- `Saturn.Data.DocumentDb/GoLive.Saturn.Data.DocumentDb.Tests/`
 - `Saturn.Data.Testing.Shared/`
 - `Saturn.Data.LiteDbX/Saturn.Data.LiteDbX.Playground/`
 - `Saturn.Generator.Entities/Saturn.Generator.Entities.Playground/`
@@ -144,6 +148,7 @@ dotnet test .\Saturn.Data.MongoDb\Saturn.Data.MongoDb.Tests\Saturn.Data.MongoDb.
 dotnet test .\Saturn.Data.Stellar\Saturn.Data.Stellar.Tests\Saturn.Data.Stellar.Tests.csproj -c Release
 dotnet test .\Saturn.Data.Sqlite\Saturn.Data.Sqlite.Tests\Saturn.Data.Sqlite.Tests.csproj -c Release
 dotnet test .\Saturn.Data.ChangeTracking\GoLive.Saturn.Data.ChangeTracking.Tests\GoLive.Saturn.Data.ChangeTracking.Tests.csproj -c Release
+dotnet test .\Saturn.Data.DocumentDb\GoLive.Saturn.Data.DocumentDb.Tests\GoLive.Saturn.Data.DocumentDb.Tests.csproj -c Release
 dotnet test .\Saturn.Generator.Entities\Saturn.Generator.Entities.Tests\Saturn.Generator.Entities.Tests.csproj -c Release
 ```
 
@@ -151,6 +156,18 @@ Notes:
 - MongoDB tests depend on a reachable local MongoDB instance.
 - LiteDbX and Stellar tests use local filesystem paths in their test fixtures.
 - SQLite tests use a temporary database file per fixture; no external service is required.
+
+### DocumentDb provider notes and limitations
+
+- **Backends.** Use `GoLive.Saturn.Data.DocumentDb` for PostgreSQL, SQL Server, MySQL/MariaDB, Oracle, CockroachDB, DuckDB, Cosmos DB, Redis, RavenDB, Firestore, Azure Table, DynamoDB, Amazon DocumentDB, IndexedDB and SQLCipher. Keep the native providers for **MongoDB** and **LiteDB**. SQLite is also served here while `GoLive.Saturn.Data.Sqlite` is unreleased; switch to the native provider when it ships.
+- The library is referenced as `Shiny.DocumentDb` (core) only; the **consumer** supplies the backend package and an `IDatabaseProvider`.
+- **Not AOT/trim-safe by default** — the provider uses reflection-based serialization because the repository is generic over `TItem : Entity`. A consumer needing AOT must supply `JsonSerializerContext` through `DocumentDbRepositoryOptions`.
+- **Unique and sparse indexes, and `ExpireAfter` (TTL), are not supported** through `EnsureIndexes`; they are reported via `OnUnsupportedIndexOption`. Unique indexes require per-type configuration.
+- **Continuation (`continueFrom`) is not O(log n).** The provider narrows with the server-side predicate, then applies the `Id` bound in memory, because the library's expression language has no string comparison operator. The library's own keyset paging uses an opaque cursor.
+- **Transactions are buffered writes** (`IDocumentSession`); nothing is visible until `SaveChanges`. Backends that report `SupportsTransactions == false` throw from `CreateTransaction`.
+- Predicates the backend cannot translate throw by default; set `UnsupportedPredicateBehaviour.FallbackToClient` to evaluate them in memory (full-collection cost).
+- `Random` is emulated with a count plus a random offset (two round-trips).
+- Azure Table caps a document near 64 KB; DynamoDB caps an item at 400 KB.
 
 ## Build and publish workflow (canonical)
 

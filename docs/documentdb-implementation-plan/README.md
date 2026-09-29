@@ -216,6 +216,14 @@ This is correct but not O(log n) for continuation pages. The library's own keyse
 - The outbox sink stores rows in **non-entity internal types** (`ChangeFeedCounterRow`, `ChangeFeedOutboxRow` with `Id`, `Seq`, `Source`, `PayloadJson`). The library's generic document APIs require `T : class` (not `Entity`); the transaction write helpers were relaxed to `where TItem : class` to accommodate them. The row `Id` is the zero-padded sequence (`D20`), and the whole `ChangeFeedRecord` is serialized into `PayloadJson` so no per-field column mapping is needed.
 - The counter is **not CAS-guarded** (that would need per-type `MapVersionProperty`). Sequence gaps are possible under concurrency; a duplicate allocation would collide on the padded `Id` primary key. Acceptable for v1, documented here; tightening it is a Phase 7 candidate.
 
+### Phase 7 status (hardening)
+
+- **CI gates:** SQLite and DuckDB both run the full contract suite (Basic, Scoped, ComprehensiveScoped, Cascade, ChangeFeed, ChangeFeedPoller). LiteDB and MongoDB are intentionally not covered by this adapter (native providers own them).
+- **DuckDB test parallelism:** the DuckDB classes are pinned to an xUnit collection with `DisableParallelization = true`. On the very first run the DuckDB native library load raced when every fixture initialised concurrently and 41 tests failed instantly; after the native lib was cached they passed. Serialising the collection makes that deterministic. Expect the same class of first-load race for any new embedded native backend.
+- **Package:** `GoLive.Saturn.Data.DocumentDb.7.0.0.nupkg` builds with `GeneratePackageOnBuild`; the test project is `IsPackable=false`, so the publish pipeline will pack only the library.
+- **Release build:** `dotnet build Saturn.Data.slnx -c Release` succeeds with 0 errors.
+- **Deferred:** atomic `ExecuteUpdate` patch fast path, unique-index support via per-type `Mappings`, CAS-guarded change-feed counter, native change-feed adapter, and per-backend capability validation for the container/cloud backends.
+
 ### Confirmed working API surface (used and passing in Phases 0–1)
 
 ```csharp
