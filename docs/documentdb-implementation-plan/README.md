@@ -197,6 +197,11 @@ Consequence for `continueFrom`: Phase 2 implements it as *server-side predicate 
 
 This is correct but not O(log n) for continuation pages. The library's own keyset paging (`ToCursorPage`) is opaque-cursor based and cannot be driven by our Id token. If continuation over very large sets becomes a problem, the options are: expose an opt-in `ToCursorPage` mode with an opaque cursor on a new API, or drop `continueFrom` in favour of it. Recorded as a known limitation in Phase 7's README task.
 
+### Index creation and mutation strategy (Phases 4)
+
+- `CreateIndexAsync<T>(JsonTypeInfo<T>, IEnumerable<Expression<Func<T, object>>>)` lives on the **concrete `DocumentStore`**, not on `IDocumentStore`. `EnsureIndexes` resolves it by reflection on the runtime store type, supplies the `JsonTypeInfo<T>` from `Serializer.JsonOptions.GetTypeInfo(typeof(T))`, and reports through `OnUnsupportedIndexOption` when it is unavailable. Unique and sparse indexes, and `ExpireAfter`, are reported unsupported (unique is per-type config via `Mappings`).
+- `Patch` and `Increment` are **version-checked read-modify-write** (`Get` → validate `Version` → mutate → `Update` with an incremented `Version`), which is correct on every backend. The atomic fast path exists — `IDocumentQuery<T>.ExecuteUpdate(Expression<Func<T,object>>, object, ct)` sets one field server-side — and is the Phase 7 optimization for `$set`-only patches with no version check.
+
 ### Confirmed working API surface (used and passing in Phases 0–1)
 
 ```csharp

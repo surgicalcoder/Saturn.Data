@@ -186,9 +186,10 @@ public partial class DocumentDbRepository : IReadonlyRepository
             return AsyncEnumerableFactory.From(Array.Empty<TItem>(), cancellationToken);
         }
 
-        var maxSkip = (int)Math.Max(0, Math.Min(total - 1, int.MaxValue - 1));
+        var wanted = (int)Math.Min(count, total);
+        var maxSkip = (int)Math.Min(total - wanted, int.MaxValue);
         var skip = System.Random.Shared.Next(0, maxSkip + 1);
-        var list = await QueryRunner.ExecuteAsync(effective, null, false, skip, count, cancellationToken).ConfigureAwait(false);
+        var list = await QueryRunner.ExecuteAsync(effective, null, false, skip, wanted, cancellationToken).ConfigureAwait(false);
 
         return AsyncEnumerableFactory.From(list, cancellationToken);
     }
