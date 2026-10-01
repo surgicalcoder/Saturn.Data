@@ -79,6 +79,27 @@ public class UpdateDocumentBuilderTests
         Assert.Equal("{}", UpdateDocumentBuilder.Build(Array.Empty<FieldChange>()));
     }
 
+    [Fact]
+    public void ReadOnly_Excluded_By_Default()
+    {
+        var document = UpdateDocumentBuilder.Build(new[]
+        {
+            new FieldChange { Path = "CreatedBy", Kind = ChangeKind.Set, NewValue = "system", Visibility = ChangeVisibility.ReadOnly }
+        });
+
+        Assert.DoesNotContain("CreatedBy", document);
+    }
+
+    [Fact]
+    public void ReadOnly_Included_When_Filter_Allows()
+    {
+        var document = UpdateDocumentBuilder.Build(
+            new[] { new FieldChange { Path = "CreatedBy", Kind = ChangeKind.Set, NewValue = "system", Visibility = ChangeVisibility.ReadOnly } },
+            new VisibilityChangeSetFilter { IncludeReadOnly = true });
+
+        Assert.Equal("system", ReadSet(document, "CreatedBy"));
+    }
+
     private static string? ReadSet(string document, string path)
     {
         using var parsed = JsonDocument.Parse(document);

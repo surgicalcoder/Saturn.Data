@@ -17,7 +17,7 @@ public partial class LiteDbRepository : IReadonlyRepository
     {
         var item = await GetCollection<TItem>().FindById(id, cancellationToken);
 
-        if (includeDeleted || item == null || item is not ISoftDeletable deletable || !deletable.IsDeleted)
+        if (includeDeleted || item is not ISoftDeletable { IsDeleted: true })
         {
             return item;
         }

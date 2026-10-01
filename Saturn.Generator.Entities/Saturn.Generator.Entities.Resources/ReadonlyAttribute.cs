@@ -2,5 +2,5 @@
 
 namespace GoLive.Saturn.Generator.Entities.Resources;
 
-[AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
 public class ReadonlyAttribute : Attribute { }

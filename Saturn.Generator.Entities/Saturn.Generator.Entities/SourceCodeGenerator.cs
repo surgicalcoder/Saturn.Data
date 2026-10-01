@@ -578,6 +578,18 @@ public static class SourceCodeGenerator
         return false;
     }
 
+    private static bool IsReferenceType(ITypeSymbol type)
+    {
+        var definition = type?.OriginalDefinition.ToString();
+
+        return definition == "GoLive.Saturn.Data.Entities.Ref<T>" || definition == "GoLive.Saturn.Data.Entities.WeakRef<T>";
+    }
+
+    private static bool ShouldWireChildTracking(MemberToGenerate item, ClassToGenerate classToGen)
+        => classToGen.TrackChanges
+           && !item.DoNotTrackChanges
+           && (item.IsEmbedded || (classToGen.TrackRefItem && IsReferenceType(item.Type)));
+
     internal static string RenderType(ITypeSymbol type)
     {
         if (type is null)
@@ -890,6 +902,33 @@ OnPropertyChanged(nameof({item.Name.FirstCharToUpper()}));";
             SetField(ref this.{itemName}, value);
             {itemName}_runAfterSet({runAfterSetArgument});
         }}");
+            }
+            else if (ShouldWireChildTracking(item, classToGen))
+            {
+                var propertyName = itemName.FirstCharToUpper();
+                var isReference = IsReferenceType(item.Type);
+                var previousItem = isReference ? $"this.{itemName}?.Item" : $"this.{itemName}";
+                var valueItem = isReference ? "value?.Item" : "value";
+
+                source.AppendLine("set");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine($"var previousItem = {previousItem};");
+                source.AppendLine($"var valueItem = {valueItem};");
+                source.AppendLine("if (!global::System.Object.ReferenceEquals(previousItem, valueItem))");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("if (previousItem is global::GoLive.Saturn.Data.ChangeTracking.ITrackable previousTrackable)");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("previousTrackable.ChangeTrackingParent = null;");
+                source.AppendLine("previousTrackable.ChangeTrackingPathSegment = null;");
+                source.AppendCloseCurlyBracketLine();
+                source.AppendLine("if (valueItem is global::GoLive.Saturn.Data.ChangeTracking.ITrackable valueTrackable)");
+                source.AppendOpenCurlyBracketLine();
+                source.AppendLine("valueTrackable.ChangeTrackingParent = this;");
+                source.AppendLine($"valueTrackable.ChangeTrackingPathSegment = nameof({propertyName});");
+                source.AppendCloseCurlyBracketLine();
+                source.AppendCloseCurlyBracketLine();
+                source.AppendLine($"SetField(ref this.{itemName}, value);");
+                source.AppendCloseCurlyBracketLine();
             }
             else
             {

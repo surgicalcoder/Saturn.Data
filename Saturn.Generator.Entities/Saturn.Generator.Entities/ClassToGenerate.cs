@@ -34,6 +34,7 @@ public class ClassToGenerate
     public bool TrackChanges { get; set; }
     public bool NoChangeTracking { get; set; }
     public int TrackingMode { get; set; }
+    public bool TrackingModeExplicit { get; set; }
     public bool TrackRefItem { get; set; }
 
     /// <summary>

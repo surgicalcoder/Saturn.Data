@@ -43,8 +43,9 @@ public static class DtoGenerator
                 var elementReference = TryGetReferenceTarget(element, out var referenceTarget);
                 var elementDto = elementReference ? ResolveDto(referenceTarget, knownDtos) : ResolveDto(element, knownDtos);
 
+                var expandElementRef = expandRefs || member.IsEmbedded;
                 var dtoElement = elementReference
-                    ? (expandRefs ? (elementDto ?? SourceCodeGenerator.RenderType(referenceTarget)) : "string?")
+                    ? (expandElementRef ? (elementDto ?? SourceCodeGenerator.RenderType(referenceTarget)) : "string?")
                     : (elementDto ?? SourceCodeGenerator.RenderType(element));
 
                 members.Add(new DtoMember
@@ -56,7 +57,8 @@ public static class DtoGenerator
                     ElementType = element,
                     ReferenceTarget = referenceTarget,
                     DtoType = $"List<{dtoElement}>",
-                    ElementDtoType = elementReference && !expandRefs ? null : elementDto,
+                    ElementDtoType = elementReference && !expandElementRef ? null : elementDto,
+                    ExpandedRef = expandElementRef,
                     Projectable = false
                 });
 
@@ -66,6 +68,7 @@ public static class DtoGenerator
             if (TryGetReferenceTarget(member.Type, out var target))
             {
                 var targetDto = ResolveDto(target, knownDtos);
+                var expandMemberRef = expandRefs || member.IsEmbedded;
 
                 members.Add(new DtoMember
                 {
@@ -73,11 +76,11 @@ public static class DtoGenerator
                     Name = name,
                     IsReference = true,
                     ReferenceTarget = target,
-                    ExpandedRef = expandRefs,
+                    ExpandedRef = expandMemberRef,
                     ExpandedRefEntityType = SourceCodeGenerator.RenderType(target),
                     NestedDtoType = targetDto,
-                    DtoType = expandRefs ? (targetDto is null ? SourceCodeGenerator.RenderType(target) : targetDto) : "string?",
-                    Projectable = !expandRefs
+                    DtoType = expandMemberRef ? (targetDto is null ? SourceCodeGenerator.RenderType(target) : targetDto) : "string?",
+                    Projectable = !expandMemberRef
                 });
 
                 continue;
@@ -261,7 +264,7 @@ public static class DtoGenerator
                     ElementTypeText = member.IsCollection ? ElementDtoType(member) : null,
                     Visibility = member.Source.WriteOnly ? "WriteOnly" : member.Source.ReadOnly ? "ReadOnly" : "ReadWrite"
                 })
-                .ToList());
+                .ToList(), TrackingGenerator.ModeName(classToGen));
         }
 
         source.AppendCloseCurlyBracketLine();

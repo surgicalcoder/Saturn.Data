@@ -11,6 +11,8 @@ public sealed class VisibilityChangeSetFilter : IChangeSetFilter
 
     public bool IncludeServerManaged { get; set; }
 
+    public bool IncludeReadOnly { get; set; }
+
     public FieldChange? Filter(FieldChange change)
     {
         if (change.Visibility == ChangeVisibility.WriteOnly && !IncludeWriteOnly)
@@ -19,6 +21,11 @@ public sealed class VisibilityChangeSetFilter : IChangeSetFilter
         }
 
         if (change.Visibility == ChangeVisibility.ServerManaged && !IncludeServerManaged)
+        {
+            return null;
+        }
+
+        if (change.Visibility == ChangeVisibility.ReadOnly && !IncludeReadOnly)
         {
             return null;
         }

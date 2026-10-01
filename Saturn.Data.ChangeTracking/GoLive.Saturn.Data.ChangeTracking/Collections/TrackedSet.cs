@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 
 namespace GoLive.Saturn.Data.ChangeTracking;
 
@@ -62,9 +63,23 @@ public sealed class TrackedSet<T> : ISet<T>, IReadOnlyCollection<T>
 
     public void CopyTo(T[] array, int arrayIndex) => inner.CopyTo(array, arrayIndex);
 
-    public void ExceptWith(IEnumerable<T> other) => inner.ExceptWith(other);
+    public void ExceptWith(IEnumerable<T> other)
+    {
+        foreach (var item in other.ToList())
+        {
+            Remove(item);
+        }
+    }
 
-    public void IntersectWith(IEnumerable<T> other) => inner.IntersectWith(other);
+    public void IntersectWith(IEnumerable<T> other)
+    {
+        var keep = new HashSet<T>(other);
+
+        foreach (var item in inner.Where(item => !keep.Contains(item)).ToList())
+        {
+            Remove(item);
+        }
+    }
 
     public bool IsProperSubsetOf(IEnumerable<T> other) => inner.IsProperSubsetOf(other);
 
@@ -78,9 +93,28 @@ public sealed class TrackedSet<T> : ISet<T>, IReadOnlyCollection<T>
 
     public bool SetEquals(IEnumerable<T> other) => inner.SetEquals(other);
 
-    public void SymmetricExceptWith(IEnumerable<T> other) => inner.SymmetricExceptWith(other);
+    public void SymmetricExceptWith(IEnumerable<T> other)
+    {
+        foreach (var item in new HashSet<T>(other))
+        {
+            if (inner.Contains(item))
+            {
+                Remove(item);
+            }
+            else
+            {
+                Add(item);
+            }
+        }
+    }
 
-    public void UnionWith(IEnumerable<T> other) => inner.UnionWith(other);
+    public void UnionWith(IEnumerable<T> other)
+    {
+        foreach (var item in other.ToList())
+        {
+            Add(item);
+        }
+    }
 
     public IEnumerator<T> GetEnumerator() => inner.GetEnumerator();
 

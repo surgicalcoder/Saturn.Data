@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using Microsoft.Data.Sqlite;
@@ -90,6 +91,11 @@ public partial class SqliteRepository
             throw new ArgumentException("Patch JSON must be an object.", nameof(jsonDocument));
         }
 
+        if (root.TryGetProperty("$addToSet", out _) || root.TryGetProperty("$pull", out _))
+        {
+            return await ExecuteSetOperationPatchAsync<TItem>(connection, id, expectedVersion, root.GetRawText(), cancellationToken).ConfigureAwait(false);
+        }
+
         var parameters = new List<SqliteParameter>();
         var current = BuildPatchExpression(root, parameters);
         var table = Quote(GetCollectionNameForType<TItem>());
@@ -117,6 +123,56 @@ public partial class SqliteRepository
         foreach (var parameter in parameters)
         {
             command.Parameters.Add(parameter);
+        }
+
+        return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<int> ExecuteSetOperationPatchAsync<TItem>(SqliteConnection connection, string id, long? expectedVersion, string jsonDocument,
+        CancellationToken cancellationToken) where TItem : Entity
+    {
+        var existing = await ReadDocumentAsync<TItem>(connection, id, cancellationToken).ConfigureAwait(false);
+
+        if (existing is null)
+        {
+            return 0;
+        }
+
+        if (expectedVersion.HasValue && existing.Version != expectedVersion.Value)
+        {
+            return 0;
+        }
+
+        if (JsonNode.Parse(serializer.Serialize(existing)) is not JsonObject document || JsonNode.Parse(jsonDocument) is not JsonObject patch)
+        {
+            throw new ArgumentException("Patch JSON must be an object.", nameof(jsonDocument));
+        }
+
+        JsonPatchDocument.Apply(document, patch);
+
+        var updated = document.Deserialize<TItem>() ?? throw new ApplicationException("Deserialization failed.");
+        updated.Id = id;
+        updated.Version = (existing.Version ?? 0) + 1;
+
+        var versionFilter = expectedVersion.HasValue ? " AND COALESCE(_v,0) = @expectedVersion" : string.Empty;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            UPDATE {Quote(GetCollectionNameForType<TItem>())}
+            SET _doc = @doc,
+                _v = json_extract(@doc,'$.Version'),
+                _deleted = COALESCE(json_extract(@doc,'$.IsDeleted'),0),
+                _scope = json_extract(@doc,'$.Scope'),
+                _scope2 = json_extract(@doc,'$.SecondScope'),
+                _archived = COALESCE(json_extract(@doc,'$.IsArchived'),0)
+            WHERE _id = @id{versionFilter};
+            """;
+        command.Parameters.AddWithValue("@id", id);
+        command.Parameters.AddWithValue("@doc", serializer.Serialize(updated));
+
+        if (expectedVersion.HasValue)
+        {
+            command.Parameters.AddWithValue("@expectedVersion", expectedVersion.Value);
         }
 
         return await command.ExecuteNonQueryWithRetryAsync(sqliteOptions, cancellationToken).ConfigureAwait(false);
@@ -192,7 +248,27 @@ public partial class SqliteRepository
     }
 
     private static string BuildJsonPath(string key)
-        => key.All(character => char.IsLetterOrDigit(character) || character == '_') ? $"$.{key}" : $"$.\"{key}\"";
+    {
+        var builder = new System.Text.StringBuilder("$");
+
+        foreach (var segment in key.Split('.'))
+        {
+            if (int.TryParse(segment, out var index))
+            {
+                builder.Append('[').Append(index).Append(']');
+            }
+            else if (segment.Length > 0 && segment.All(character => char.IsLetterOrDigit(character) || character == '_'))
+            {
+                builder.Append('.').Append(segment);
+            }
+            else
+            {
+                builder.Append(".\"").Append(segment).Append('"');
+            }
+        }
+
+        return builder.ToString();
+    }
 
     private async Task<int> ExecuteUpdateDefinitionPatchAsync<TItem>(SqliteConnection connection, string id, long? expectedVersion,
         IDataUpdateDefinition<TItem> updateDefinition, CancellationToken cancellationToken) where TItem : Entity

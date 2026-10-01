@@ -26,6 +26,8 @@ public sealed class ChangeTracker
 
     public IChangeTrackingObserver? Observer { get; set; }
 
+    public ChangeTrackingMode Mode { get; set; } = ChangeTrackingMode.JournalWithBaseline;
+
     public void Begin(ITrackable owner, bool acceptCurrentState)
     {
         journal.Clear();
@@ -63,8 +65,12 @@ public sealed class ChangeTracker
 
     public EntityChangeSet Build(ITrackable owner)
     {
-        var fields = journal.ToList();
-        fields.AddRange(owner.ComputeBaselineDiff());
+        var fields = Mode switch
+        {
+            ChangeTrackingMode.Journal => journal.ToList(),
+            ChangeTrackingMode.Baseline => owner.ComputeBaselineDiff().ToList(),
+            _ => MergeJournalWithBaseline(owner)
+        };
 
         Observer?.OnChangeSetCaptured(owner.GetType().Name, fields.Count, fields.Count(change => change.Visibility == ChangeVisibility.WriteOnly));
 
@@ -76,6 +82,22 @@ public sealed class ChangeTracker
             CapturedAtUtc = DateTimeOffset.UtcNow,
             Fields = fields
         };
+    }
+
+    private List<FieldChange> MergeJournalWithBaseline(ITrackable owner)
+    {
+        var fields = journal.ToList();
+        var known = new HashSet<string>(fields.Select(change => change.Path), StringComparer.Ordinal);
+
+        foreach (var change in owner.ComputeBaselineDiff())
+        {
+            if (known.Add(change.Path))
+            {
+                fields.Add(change);
+            }
+        }
+
+        return fields;
     }
 
     public void CaptureValue(string memberName, object? value) => baselineValues[memberName] = value;

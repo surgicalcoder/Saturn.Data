@@ -126,7 +126,6 @@ public static class Scanner
         }
 
         retr.DtoName ??= $"{retr.Name}Dto";
-        retr.DtoAlreadyExists = DtoTypeExists(input.symbol, retr.Namespace, retr.DtoName);
 
         retr.NoChangeTracking = input.symbol.GetAttributes().Any(e => e.AttributeClass?.ToString() == ATTRIBUTE_NoChangeTracking);
 
@@ -142,6 +141,7 @@ public static class Scanner
                 {
                     case "Mode":
                         retr.TrackingMode = named.Value.Value is int mode ? mode : 0;
+                        retr.TrackingModeExplicit = true;
                         break;
                     case "TrackRefItemChanges":
                         retr.TrackRefItem = named.Value.Value is bool trackRefItem && trackRefItem;
@@ -588,26 +588,6 @@ public static class Scanner
     private static bool AttributeExists(ImmutableArray<AttributeData> attr, string AttributeName)
     {
         return attr.Any(e => e.AttributeClass?.ToString() == AttributeName);
-    }
-
-    private static bool DtoTypeExists(INamedTypeSymbol classSymbol, string namespaceName, string dtoName)
-    {
-        var metadataName = string.IsNullOrWhiteSpace(namespaceName) ? dtoName : $"{namespaceName}.{dtoName}";
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (assembly.IsDynamic)
-            {
-                continue;
-            }
-
-            if (assembly.GetType(metadataName) is not null && assembly != typeof(object).Assembly)
-            {
-                return true;
-            }
-        }
-
-        return classSymbol.ContainingAssembly.GetTypeByMetadataName(metadataName) is not null;
     }
 
     private static bool IsCopyableAttribute(INamedTypeSymbol attributeClass)

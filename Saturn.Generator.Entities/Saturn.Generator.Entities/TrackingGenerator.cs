@@ -54,17 +54,36 @@ public static class TrackingGenerator
     };
 
     public static void EmitEntityTracking(SourceStringBuilder source, ClassToGenerate classToGen)
-        => Emit(source, FromClass(classToGen), isEntity: true);
+        => Emit(source, FromClass(classToGen), isEntity: true, mode: ModeName(classToGen));
 
-    public static void EmitDtoTracking(SourceStringBuilder source, IReadOnlyList<TrackedMember> members)
-        => Emit(source, members, isEntity: false);
+    public static void EmitDtoTracking(SourceStringBuilder source, IReadOnlyList<TrackedMember> members, string mode)
+        => Emit(source, members, isEntity: false, mode: mode);
 
-    private static void Emit(SourceStringBuilder source, IReadOnlyList<TrackedMember> members, bool isEntity)
+    internal static string ModeName(ClassToGenerate classToGen)
+    {
+        if (classToGen.TrackingModeExplicit)
+        {
+            return classToGen.TrackingMode switch
+            {
+                1 => "Baseline",
+                2 => "JournalWithBaseline",
+                _ => "Journal"
+            };
+        }
+
+        var hasPlainCollections = classToGen.Members.Any(member => member.PlainCollectionKind != 0 && !member.InstrumentCollection);
+
+        return hasPlainCollections ? "JournalWithBaseline" : "Journal";
+    }
+
+    private static void Emit(SourceStringBuilder source, IReadOnlyList<TrackedMember> members, bool isEntity, string mode)
     {
         var tracked = members.Where(member => !member.NoTracking).ToList();
+        var capturable = tracked.Where(member => member.Visibility != "WriteOnly").ToList();
+        var restorable = capturable.Where(member => member.Visibility != "ReadOnly").ToList();
 
         source.AppendLine(2);
-        source.AppendLine($"private readonly {TrackingNamespace}.ChangeTracker tracker = new();");
+        source.AppendLine($"private readonly {TrackingNamespace}.ChangeTracker tracker = new() {{ Mode = {TrackingNamespace}.ChangeTrackingMode.{mode} }};");
         source.AppendLine("private object changeTrackingParent;");
         source.AppendLine("private string changeTrackingPathSegment;");
         source.AppendLine();
@@ -108,7 +127,7 @@ public static class TrackingGenerator
         source.AppendLine("public void CaptureBaseline()");
         source.AppendOpenCurlyBracketLine();
 
-        foreach (var member in tracked)
+        foreach (var member in capturable)
         {
             source.AppendLine($"tracker.CaptureValue(\"{member.Name}\", {CaptureExpression(member)});");
         }
@@ -119,7 +138,7 @@ public static class TrackingGenerator
         source.AppendLine("public void RestoreBaseline()");
         source.AppendOpenCurlyBracketLine();
 
-        foreach (var member in tracked)
+        foreach (var member in restorable)
         {
             source.AppendLine(RestoreStatement(member));
         }
@@ -130,23 +149,23 @@ public static class TrackingGenerator
         source.AppendLine($"public IEnumerable<{TrackingNamespace}.FieldChange> ComputeBaselineDiff()");
         source.AppendOpenCurlyBracketLine();
 
-        var plainCollections = tracked.Where(member => member.PlainCollectionKind != 0 && !member.Instrumented).ToList();
-
-        if (plainCollections.Count == 0)
+        foreach (var member in capturable.Where(member => !member.IsCollection && member.PlainCollectionKind == 0))
         {
-            source.AppendLine("yield break;");
+            source.AppendLine($"if (!global::System.Object.Equals(tracker.BaselineValue(\"{member.Name}\"), {member.Name}))");
+            source.AppendOpenCurlyBracketLine();
+            source.AppendLine($"yield return new {TrackingNamespace}.FieldChange {{ Path = \"{member.Name}\", Kind = {TrackingNamespace}.ChangeKind.Set, OldValue = tracker.BaselineValue(\"{member.Name}\"), NewValue = {member.Name} }};");
+            source.AppendCloseCurlyBracketLine();
         }
-        else
+
+        foreach (var member in capturable.Where(member => member.PlainCollectionKind != 0 && !member.Instrumented))
         {
-            foreach (var member in plainCollections)
+            foreach (var line in BaselineDiffLines(member))
             {
-                foreach (var line in BaselineDiffLines(member))
-                {
-                    source.AppendLine(line);
-                }
+                source.AppendLine(line);
             }
         }
 
+        source.AppendLine("yield break;");
         source.AppendCloseCurlyBracketLine();
 
         source.AppendLine();

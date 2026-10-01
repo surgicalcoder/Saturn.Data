@@ -86,6 +86,59 @@ public class CollectionInstrumentationTests
     }
 
     [Fact]
+    public void TrackedSet_UnionWith_Raises_Adds_Only_For_New_Items()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add) { "a" };
+
+        changes.Clear();
+        set.UnionWith(new[] { "a", "b", "c" });
+
+        Assert.Equal(2, changes.Count);
+        Assert.All(changes, change => Assert.Equal(ChangeKind.ListAdd, change.Kind));
+    }
+
+    [Fact]
+    public void TrackedSet_ExceptWith_Raises_Removes()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add) { "a", "b", "c" };
+
+        changes.Clear();
+        set.ExceptWith(new[] { "a", "z" });
+
+        var change = Assert.Single(changes);
+        Assert.Equal(ChangeKind.ListRemove, change.Kind);
+        Assert.Equal("a", change.OldValue);
+    }
+
+    [Fact]
+    public void TrackedSet_IntersectWith_Raises_Removes()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add) { "a", "b", "c" };
+
+        changes.Clear();
+        set.IntersectWith(new[] { "b" });
+
+        Assert.Equal(2, changes.Count);
+        Assert.All(changes, change => Assert.Equal(ChangeKind.ListRemove, change.Kind));
+    }
+
+    [Fact]
+    public void TrackedSet_SymmetricExceptWith_Toggles_Membership()
+    {
+        var changes = new List<TrackedCollectionChange<string>>();
+        var set = new TrackedSet<string>(changes.Add) { "a", "b" };
+
+        changes.Clear();
+        set.SymmetricExceptWith(new[] { "b", "c" });
+
+        Assert.Contains(changes, change => change.Kind == ChangeKind.ListRemove && Equals(change.OldValue, "b"));
+        Assert.Contains(changes, change => change.Kind == ChangeKind.ListAdd && Equals(change.NewValue, "c"));
+    }
+
+    [Fact]
     public void CollectionDiff_ListEqual_Is_Positional()
     {
         Assert.True(CollectionDiff.ListEqual(new List<string> { "a", "b" }, new List<string> { "a", "b" }, StringComparer.Ordinal));

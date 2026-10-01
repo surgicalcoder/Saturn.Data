@@ -62,14 +62,19 @@ public class SaturnGenerator : IIncrementalGenerator
             GenerateDtosByDefault: provider.GlobalOptions.TryGetValue("build_property.SaturnGenerateDtos", out var dtos) && bool.TryParse(dtos, out var dtosEnabled) && dtosEnabled,
             TrackChangesByDefault: provider.GlobalOptions.TryGetValue("build_property.SaturnChangeTracking", out var tracking) && bool.TryParse(tracking, out var trackingEnabled) && trackingEnabled));
 
-        context.RegisterSourceOutput(classDeclarations.Collect().Combine(options),
-            static (spc, source) => Execute(spc, source.Left, source.Right));
+        var input = classDeclarations.Collect().Combine(options).Combine(context.CompilationProvider);
+
+        context.RegisterSourceOutput(input,
+            static (spc, source) => Execute(spc, source.Left.Left, source.Left.Right, source.Right));
     }
 
-    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate, (bool GenerateDtosByDefault, bool TrackChangesByDefault) options)
+    private static void Execute(SourceProductionContext spc, ImmutableArray<ClassToGenerate> classesToGenerate, (bool GenerateDtosByDefault, bool TrackChangesByDefault) options, Compilation compilation)
     {
         foreach (var toGenerate in classesToGenerate)
         {
+            var dtoMetadataName = string.IsNullOrWhiteSpace(toGenerate.Namespace) ? toGenerate.DtoName : $"{toGenerate.Namespace}.{toGenerate.DtoName}";
+            toGenerate.DtoAlreadyExists = !string.IsNullOrWhiteSpace(dtoMetadataName) && compilation.GetTypeByMetadataName(dtoMetadataName) is not null;
+
             toGenerate.GenerateDto = (toGenerate.GenerateDto || (options.GenerateDtosByDefault && !toGenerate.NoGenerateDto)) && !toGenerate.DtoAlreadyExists;
             toGenerate.TrackChanges = toGenerate.TrackChanges || (options.TrackChangesByDefault && !toGenerate.NoChangeTracking);
 
