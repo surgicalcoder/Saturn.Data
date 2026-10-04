@@ -19,8 +19,8 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 | 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | done |
 | 4 | DocumentDb adapter | done (in-place only) |
-| 5 | Stellar decision + CLI | in_progress |
-| 6 | Hardening + docs | pending |
+| 5 | Stellar decision + CLI | done (Stellar 3a; CLI deferred) |
+| 6 | Hardening + docs | in_progress |
 
 ## Resume notes
 
@@ -120,4 +120,17 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 5: Stellar — explicit unsupported `IMigrationStoreSource` (tier 3a) with actionable error; optional CLI.
+
+## Phase 5 log
+
+### Delivered
+- `StellarRepository : IMigrationStoreSource`; `CreateMigrationStore()` throws an actionable `NotSupportedException` (tier 3a).
+- `Phase5MigrationTests` asserts the message.
+
+### Deferred
+- Provider-agnostic CLI migrator (arg parsing + provider factory + repository construction). The Appendix C Saturn `Program.cs` remains the reference implementation.
+
+### Next
+- Phase 6: authoring/DI polish, docs, and the deferred engine operations (`RepairReference`, backup cleanup, duplicate-id detection, index replay, alias map).
+
 

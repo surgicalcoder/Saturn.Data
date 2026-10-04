@@ -896,7 +896,7 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | done |
 | 4 | DocumentDb adapter | done (in-place only) |
-| 5 | Stellar decision + CLI | pending |
+| 5 | Stellar decision + CLI | done (Stellar 3a; CLI deferred) |
 | 6 | Hardening + docs | pending |
 
 ### Phase 0 checklist
@@ -947,6 +947,14 @@ Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migra
 - [ ] Automated end-to-end test — **deferred**: raw `QueryStream` streaming did not complete reliably in the test host; adapter compiles and existing DocumentDb smoke suite is green, but raw migration behavior is unverified here.
 
 DocumentDb therefore lands as **Tier 2 in-place only** for now (proposal §8.2), not the full re-tag rebuild.
+
+### Phase 5 checklist
+
+- [x] Stellar decision **3a**: `StellarRepository` implements `IMigrationStoreSource`; `CreateMigrationStore()` throws an actionable `NotSupportedException` (typed MessagePack, no document lane, no rename/tx/index). Test asserts the message.
+- [ ] Provider-agnostic CLI migrator — **deferred** (Phase 6/backlog). The ported `Program.cs` example in Appendix C remains the reference.
+
+
+
 
 
 

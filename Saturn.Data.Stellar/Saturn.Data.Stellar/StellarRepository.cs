@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using GoLive.Saturn.Data.Migrations;
 using MessagePack;
 using MessagePack.Resolvers;
 using Saturn.Data.Stellar.Resolvers;
@@ -10,7 +11,7 @@ using Stellar.Collections;
 
 namespace Saturn.Data.Stellar;
 
-public partial class StellarRepository : IAsyncDisposable
+public partial class StellarRepository : IAsyncDisposable, IMigrationStoreSource
 {
     protected FastDB database;
     public StellarRepository(RepositoryOptions repositoryOptions, StellarRepositoryOptions databaseOptions)
@@ -39,7 +40,13 @@ public partial class StellarRepository : IAsyncDisposable
         };
         database = new FastDB(fastDbOptions);
     }
-    
+
+    public IMigrationStore CreateMigrationStore()
+        => throw new NotSupportedException(
+            "Stellar (FastDB) does not support raw-document migrations. Documents are stored as typed MessagePack values keyed by EntityId, " +
+            "there is no JSON/CLR document lane, and FastDB exposes no collection rename, transactions or index enumeration. " +
+            "Repair Stellar data with entity-typed code instead.");
+
     protected virtual string GetCollectionNameForType<T>()
     {
         return typeNameCache.GetOrAdd(typeof(T).FullName, s => options.GetCollectionName.Invoke(typeof(T)));
