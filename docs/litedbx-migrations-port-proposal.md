@@ -893,7 +893,7 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | --- | --- | --- |
 | 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
 | 1 | LiteDbX adapter + parity | done |
-| 2 | MongoDb adapter | pending |
+| 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | pending |
 | 4 | DocumentDb adapter | pending |
 | 5 | Stellar decision + CLI | pending |
@@ -921,6 +921,16 @@ Deferred within Phase 0 (tracked in worklog): `RepairReference`/`InsertDocumentW
 - [x] Full LiteDbX suite green (60/60).
 
 Note: LiteDbX exposes async storage APIs (`ValueTask`, `IAsyncEnumerable`); the adapter awaits them. `CollectionExists` is bridged synchronously (single lightweight call).
+
+### Phase 2 checklist
+
+- [x] `MongoMigrationStore` + `MongoMigrationCollection` in `Saturn.Data.MongoDb` (BSON⇄`MigrationObject` converter, `_id` ObjectId, driver rename/drop, index enumeration).
+- [x] `IMigrationStoreSource` on `MongoDbRepository`.
+- [x] End-to-end test on real MongoDB: legacy string `_id`/`Scope` → ObjectId, empty `Properties` + null `Payload` removed, rebuild/swap + journal.
+- [x] Full MongoDb suite green (107/107).
+
+Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migrations currently target provider-physical names (§7.3).
+
 
 
 

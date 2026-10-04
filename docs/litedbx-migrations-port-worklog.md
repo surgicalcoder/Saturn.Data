@@ -16,8 +16,8 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 | --- | --- | --- |
 | 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
 | 1 | LiteDbX adapter + parity | done |
-| 2 | MongoDb adapter | in_progress |
-| 3 | Sqlite adapter | pending |
+| 2 | MongoDb adapter | done |
+| 3 | Sqlite adapter | in_progress |
 | 4 | DocumentDb adapter | pending |
 | 5 | Stellar decision + CLI | pending |
 | 6 | Hardening + docs | pending |
@@ -73,4 +73,21 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 2: `MongoMigrationStore` in `Saturn.Data.MongoDb` + `IMigrationStoreSource` on `MongoDbRepository`; native `_id` ObjectId, `_p`/`_v` aliases, driver rename/drop, index enumeration.
+
+## Phase 2 log
+
+### Delivered
+- `Saturn.Data.MongoDb/Migrations/MongoBsonConverter.cs` — `MongoDB.Bson` ⇄ `MigrationObject` (ObjectId, Decimal128, BsonBinary/Guid, MinKey/MaxKey).
+- `Saturn.Data.MongoDb/Migrations/MongoMigrationStore.cs` — `MongoMigrationStore` + `MongoMigrationCollection` (ListCollectionNames, RenameCollectionAsync, DropCollectionAsync, cursor-based scan with `IsDeleted != true` filter, index enumeration via `Indexes.List`).
+- `MongoDbRepository` implements `IMigrationStoreSource`.
+- `Phase2MigrationTests` on real MongoDB passes; full suite 107/107.
+
+### Gotchas
+- Mongo `BsonValue` binary is `BsonBinaryData` (not `byte[]`); converter uses `AsByteArray`; Guid is UuidStandard binary and mapped via `AsGuid`.
+- `BsonType.Decimal128` ⇄ `decimal`.
+- Include-deleted scan uses `Filter.Ne("IsDeleted", true)` so missing flags are visible (matches F1 semantics).
+- Field aliasing (`_p`/`_v`) not applied; definitions use physical names for now.
+
+### Next
+- Phase 3: `SqliteMigrationStore` in `Saturn.Data.Sqlite`; JSON `_doc` ⇄ `MigrationObject` via the provider's `EntityJsonSerializer`, projection-column maintenance, `PRAGMA index_list`, `ALTER TABLE` swap, `knownTables` invalidation.
 

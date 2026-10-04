@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
 using GoLive.Saturn.Data.EntitySerializers;
+using GoLive.Saturn.Data.Migrations;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
@@ -25,7 +26,7 @@ using SortDirection = GoLive.Saturn.Data.Abstractions.SortDirection;
 
 namespace Saturn.Data.MongoDb;
 
-public partial class MongoDbRepository : IRepositoryIndexManager
+public partial class MongoDbRepository : IRepositoryIndexManager, IMigrationStoreSource
 {
     internal MongoDbRepository(RepositoryOptions repositoryOptions, IMongoClient client, MongoDbRepositoryOptions? mongoRepositoryOptions = null)
     {
@@ -36,6 +37,8 @@ public partial class MongoDbRepository : IRepositoryIndexManager
     {
         initialize(repositoryOptions, mongoRepositoryOptions);
     }
+
+    public IMigrationStore CreateMigrationStore() => new MongoMigrationStore(mongoDatabase);
 
     private void initialize(RepositoryOptions repositoryOptions, MongoDbRepositoryOptions? mongoRepositoryOptions, IMongoClient? existingClient = null)
     {
