@@ -32,21 +32,29 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Decisions taken
 - Core assembly name: `Saturn.Data.Migrations` (folder `Saturn.Data.Migrations\Saturn.Data.Migrations\`), namespace `GoLive.Saturn.Data.Migrations`, references only `Saturn.Data.Entities` + `Saturn.Data.Abstractions`. No provider packages.
-- Value model names: `MigrationValue`, `MigrationObject`, `MigrationArray`, `MigrationValueKind`, `MigrationObjectId`.
+- Value model is **materialized** (concrete `MigrationValue`/`MigrationObject`/`MigrationArray`) rather than an abstract tree. Adapters convert native docs ⇄ this model. This keeps `DocumentPathNavigator` a direct port (concrete factories) and avoids threading a document factory through the engine. See proposal §5.1/§5: the "materializes one" branch of Option C.
 - Store abstraction: `IMigrationStore`, `IMigrationCollection`, `MigrationStoreCapabilities`, `MigrationIndexDefinition`.
-- Entry point: `IMigrationStoreSource.CreateMigrationStore()` in Abstractions + `MigrationStoreExtensions.Migrations(this IMigrationStore)`.
+- Entry point: `IMigrationStoreSource.CreateMigrationStore()` + `MigrationStoreExtensions.Migrations(this IMigrationStore)`.
+- `MigrationObjectId` reuses `GoLive.Saturn.Data.Entities.Entity.TryParseId` for normalization and `EntityIdGenerator.GenerateNewId()` for generation.
 
 ### Work items
-- [ ] F1 LiteDbX soft-delete flip (`LiteDbRepository.cs`)
-- [ ] F2 LiteDbX `Properties`→`_p` (`EntityMapper.cs`)
-- [ ] Core project + value model
-- [ ] `DocumentPathNavigator` port
-- [ ] `MigrationPredicates` port
-- [ ] Operations + builders port
-- [ ] `MigrationRunner` port
-- [ ] Reporting/options/progress port
-- [ ] In-memory store test double + tests
-- [ ] Build + tests green
+- [x] F1 LiteDbX soft-delete flip (`LiteDbRepository.cs`) — `Phase0PersistenceTests`.
+- [x] F2 LiteDbX `Properties`→`_p` (`EntityMapper.cs`) + `DontSerializeEmptyCollections = true`; omit empty. Full LiteDbX suite 59/59.
+- [x] Core project + value model
+- [x] `DocumentPathNavigator`
+- [x] `MigrationPredicates`
+- [x] Operations + builders
+- [x] `MigrationRunner` (in-place + rebuild/swap + journal + dry-run + remap)
+- [x] Reporting/options/progress
+- [x] In-memory store + 11 tests green
+- [ ] Deferred: `RepairReference`, `InsertDocumentWhen`, backup cleanup API, duplicate-target-id detection, strict-path failure reporting, index replay
 
-### Notes / gotchas discovered while implementing
-- (append here)
+### Gotchas discovered while implementing
+- `Entity.TryParseId` accepts **both** 24-char hex **and** 16-char base64url ids. A 16-char test string like `"not-an-object-id"` is therefore a *valid* id and won't trigger `GenerateNewId`; use a clearly invalid string (e.g. `"bad-id"`) in tests.
+- LiteDbX `BsonMapper` custom member serializers bypass `SerializeNullValues`; returning `BsonValue.Null` still writes `_p: null`. Solution: do not custom-serialize `Properties`; map the member to `_p` via `ResolveMember` and rely on default dictionary serialization plus `DontSerializeEmptyCollections = true`.
+- `BsonMapper.Entity<T>()` method shadows the `Entity` type inside `CustomEntityMapper`; use `nameof(GoLive.Saturn.Data.Entities.Entity.Properties)` fully qualified.
+- Rebuild path requires `IMigrationStore.Capabilities.SupportsRebuild` and `SupportsRenameCollection`; the runner throws a clear `NotSupportedException` otherwise.
+
+### Next
+- Phase 1: `LiteDbxMigrationStore` in `Saturn.Data.LiteDbX` + `IMigrationStoreSource` on `LiteDbRepository`, run the LunarFlare migrations against real LiteDbX data, parity test vs `LiteDbX.Migrations`.
+

@@ -903,13 +903,16 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 
 - [x] F1 — LiteDbX soft-delete flip (`LiteDbRepository.BuildNotDeletedPredicate`); `Phase0PersistenceTests.SoftDelete_*` pass.
 - [x] F2 — LiteDbX `Properties`⇄`_p` persistence (`EntityMapper`); empty bags omitted; round-trip test passes.
-- [ ] Core project + value model
-- [ ] `DocumentPathNavigator` port
-- [ ] `MigrationPredicates` port
-- [ ] Operations + builders port
-- [ ] `MigrationRunner` port
-- [ ] Reporting/options/progress port
-- [ ] In-memory store test double + tests
+- [x] Core project + value model (`GoLive.Saturn.Data.Migrations`): `MigrationValue`/`MigrationObject`/`MigrationArray`/`MigrationObjectId`, `IMigrationStore`/`IMigrationCollection`/capabilities, `IMigrationStoreSource`.
+- [x] `DocumentPathNavigator` port (paths, wildcards, recursive descent, add/replace/remove, prune).
+- [x] `MigrationPredicates` port (full catalog + composition).
+- [x] Operations + builders (`RemoveFieldWhen`, `RemoveWhere`, `AddFieldWhen`, `SetFieldWhen`, `ModifyFieldWhen`, `PruneEmptyContainers`, `ConvertField`, `ConvertId`).
+- [x] `MigrationRunner` port (selector glob, in-place + rebuild/swap, journal, progress, dry-run, backup retention, id-remap log).
+- [x] Reporting/options/progress port.
+- [x] In-memory store test double + 11 tests green.
+
+Deferred within Phase 0 (tracked in worklog): `RepairReference`/`InsertDocumentWhen` operations, backup cleanup (`CleanupBackupsAsync`/`KeepLatestCount`), duplicate-target-id detection, strict-path failure reporting details, index enumeration/replay.
+
 
 Note: F2 additionally sets `CustomEntityMapper.DontSerializeEmptyCollections = true`; the full LiteDbX suite (59 tests) passes with F1+F2 applied.
 
