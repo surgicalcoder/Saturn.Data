@@ -10,11 +10,21 @@ public class CustomEntityMapper : BsonMapper
 {
     public CustomEntityMapper(Func<Type, object>? customTypeInstantiator = null, ITypeNameBinder? typeNameBinder = null) : base(customTypeInstantiator, typeNameBinder)
     {
+        SerializeNullValues = false;
+        DontSerializeEmptyCollections = true;
+
         Inheritance<Entity>()
             .Id(e => e.Id, BsonType.ObjectId, false)
             .Ignore(e => e.EnableChangeTracking)
-            .Ignore(e => e.Changes)
-            .Ignore(e => e.Properties);
+            .Ignore(e => e.Changes);
+
+        ResolveMember += (_, member, map) =>
+        {
+            if (member.Name == nameof(GoLive.Saturn.Data.Entities.Entity.Properties))
+            {
+                map.FieldName = "_p";
+            }
+        };
         
         RegisterOpenGenericType(
             typeof(Ref<>),

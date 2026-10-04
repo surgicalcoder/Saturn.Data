@@ -310,7 +310,7 @@ public partial class LiteDbRepository //: IRepository
 
         var parameter = Expression.Parameter(typeof(TItem), "item");
         var isDeleted = Expression.Property(parameter, nameof(ISoftDeletable.IsDeleted));
-        var isNotDeleted = Expression.Equal(isDeleted, Expression.Constant(false));
+        var isNotDeleted = Expression.NotEqual(isDeleted, Expression.Constant(true));
 
         return Expression.Lambda<Func<TItem, bool>>(isNotDeleted, parameter);
     }

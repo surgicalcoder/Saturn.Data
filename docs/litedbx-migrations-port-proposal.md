@@ -883,3 +883,34 @@ return 0;
 
 `repository.Rebuild()` is the provider compaction step (LiteDbX file rebuild, SQLite `VACUUM`, Mongo no-op); it is capability-gated and reported in `MigrationStoreCapabilities`. The seeding that follows is unchanged from the original program.
 
+---
+
+## 17. Implementation progress
+
+Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklog.md`.
+
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | in progress |
+| 1 | LiteDbX adapter + parity | pending |
+| 2 | MongoDb adapter | pending |
+| 3 | Sqlite adapter | pending |
+| 4 | DocumentDb adapter | pending |
+| 5 | Stellar decision + CLI | pending |
+| 6 | Hardening + docs | pending |
+
+### Phase 0 checklist
+
+- [x] F1 — LiteDbX soft-delete flip (`LiteDbRepository.BuildNotDeletedPredicate`); `Phase0PersistenceTests.SoftDelete_*` pass.
+- [x] F2 — LiteDbX `Properties`⇄`_p` persistence (`EntityMapper`); empty bags omitted; round-trip test passes.
+- [ ] Core project + value model
+- [ ] `DocumentPathNavigator` port
+- [ ] `MigrationPredicates` port
+- [ ] Operations + builders port
+- [ ] `MigrationRunner` port
+- [ ] Reporting/options/progress port
+- [ ] In-memory store test double + tests
+
+Note: F2 additionally sets `CustomEntityMapper.DontSerializeEmptyCollections = true`; the full LiteDbX suite (59 tests) passes with F1+F2 applied.
+
+
