@@ -316,6 +316,11 @@ public sealed class MigrationRunner
 
     private List<string> ResolveCollections(string selector)
     {
+        if (selector != "*" && !selector.Contains('*') && !selector.Contains('?'))
+        {
+            return store.CollectionExists(selector) ? new List<string> { selector } : new List<string>();
+        }
+
         var all = new List<string>();
 
         foreach (var name in store.GetCollectionsAsync().ToBlockingEnumerable())

@@ -18,8 +18,8 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 | 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | done |
-| 4 | DocumentDb adapter | in_progress |
-| 5 | Stellar decision + CLI | pending |
+| 4 | DocumentDb adapter | done (in-place only) |
+| 5 | Stellar decision + CLI | in_progress |
 | 6 | Hardening + docs | pending |
 
 ## Resume notes
@@ -106,4 +106,18 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 4: `DocumentDbMigrationStore` for the Shiny shared `documents` table (logical collection = `TypeName`), discriminator re-tag rebuild.
+
+## Phase 4 log
+
+### Delivered
+- `Saturn.Data.DocumentDb/Migrations/DocumentDbJsonConverter.cs` and `DocumentDbMigrationStore.cs` over the Shiny raw lane (`store.Collection(name, "Id")`; scan via `QueryStream("1=1", null)`).
+- `DocumentDbRepository` implements `IMigrationStoreSource`. Explicit selectors now resolve without enumeration (core runner change).
+- Existing DocumentDb smoke suite green.
+
+### Limitations / deferred
+- `SupportsRebuild=false` / `SupportsRenameCollection=false`: `ConvertId` (rebuild) migrations throw a clear `NotSupportedException` on DocumentDb. The proposal's discriminator re-tag rebuild is not implemented.
+- No automated raw migration test: `QueryStream` did not complete in the test host (hung >5 min). The adapter compiles but raw behavior is unverified. Revisit with the Shiny `IJsonDocumentQuery.ToCursorPage` pagination or a direct `DatabaseProvider` SQL scan.
+
+### Next
+- Phase 5: Stellar — explicit unsupported `IMigrationStoreSource` (tier 3a) with actionable error; optional CLI.
 

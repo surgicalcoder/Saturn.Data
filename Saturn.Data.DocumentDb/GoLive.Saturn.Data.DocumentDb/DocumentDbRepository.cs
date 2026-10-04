@@ -1,12 +1,13 @@
 using System.Linq.Expressions;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using GoLive.Saturn.Data.Migrations;
 using Saturn.Data.DocumentDb.Serialization;
 using Shiny.DocumentDb;
 
 namespace Saturn.Data.DocumentDb;
 
-public partial class DocumentDbRepository : IDisposable
+public partial class DocumentDbRepository : IDisposable, IMigrationStoreSource
 {
     private readonly RepositoryOptions options;
     private readonly DocumentDbRepositoryOptions documentDbOptions;
@@ -68,6 +69,8 @@ public partial class DocumentDbRepository : IDisposable
     internal DocumentDbRepositoryOptions DocumentDbOptions => documentDbOptions;
 
     internal IDocumentStore Store => store;
+
+    public IMigrationStore CreateMigrationStore() => new DocumentDbMigrationStore(store);
 
     internal DocumentDbCapabilities Capabilities => capabilities;
 

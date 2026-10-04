@@ -895,7 +895,7 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | done |
-| 4 | DocumentDb adapter | pending |
+| 4 | DocumentDb adapter | done (in-place only) |
 | 5 | Stellar decision + CLI | pending |
 | 6 | Hardening + docs | pending |
 
@@ -937,6 +937,17 @@ Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migra
 - [x] `IMigrationStoreSource` on `SqliteRepository` (`CreateMigrationStore()`; JSON ids stay strings, `SupportsObjectIdOnDisk=false`).
 - [x] End-to-end test on a real SQLite file: canonical `_id`/`Id`, `Scope` string, empty `Properties`/null `Payload` removed, rebuild/swap.
 - [x] Full Sqlite suite green (84/84).
+
+### Phase 4 checklist
+
+- [x] `DocumentDbMigrationStore` + `DocumentDbMigrationCollection` in `Saturn.Data.DocumentDb` over the Shiny raw JSON lane (`store.Collection(name, "Id")`); logical collection = `TypeName`.
+- [x] `IMigrationStoreSource` on `DocumentDbRepository`.
+- [x] Explicit collection selectors (`ForCollection("TypeName")`) supported by the runner even when a store cannot enumerate collections.
+- [ ] Discriminator re-tag rebuild (`ConvertId`) — **deferred**; `SupportsRebuild=false`, so rebuild migrations fail fast on DocumentDb.
+- [ ] Automated end-to-end test — **deferred**: raw `QueryStream` streaming did not complete reliably in the test host; adapter compiles and existing DocumentDb smoke suite is green, but raw migration behavior is unverified here.
+
+DocumentDb therefore lands as **Tier 2 in-place only** for now (proposal §8.2), not the full re-tag rebuild.
+
 
 
 
