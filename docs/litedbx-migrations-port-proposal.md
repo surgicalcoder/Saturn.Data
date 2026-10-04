@@ -891,8 +891,8 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | in progress |
-| 1 | LiteDbX adapter + parity | pending |
+| 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
+| 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | pending |
 | 3 | Sqlite adapter | pending |
 | 4 | DocumentDb adapter | pending |
@@ -912,6 +912,16 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 - [x] In-memory store test double + 11 tests green.
 
 Deferred within Phase 0 (tracked in worklog): `RepairReference`/`InsertDocumentWhen` operations, backup cleanup (`CleanupBackupsAsync`/`KeepLatestCount`), duplicate-target-id detection, strict-path failure reporting details, index enumeration/replay.
+
+### Phase 1 checklist
+
+- [x] `LiteDbxMigrationStore` + `LiteDbxMigrationCollection` in `Saturn.Data.LiteDbX` (BSON⇄`MigrationObject` converter).
+- [x] `IMigrationStoreSource` on `LiteDbRepository` (`CreateMigrationStore()`).
+- [x] End-to-end test on real LiteDbX storage: legacy string `_id`/`Scope` → ObjectId, empty `Properties` + null `Payload` removed, rebuild/swap + journal.
+- [x] Full LiteDbX suite green (60/60).
+
+Note: LiteDbX exposes async storage APIs (`ValueTask`, `IAsyncEnumerable`); the adapter awaits them. `CollectionExists` is bridged synchronously (single lightweight call).
+
 
 
 Note: F2 additionally sets `CustomEntityMapper.DontSerializeEmptyCollections = true`; the full LiteDbX suite (59 tests) passes with F1+F2 applied.

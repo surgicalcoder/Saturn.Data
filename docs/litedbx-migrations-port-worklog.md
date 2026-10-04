@@ -14,9 +14,9 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | in_progress |
-| 1 | LiteDbX adapter + parity (LunarFlare migrations) | pending |
-| 2 | MongoDb adapter | pending |
+| 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
+| 1 | LiteDbX adapter + parity | done |
+| 2 | MongoDb adapter | in_progress |
 | 3 | Sqlite adapter | pending |
 | 4 | DocumentDb adapter | pending |
 | 5 | Stellar decision + CLI | pending |
@@ -57,4 +57,20 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 1: `LiteDbxMigrationStore` in `Saturn.Data.LiteDbX` + `IMigrationStoreSource` on `LiteDbRepository`, run the LunarFlare migrations against real LiteDbX data, parity test vs `LiteDbX.Migrations`.
+
+## Phase 1 log
+
+### Delivered
+- `Saturn.Data.LiteDbX/Migrations/LiteDbxBsonConverter.cs` — `LiteDbX.BsonDocument`/`BsonValue` ⇄ `MigrationObject`/`MigrationValue`.
+- `Saturn.Data.LiteDbX/Migrations/LiteDbxMigrationStore.cs` — `LiteDbxMigrationStore` + `LiteDbxMigrationCollection`.
+- `LiteDbRepository` now implements `IMigrationStoreSource`; `CreateMigrationStore()` returns a store over the existing `database` handle.
+- `Phase1MigrationTests.Migrations_ConvertLegacyStringIdsOnRealStorage` runs the LunarFlare-style migration on real LiteDbX: string `_id`/`Scope` → ObjectId, empty `Properties` and null `Payload` removed, rebuild + swap + journal all verified. Full LTE suite 60/60.
+
+### Gotchas
+- LiteDbX is async-first: `GetCollectionNames` returns `IAsyncEnumerable<string>`; `RenameCollection`/`DropCollection`/`Update`/`Delete` return `ValueTask<bool>`; `FindAll` returns `IAsyncEnumerable<BsonDocument>`. The adapter awaits these.
+- `ILiteCollection.Insert(BsonDocument, CancellationToken)` is async; `BsonAutoId` has no `String` member — insert a document that already carries a string `_id` regardless of the collection's auto-id, and LiteDbX honours it.
+- `IMigrationStore.CollectionExists` stayed synchronous; the LiteDbX adapter bridges the `ValueTask<bool>` with `AsTask().GetAwaiter().GetResult()` (single lightweight call during the journal check).
+
+### Next
+- Phase 2: `MongoMigrationStore` in `Saturn.Data.MongoDb` + `IMigrationStoreSource` on `MongoDbRepository`; native `_id` ObjectId, `_p`/`_v` aliases, driver rename/drop, index enumeration.
 

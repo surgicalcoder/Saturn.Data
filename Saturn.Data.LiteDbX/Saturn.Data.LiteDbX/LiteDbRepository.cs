@@ -3,12 +3,13 @@ using System.Linq.Expressions;
 using System.Reflection;
 using GoLive.Saturn.Data.Abstractions;
 using GoLive.Saturn.Data.Entities;
+using GoLive.Saturn.Data.Migrations;
 using LiteDbX;
 using LiteDbX.Engine;
 
 namespace Saturn.Data.LiteDbX;
 
-public partial class LiteDbRepository //: IRepository
+public partial class LiteDbRepository : IMigrationStoreSource
 {
     protected LiteDatabase database;
     protected LiteDBRepositoryOptions liteDbOptions;
@@ -23,6 +24,8 @@ public partial class LiteDbRepository //: IRepository
         database = LiteDatabase.Open(liteDbOptions.ConnectionString, mapper);
         options = repositoryOptions;
     }
+
+    public IMigrationStore CreateMigrationStore() => new LiteDbxMigrationStore(database);
 
     protected virtual ConcurrentDictionary<string, string> typeNameCache { get; set; } = new();
 
