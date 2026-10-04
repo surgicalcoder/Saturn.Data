@@ -510,8 +510,8 @@ The store applies the filter, not the migration predicate, so the choice is cons
 | In-place migration | ✅ | ✅ | ✅ | ✅ | ⚠️ |
 | `ConvertId` rebuild | ✅ | ✅ | ✅ | ✅ re-tag | ❌ |
 | Reference repair | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Rename/swap collection | ✅ | ✅ | ✅ | ⚠️ logical | ❌ |
-| Index replay | ❌ enumerate | ✅ | ⚠️ add PRAGMA | ⚠️ | ❌ |
+| Rename/swap collection | ✅ | ✅ | ✅ | ✅ logical | ❌ |
+| Index replay | ❌ enumerate | ✅ | ✅ PRAGMA columns | ⚠️ | ❌ |
 | Transactions | ⚠️ Direct | ✅* | ✅ | ⚠️ | ❌ |
 | Backups/retention | ✅ | ✅ | ✅ | ✅ logical | ❌ |
 | Journal + id-map | ✅ | ✅ | ✅ | ✅ | ⚠️ |
@@ -521,7 +521,7 @@ The store applies the filter, not the migration predicate, so the choice is cons
 ### 8.2 Tiers
 
 - **Tier 1 — full (LiteDbX, MongoDb, Sqlite):** all operations including rebuild/swap, backups, id-remap, reference repair.
-- **Tier 2 — in-place + logical rebuild (DocumentDb):** raw repair and reference-repair work; rebuild is a discriminator re-tag under a maintenance window; indexes best-effort.
+- **Tier 2 — in-place + logical rebuild (DocumentDb):** raw repair and reference-repair work; rebuild is a logical `TypeName` re-tag via the `IDocumentBackup` snapshot lane (delete + bulk re-import), non-atomic under a maintenance window; indexes best-effort.
 - **Tier 3 — limited (Stellar):** raw/rebuild unsupported by default; store returns `SupportsRawDocuments=false`; only explicitly-supported in-place operations may run if 3b is implemented later.
 
 ---
@@ -895,9 +895,9 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | done |
 | 3 | Sqlite adapter | done |
-| 4 | DocumentDb adapter | done (in-place only) |
-| 5 | Stellar decision + CLI | done (Stellar 3a; CLI deferred) |
-| 6 | Hardening + docs | done (docs; backlog below) |
+| 4 | DocumentDb adapter | done (backup lane; rebuild supported) |
+| 5 | Stellar decision + CLI | done |
+| 6 | Hardening + docs | done |
 
 ### Phase 0 checklist
 
@@ -940,35 +940,40 @@ Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migra
 
 ### Phase 4 checklist
 
-- [x] `DocumentDbMigrationStore` + `DocumentDbMigrationCollection` in `Saturn.Data.DocumentDb` over the Shiny raw JSON lane (`store.Collection(name, "Id")`); logical collection = `TypeName`.
+- [x] `DocumentDbMigrationStore` + `DocumentDbMigrationCollection` over the Shiny raw JSON lane; logical collection = `TypeName`.
 - [x] `IMigrationStoreSource` on `DocumentDbRepository`.
 - [x] Explicit collection selectors (`ForCollection("TypeName")`) supported by the runner even when a store cannot enumerate collections.
-- [ ] Discriminator re-tag rebuild (`ConvertId`) — **deferred**; `SupportsRebuild=false`, so rebuild migrations fail fast on DocumentDb.
-- [ ] Automated end-to-end test — **deferred**: raw `QueryStream` streaming did not complete reliably in the test host; adapter compiles and existing DocumentDb smoke suite is green, but raw migration behavior is unverified here.
-
-DocumentDb therefore lands as **Tier 2 in-place only** for now (proposal §8.2), not the full re-tag rebuild.
+- [x] **Rebuild supported** via the `IDocumentBackup` snapshot lane (`ExportAsync`/`BulkImportAsync`) plus `BatchRemove`; logical rename re-tags `TypeName` so the generic shadow/swap algorithm works. `SupportsRebuild`/`SupportsRenameCollection` now true when the store implements `IDocumentBackup`.
+- [x] Automated end-to-end test (`Phase4MigrationTests`) runs a rebuild (`ConvertId`) + cleanup on real DocumentDb and passes. The earlier `QueryStream` hang is gone — scans are now snapshots, never a live cursor held across writes.
 
 ### Phase 5 checklist
 
-- [x] Stellar decision **3a**: `StellarRepository` implements `IMigrationStoreSource`; `CreateMigrationStore()` throws an actionable `NotSupportedException` (typed MessagePack, no document lane, no rename/tx/index). Test asserts the message.
-- [ ] Provider-agnostic CLI migrator — **deferred** (Phase 6/backlog). The ported `Program.cs` example in Appendix C remains the reference.
+- [x] Stellar decision **3a**: `StellarRepository` implements `IMigrationStoreSource`; `CreateMigrationStore()` throws an actionable `NotSupportedException`. Test asserts the message.
+- [x] Provider-agnostic CLI: `Saturn.Data.Migrations.Cli` (`litedbx|sqlite|mongodb`, `--assembly`, `--dry-run`, `--include-deleted`), driven by `IMigrationModule`.
 
 ### Phase 6 checklist and backlog
 
 - [x] Progress tracker (this section) and detailed `docs/litedbx-migrations-port-worklog.md`.
 - [x] Per-provider usage reflected in the capability matrix (§8.1).
 - [x] Whole-solution build clean (`dotnet build Saturn.Data.slnx`).
-- [ ] Engine backlog: `RepairReference` / `InsertDocumentWhen` operations, backup cleanup API (`CleanupBackupsAsync`, `KeepLatestCount`), duplicate-target-id detection, strict-path failure reporting, index replay.
-- [ ] Field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) so one definition spans BSON and JSON providers.
-- [ ] DocumentDb discriminator re-tag rebuild and a raw migration test (currently in-place only, unverified).
-- [ ] Provider-agnostic CLI.
+- [x] `RepairReference` and `InsertDocumentWhen` operations.
+- [x] Backup cleanup API (`CleanupBackupsAsync`, `BackupCleanupOptions.KeepLatestCount`).
+- [x] Duplicate-target-id detection during rebuild (`DuplicateTargetIdSample`, validation summary).
+- [x] Index replay on rebuild (Mongo/Sqlite enumerate; Sqlite reads columns via `PRAGMA index_info`).
+- [x] Field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) applied at the store boundary; LiteDbX and Mongo register maps, JSON providers are identity.
+- [x] DocumentDb rebuild + raw end-to-end test.
+- [x] Provider-agnostic CLI.
+- [ ] Strict-path failure reporting (posture change to non-wildcard missing paths) — still open; the navigator already returns a failure enum if wanted.
+- [ ] Transactional/atomic DocumentDb swap (delete+reimport is not atomic) — wrap in a store transaction when the provider allows.
 
 ### Implemented result (summary)
 
-- **Core**: `GoLive.Saturn.Data.Migrations` — document model, path navigator, predicates, operations, runner (in-place + rebuild/swap), journal, id-remap log, dry-run, reports/progress, `IMigrationStore` abstraction. 11 tests.
+- **Core**: `GoLive.Saturn.Data.Migrations` — document model, path navigator, predicates, operations (incl. `RepairReference`, `InsertDocumentWhen`), runner (in-place + rebuild/swap, duplicate detection, index replay, backup cleanup), journal, id-remap log + resolver, field-alias map, dry-run, reports/progress, `IMigrationModule`. 17 tests.
 - **F1/F2**: uniform soft-delete semantics and LiteDbX `Properties`/`_p` persistence.
-- **Adapters**: LiteDbX (full), MongoDb (full), Sqlite (full), DocumentDb (in-place), Stellar (declared unsupported).
-- **Tests green**: core 11, LiteDbX 60, MongoDb 107, Sqlite 84, plus Stellar/DocumentDb phase tests.
+- **Adapters**: LiteDbX (full), MongoDb (full), Sqlite (full), DocumentDb (backup lane, rebuild), Stellar (declared unsupported).
+- **CLI**: `Saturn.Data.Migrations.Cli`.
+- **Tests green**: core 17, LiteDbX 60, MongoDb 107, Sqlite 84, DocumentDb 128.
+
 
 
 

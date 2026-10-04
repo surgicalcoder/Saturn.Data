@@ -11,7 +11,14 @@ public sealed class InMemoryMigrationStore : IMigrationStore
 {
     private readonly Dictionary<string, InMemoryMigrationCollection> collections = new(StringComparer.Ordinal);
 
+    public InMemoryMigrationStore(IMigrationFieldMap fieldMap = null)
+    {
+        FieldMap = fieldMap ?? IdentityMigrationFieldMap.Instance;
+    }
+
     public MigrationStoreCapabilities Capabilities { get; } = MigrationStoreCapabilities.Full;
+
+    public IMigrationFieldMap FieldMap { get; }
 
     public IMigrationCollection Seed(string name, params MigrationObject[] documents)
     {

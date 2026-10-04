@@ -25,6 +25,45 @@ public sealed class IdRemapEntry
     public int DocumentOrdinal { get; }
 }
 
+public sealed class RemapLookup
+{
+    private readonly Dictionary<string, Dictionary<string, string>> mappings = new(StringComparer.Ordinal);
+
+    public static RemapLookup Empty { get; } = new();
+
+    public bool IsEmpty => mappings.Count == 0;
+
+    public void Add(string collection, string migrationName, string oldId, string newId)
+    {
+        if (string.IsNullOrEmpty(oldId) || string.IsNullOrEmpty(newId))
+        {
+            return;
+        }
+
+        var key = collection + "|" + migrationName;
+
+        if (!mappings.TryGetValue(key, out var entries))
+        {
+            entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            mappings[key] = entries;
+        }
+
+        entries[oldId] = newId;
+    }
+
+    public bool TryResolve(string collection, string migrationName, string oldId, out string newId)
+    {
+        newId = null;
+
+        if (string.IsNullOrEmpty(oldId))
+        {
+            return false;
+        }
+
+        return mappings.TryGetValue(collection + "|" + migrationName, out var entries) && entries.TryGetValue(oldId, out newId);
+    }
+}
+
 public sealed class DocumentMigrationExecutionContext
 {
     public DocumentMigrationExecutionContext(string collection, string migrationName, string runId, bool strictPathResolution)
@@ -41,10 +80,12 @@ public sealed class DocumentMigrationExecutionContext
     public bool StrictPathResolution { get; }
     public bool SkipDocument { get; set; }
     public int DocumentOrdinal { get; set; }
+    public RemapLookup Remaps { get; set; } = RemapLookup.Empty;
     public int GeneratedIdMappings { get; private set; }
     public int RepairedReferences { get; private set; }
     public List<InvalidValueSample> InvalidValueSamples { get; } = new();
     public List<IdRemapEntry> IdRemaps { get; } = new();
+    public List<MigrationObject> PendingInserts { get; } = new();
 
     public int InvalidValueCount => InvalidValueSamples.Count;
 

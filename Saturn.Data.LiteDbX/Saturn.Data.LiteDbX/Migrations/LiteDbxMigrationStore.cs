@@ -28,6 +28,11 @@ internal sealed class LiteDbxMigrationStore : IMigrationStore
         SupportsIncludeDeleted = true
     };
 
+    public IMigrationFieldMap FieldMap { get; } = new MigrationFieldMap(new[]
+    {
+        new KeyValuePair<string, string>("Properties", "_p")
+    });
+
     public async IAsyncEnumerable<string> GetCollectionsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (var name in database.GetCollectionNames(cancellationToken))

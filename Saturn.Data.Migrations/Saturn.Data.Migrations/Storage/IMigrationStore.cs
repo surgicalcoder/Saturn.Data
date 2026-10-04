@@ -9,6 +9,8 @@ public interface IMigrationStore : IAsyncDisposable, IDisposable
 {
     MigrationStoreCapabilities Capabilities { get; }
 
+    IMigrationFieldMap FieldMap => IdentityMigrationFieldMap.Instance;
+
     IAsyncEnumerable<string> GetCollectionsAsync(CancellationToken cancellationToken = default);
 
     bool CollectionExists(string collection);

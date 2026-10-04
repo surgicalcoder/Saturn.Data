@@ -50,6 +50,20 @@ public sealed class RebuildValidationSummary
     public int DuplicateTargetIdCount { get; }
 }
 
+public sealed class DuplicateTargetIdSample
+{
+    public DuplicateTargetIdSample(string collection, string targetId, int documentOrdinal)
+    {
+        Collection = collection;
+        TargetId = targetId;
+        DocumentOrdinal = documentOrdinal;
+    }
+
+    public string Collection { get; }
+    public string TargetId { get; }
+    public int DocumentOrdinal { get; }
+}
+
 public sealed class CollectionMigrationResult
 {
     public CollectionMigrationResult(
@@ -64,7 +78,9 @@ public sealed class CollectionMigrationResult
         IReadOnlyList<InvalidValueSample> invalidValueSamples,
         RebuildValidationSummary rebuildValidation,
         string backupCollectionName,
-        BackupDisposition backupDisposition)
+        BackupDisposition backupDisposition,
+        IReadOnlyList<DuplicateTargetIdSample> duplicateTargetIdSamples = null,
+        IReadOnlyList<MigrationIndexDefinition> replayedIndexes = null)
     {
         CollectionName = collectionName;
         DocumentsScanned = documentsScanned;
@@ -78,6 +94,8 @@ public sealed class CollectionMigrationResult
         RebuildValidation = rebuildValidation;
         BackupCollectionName = backupCollectionName;
         BackupDisposition = backupDisposition;
+        DuplicateTargetIdSamples = duplicateTargetIdSamples ?? Array.Empty<DuplicateTargetIdSample>();
+        ReplayedIndexes = replayedIndexes ?? Array.Empty<MigrationIndexDefinition>();
     }
 
     public string CollectionName { get; }
@@ -92,6 +110,8 @@ public sealed class CollectionMigrationResult
     public RebuildValidationSummary RebuildValidation { get; }
     public string BackupCollectionName { get; }
     public BackupDisposition BackupDisposition { get; }
+    public IReadOnlyList<DuplicateTargetIdSample> DuplicateTargetIdSamples { get; }
+    public IReadOnlyList<MigrationIndexDefinition> ReplayedIndexes { get; }
 }
 
 public sealed class CollectionSelectorResult

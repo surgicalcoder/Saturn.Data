@@ -29,6 +29,12 @@ internal sealed class MongoMigrationStore : IMigrationStore
         SupportsIncludeDeleted = true
     };
 
+    public IMigrationFieldMap FieldMap { get; } = new MigrationFieldMap(new[]
+    {
+        new KeyValuePair<string, string>("Properties", "_p"),
+        new KeyValuePair<string, string>("Version", "_v")
+    });
+
     public async IAsyncEnumerable<string> GetCollectionsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         using var cursor = await database.ListCollectionNamesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);

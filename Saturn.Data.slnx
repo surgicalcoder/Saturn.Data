@@ -33,6 +33,7 @@
   <Folder Name="/Migrations/">
     <Project Path="Saturn.Data.Migrations\Saturn.Data.Migrations\Saturn.Data.Migrations.csproj" Type="Classic C#" />
     <Project Path="Saturn.Data.Migrations\Saturn.Data.Migrations.Tests\Saturn.Data.Migrations.Tests.csproj" Type="Classic C#" />
+    <Project Path="Saturn.Data.Migrations\Saturn.Data.Migrations.Cli\Saturn.Data.Migrations.Cli.csproj" Type="Classic C#" />
   </Folder>
   <Project Path="Saturn.Data.Testing.Shared\Saturn.Data.Testing.Shared.csproj" Type="Classic C#" />
   <Project Path="Saturn.Generator.Cascade\Saturn.Generator.Cascade.Playground\Saturn.Generator.Cascade.Playground.csproj" Type="Classic C#" />

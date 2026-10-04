@@ -186,23 +186,56 @@ internal sealed class SqliteMigrationCollection : IMigrationCollection
         using var command = connection.CreateCommand();
         command.CommandText = $"PRAGMA index_list({SqliteRepository.Quote(Name)});";
 
-        var definitions = new List<MigrationIndexDefinition>();
-        using var reader = command.ExecuteReader();
-
-        while (reader.Read())
+        var indexes = new List<(string Name, bool Unique)>();
+        using (var reader = command.ExecuteReader())
         {
-            var name = reader.GetString(1);
-            var unique = reader.GetInt32(2) != 0;
+            while (reader.Read())
+            {
+                var name = reader.GetString(1);
 
-            if (name.StartsWith("sqlite_", StringComparison.Ordinal))
+                if (name.StartsWith("sqlite_", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                indexes.Add((name, reader.GetInt32(2) != 0));
+            }
+        }
+
+        var definitions = new List<MigrationIndexDefinition>();
+
+        foreach (var index in indexes)
+        {
+            var columns = ReadIndexColumns(connection, index.Name);
+
+            if (columns.Count == 0)
             {
                 continue;
             }
 
-            definitions.Add(new MigrationIndexDefinition(name, string.Empty, unique));
+            definitions.Add(new MigrationIndexDefinition(index.Name, string.Join(",", columns), index.Unique));
         }
 
         return definitions;
+    }
+
+    private static List<string> ReadIndexColumns(SqliteConnection connection, string indexName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA index_info({SqliteRepository.Quote(indexName)});";
+
+        var columns = new List<string>();
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            if (!reader.IsDBNull(2))
+            {
+                columns.Add(reader.GetString(2));
+            }
+        }
+
+        return columns;
     }
 
     public async Task EnsureIndexAsync(MigrationIndexDefinition index, CancellationToken cancellationToken = default)

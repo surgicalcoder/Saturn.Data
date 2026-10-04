@@ -73,9 +73,56 @@ public sealed class CollectionMigrationBuilder
         return this;
     }
 
+    public CollectionMigrationBuilder InsertDocumentWhen(MigrationObject document, MigrationPredicate predicate)
+    {
+        Operations.Add(new InsertDocumentWhenOperation(document, predicate));
+        return this;
+    }
+
+    public ReferenceRepairBuilder RepairReference(string path) => new(this, path);
+
     public FieldConversionBuilder ConvertField(string path) => new(this, path);
 
     public IdConversionBuilder ConvertId() => new(this);
+}
+
+public sealed class ReferenceRepairBuilder
+{
+    private readonly CollectionMigrationBuilder owner;
+    private readonly string path;
+    private string sourceCollection;
+    private string sourceMigration;
+    private string referenceCollectionPath;
+
+    internal ReferenceRepairBuilder(CollectionMigrationBuilder owner, string path)
+    {
+        this.owner = owner;
+        this.path = path;
+    }
+
+    public ReferenceRepairBuilder FromCollection(string collection)
+    {
+        sourceCollection = collection;
+        return this;
+    }
+
+    public ReferenceRepairBuilder FromMigration(string migration)
+    {
+        sourceMigration = migration;
+        return this;
+    }
+
+    public ReferenceRepairBuilder WhenReferenceCollectionIs(string path)
+    {
+        referenceCollectionPath = path;
+        return this;
+    }
+
+    public CollectionMigrationBuilder Apply()
+    {
+        owner.Operations.Add(new RepairReferenceOperation(path, sourceCollection, sourceMigration, referenceCollectionPath));
+        return owner;
+    }
 }
 
 public sealed class FieldConversionBuilder

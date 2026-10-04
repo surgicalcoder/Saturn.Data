@@ -151,4 +151,35 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 3. Run tests: core (`Saturn.Data.Migrations.Tests`), LiteDbX, MongoDb (needs localhost:27017), Sqlite.
 4. Pick a backlog item; add an adapter method only when an engine path needs it; keep the core provider-free.
 
+## Post-phase — blockers and deferred items resolved
+
+### Blocker 1 — DocumentDb raw hang (fixed)
+Root cause: `ScanAsync` used `IJsonDocumentCollection.QueryStream`, holding a live cursor while the loop wrote (`Update`/shadow `Insert`) — a read-during-write deadlock on the SQLite provider. Also, `RawDocument`'s first two ctor args are `(id, typeName)`, not `(typeName, id)` (an early version mis-ordered them and re-tagged rows with the id as the type).
+
+Fix: scan via `IDocumentBackup.ExportAsync` into a `MemoryStream` (a **snapshot**, cursor closed), parse the v1 array `{ id, docType, data }`, and write back with `BulkImportAsync`/`BatchRemove`. Logical collection rename = export source rows → bulk import under the target `TypeName` → `BatchRemove` the source ids. This gives DocumentDb a real shadow/swap rebuild through the generic engine. `SupportsRebuild`/`SupportsRenameCollection` are true when the store implements `IDocumentBackup`. `Phase4MigrationTests` passes (rebuild + cleanup). DocumentDb full suite 128/128; no hang.
+
+### Blocker 2 — field aliases (fixed)
+- Core: `IMigrationFieldMap` (+ `IdentityMigrationFieldMap`, `MigrationFieldMap`), `MigrationFieldTranslation` (top-level, recursive-safe via collected moves), `IMigrationStore.FieldMap` (default identity). Runner translates physical→logical on scan and logical→physical before insert/update.
+- LiteDbX maps `Properties`→`_p`; Mongo maps `Properties`→`_p` and `Version`→`_v`; Sqlite/DocumentDb/InMemory identity.
+- Tests: `EngineFeaturesTests.FieldTranslation_RoundTripsAliases`, `Runner_AppliesFieldMapOnScan`.
+
+### Deferred items now done
+- `RepairReference` (builder `.RepairReference(path).FromCollection(...).FromMigration(...).WhenReferenceCollectionIs(...).Apply()`), backed by `RemapLookup` loaded from `__saturn_migration_id_mappings` and updated live as ids are generated.
+- `InsertDocumentWhen` (collected into `context.PendingInserts`, deduped, inserted after the collection pass / into the shadow).
+- `CleanupBackupsAsync(BackupCleanupOptions)` + `BackupCleanupReport`.
+- Duplicate-target-id detection during rebuild (`DuplicateTargetIdSample`, `RebuildValidationSummary.DuplicateTargetIdCount`).
+- Index replay on rebuild; Sqlite `GetIndexes` now reads columns via `PRAGMA index_info`.
+- DocumentDb rebuild + automated test.
+- CLI: `Saturn.Data.Migrations.Cli` + `IMigrationModule`.
+
+### Backlog still open
+- Strict-path failure reporting (non-wildcard missing-path posture).
+- DocumentDb delete+reimport swap is not atomic; wrap in a store transaction where the provider permits.
+- Sqlite `ALTER TABLE` swap and DocumentDb bulk restore error-midway recovery semantics.
+
+### Final verification
+- Whole solution builds (`dotnet build Saturn.Data.slnx`).
+- Tests: core 17, LiteDbX 60, MongoDb 107, Sqlite 84, DocumentDb 128, Stellar Phase5 1.
+
+
 

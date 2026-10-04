@@ -56,12 +56,69 @@ public sealed class MigrationRunner
     public ValueTask<MigrationReport> RunAsync(CancellationToken cancellationToken = default)
         => RunAsync(options, cancellationToken);
 
+    public async Task<BackupCleanupReport> CleanupBackupsAsync(BackupCleanupOptions cleanupOptions = null, CancellationToken cancellationToken = default)
+    {
+        cleanupOptions ??= new BackupCleanupOptions();
+
+        var backups = new List<string>();
+
+        await foreach (var name in store.GetCollectionsAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var marker = name.IndexOf("__backup__", StringComparison.Ordinal);
+
+            if (marker < 0)
+            {
+                continue;
+            }
+
+            var prefix = name[..marker];
+
+            if (cleanupOptions.CollectionFilter != null && !MatchesGlob(cleanupOptions.CollectionFilter, prefix) && !MatchesGlob(cleanupOptions.CollectionFilter, name))
+            {
+                continue;
+            }
+
+            backups.Add(name);
+        }
+
+        var dropped = new List<string>();
+        var retained = new List<string>();
+
+        foreach (var group in backups.GroupBy(BackupPrefix, StringComparer.Ordinal))
+        {
+            var ordered = group.OrderByDescending(name => name, StringComparer.Ordinal).ToList();
+
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                if (i < cleanupOptions.KeepLatestCount)
+                {
+                    retained.Add(ordered[i]);
+                    continue;
+                }
+
+                if (await store.DropCollectionAsync(ordered[i], cancellationToken).ConfigureAwait(false))
+                {
+                    dropped.Add(ordered[i]);
+                }
+            }
+        }
+
+        return new BackupCleanupReport(dropped, retained);
+    }
+
+    private static string BackupPrefix(string name)
+    {
+        var marker = name.IndexOf("__backup__", StringComparison.Ordinal);
+        return marker < 0 ? name : name[..marker];
+    }
+
     public async ValueTask<MigrationReport> RunAsync(MigrationRunOptions runOptions, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runOptions);
 
         var runId = Guid.NewGuid().ToString("N")[..8];
         var journal = new JournalStore(store);
+        var remaps = runOptions.DryRun ? RemapLookup.Empty : await LoadRemapsAsync(cancellationToken).ConfigureAwait(false);
 
         var results = new List<MigrationExecutionResult>();
 
@@ -107,7 +164,7 @@ public sealed class MigrationRunner
 
                     Report(runOptions, MigrationProgressStage.CollectionStarted, definition.Name, plan.Selector, collectionName, runOptions.DryRun, completedCollections, totalCollections, scanned, modified, removed, inserted);
 
-                    var result = await ProcessCollectionAsync(definition, plan, collectionName, runId, runOptions, cancellationToken).ConfigureAwait(false);
+                    var result = await ProcessCollectionAsync(definition, plan, collectionName, runId, runOptions, remaps, cancellationToken).ConfigureAwait(false);
                     collectionResults.Add(result);
 
                     scanned += result.DocumentsScanned;
@@ -138,7 +195,7 @@ public sealed class MigrationRunner
         return new MigrationReport(results);
     }
 
-    private async Task<CollectionMigrationResult> ProcessCollectionAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, CancellationToken cancellationToken)
+    private async Task<CollectionMigrationResult> ProcessCollectionAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, RemapLookup remaps, CancellationToken cancellationToken)
     {
         var requiresRebuild = plan.Operations.Any(operation => operation.RequiresRebuild);
 
@@ -149,13 +206,13 @@ public sealed class MigrationRunner
                 throw new NotSupportedException($"Migration '{definition.Name}' requires a collection rebuild, but '{store.GetType().Name}' does not support rebuilds.");
             }
 
-            return await RebuildCollectionAsync(definition, plan, collectionName, runId, runOptions, cancellationToken).ConfigureAwait(false);
+            return await RebuildCollectionAsync(definition, plan, collectionName, runId, runOptions, remaps, cancellationToken).ConfigureAwait(false);
         }
 
-        return await MigrateInPlaceAsync(definition, plan, collectionName, runId, runOptions, cancellationToken).ConfigureAwait(false);
+        return await MigrateInPlaceAsync(definition, plan, collectionName, runId, runOptions, remaps, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<CollectionMigrationResult> MigrateInPlaceAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, CancellationToken cancellationToken)
+    private async Task<CollectionMigrationResult> MigrateInPlaceAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, RemapLookup remaps, CancellationToken cancellationToken)
     {
         var collection = store.GetCollection(collectionName);
         var samples = new List<InvalidValueSample>();
@@ -164,6 +221,8 @@ public sealed class MigrationRunner
         var generated = 0;
         var repaired = 0;
         var ordinal = 0;
+        var pendingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pendingList = new List<MigrationObject>();
 
         await foreach (var raw in collection.ScanAsync(runOptions.IncludeDeleted, cancellationToken).ConfigureAwait(false))
         {
@@ -171,7 +230,8 @@ public sealed class MigrationRunner
             ordinal++;
 
             var document = raw.Clone();
-            var context = new DocumentMigrationExecutionContext(collectionName, definition.Name, runId, strictPathResolution: true) { DocumentOrdinal = ordinal };
+            MigrationFieldTranslation.ApplyToLogical(document, store.FieldMap);
+            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps);
             var changed = false;
 
             foreach (var operation in plan.Operations)
@@ -191,6 +251,8 @@ public sealed class MigrationRunner
             samples.AddRange(context.InvalidValueSamples);
             generated += context.GeneratedIdMappings;
             repaired += context.RepairedReferences;
+            CollectRemaps(context, remaps);
+            CollectPending(context, pendingIds, pendingList);
 
             if (!changed)
             {
@@ -201,19 +263,22 @@ public sealed class MigrationRunner
 
             if (!runOptions.DryRun)
             {
-                await collection.UpdateAsync(document, cancellationToken).ConfigureAwait(false);
+                var physical = document.Clone();
+                MigrationFieldTranslation.ApplyToPhysical(physical, store.FieldMap);
+                await collection.UpdateAsync(physical, cancellationToken).ConfigureAwait(false);
+                await PersistRemapsAsync(context, remaps, cancellationToken).ConfigureAwait(false);
             }
+        }
 
-            if (context.IdRemaps.Count > 0 && !runOptions.DryRun)
-            {
-                await PersistRemapsAsync(context, cancellationToken).ConfigureAwait(false);
-            }
+        if (!runOptions.DryRun)
+        {
+            await InsertPendingAsync(collection, pendingList, cancellationToken).ConfigureAwait(false);
         }
 
         return new CollectionMigrationResult(collectionName, scanned, modified, 0, 0, generated, repaired, samples.Count, samples, null, null, BackupDisposition.None);
     }
 
-    private async Task<CollectionMigrationResult> RebuildCollectionAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, CancellationToken cancellationToken)
+    private async Task<CollectionMigrationResult> RebuildCollectionAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, RemapLookup remaps, CancellationToken cancellationToken)
     {
         var source = store.GetCollection(collectionName);
         var shadowName = $"{collectionName}__migrating__{runId}";
@@ -221,11 +286,15 @@ public sealed class MigrationRunner
         var shadow = store.GetCollection(shadowName);
 
         var samples = new List<InvalidValueSample>();
+        var duplicates = new List<DuplicateTargetIdSample>();
         var scanned = 0;
         var inserted = 0;
         var generated = 0;
         var repaired = 0;
         var ordinal = 0;
+        var targetIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pendingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pendingList = new List<MigrationObject>();
 
         await foreach (var raw in source.ScanAsync(runOptions.IncludeDeleted, cancellationToken).ConfigureAwait(false))
         {
@@ -233,7 +302,8 @@ public sealed class MigrationRunner
             ordinal++;
 
             var document = raw.Clone();
-            var context = new DocumentMigrationExecutionContext(collectionName, definition.Name, runId, strictPathResolution: true) { DocumentOrdinal = ordinal };
+            MigrationFieldTranslation.ApplyToLogical(document, store.FieldMap);
+            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps);
 
             foreach (var operation in plan.Operations)
             {
@@ -248,9 +318,19 @@ public sealed class MigrationRunner
             samples.AddRange(context.InvalidValueSamples);
             generated += context.GeneratedIdMappings;
             repaired += context.RepairedReferences;
+            CollectRemaps(context, remaps);
+            CollectPending(context, pendingIds, pendingList);
 
             if (context.SkipDocument)
             {
+                continue;
+            }
+
+            var targetId = MigrationOperationSupport.IdText(document.TryGetValue(MigrationIds.IdField, out var idValue) ? idValue : null);
+
+            if (targetId != null && !targetIds.Add(targetId))
+            {
+                duplicates.Add(new DuplicateTargetIdSample(collectionName, targetId, ordinal));
                 continue;
             }
 
@@ -258,14 +338,20 @@ public sealed class MigrationRunner
 
             if (!runOptions.DryRun)
             {
-                await shadow.InsertAsync(document, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (context.IdRemaps.Count > 0 && !runOptions.DryRun)
-            {
-                await PersistRemapsAsync(context, cancellationToken).ConfigureAwait(false);
+                var physical = document.Clone();
+                MigrationFieldTranslation.ApplyToPhysical(physical, store.FieldMap);
+                await shadow.InsertAsync(physical, cancellationToken).ConfigureAwait(false);
+                await PersistRemapsAsync(context, remaps, cancellationToken).ConfigureAwait(false);
             }
         }
+
+        if (!runOptions.DryRun)
+        {
+            await InsertPendingAsync(shadow, pendingList, cancellationToken).ConfigureAwait(false);
+        }
+
+        var indexDefinitions = store.Capabilities.SupportsIndexEnumeration ? source.GetIndexes() : Array.Empty<MigrationIndexDefinition>();
+        var replayedIndexes = new List<MigrationIndexDefinition>();
 
         var disposition = runOptions.DryRun
             ? runOptions.BackupRetention == BackupRetentionPolicy.DeleteOnSuccess ? BackupDisposition.PlannedDeleteOnSuccess : BackupDisposition.PlannedRetain
@@ -281,6 +367,17 @@ public sealed class MigrationRunner
             await store.RenameCollectionAsync(collectionName, backupName, cancellationToken).ConfigureAwait(false);
             await store.RenameCollectionAsync(shadowName, collectionName, cancellationToken).ConfigureAwait(false);
 
+            if (indexDefinitions.Count > 0)
+            {
+                var target = store.GetCollection(collectionName);
+
+                foreach (var index in indexDefinitions)
+                {
+                    await target.EnsureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+                    replayedIndexes.Add(index);
+                }
+            }
+
             if (runOptions.BackupRetention == BackupRetentionPolicy.DeleteOnSuccess)
             {
                 await store.DropCollectionAsync(backupName, cancellationToken).ConfigureAwait(false);
@@ -292,12 +389,49 @@ public sealed class MigrationRunner
             }
         }
 
-        var validation = new RebuildValidationSummary(scanned, inserted, inserted, 0);
-        return new CollectionMigrationResult(collectionName, scanned, 0, 0, inserted, generated, repaired, samples.Count, samples, validation, backupName, disposition);
+        var validation = new RebuildValidationSummary(scanned, inserted + duplicates.Count, inserted, duplicates.Count);
+        return new CollectionMigrationResult(collectionName, scanned, 0, 0, inserted, generated, repaired, samples.Count, samples, validation, backupName, disposition, duplicates, replayedIndexes);
     }
 
-    private async Task PersistRemapsAsync(DocumentMigrationExecutionContext context, CancellationToken cancellationToken)
+    private static DocumentMigrationExecutionContext CreateContext(string collectionName, string migrationName, string runId, int ordinal, RemapLookup remaps)
+        => new(collectionName, migrationName, runId, strictPathResolution: true) { DocumentOrdinal = ordinal, Remaps = remaps };
+
+    private static void CollectRemaps(DocumentMigrationExecutionContext context, RemapLookup remaps)
     {
+        foreach (var remap in context.IdRemaps)
+        {
+            remaps.Add(remap.SourceCollection, remap.MigrationName, remap.OldId, remap.NewObjectId);
+        }
+    }
+
+    private static void CollectPending(DocumentMigrationExecutionContext context, HashSet<string> ids, List<MigrationObject> pending)
+    {
+        foreach (var document in context.PendingInserts)
+        {
+            var id = MigrationOperationSupport.IdText(document.TryGetValue(MigrationIds.IdField, out var value) ? value : null);
+
+            if (id == null || ids.Add(id))
+            {
+                pending.Add(document);
+            }
+        }
+    }
+
+    private async Task InsertPendingAsync(IMigrationCollection collection, IReadOnlyList<MigrationObject> pending, CancellationToken cancellationToken)
+    {
+        foreach (var document in pending)
+        {
+            await collection.InsertAsync(document.Clone(), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task PersistRemapsAsync(DocumentMigrationExecutionContext context, RemapLookup remaps, CancellationToken cancellationToken)
+    {
+        if (context.IdRemaps.Count == 0)
+        {
+            return;
+        }
+
         var collection = store.GetCollection(JournalStore.IdMappingCollection);
 
         foreach (var remap in context.IdRemaps)
@@ -312,6 +446,33 @@ public sealed class MigrationRunner
             document.Set("DocumentOrdinal", MigrationValue.From(remap.DocumentOrdinal));
             await collection.InsertAsync(document, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private async Task<RemapLookup> LoadRemapsAsync(CancellationToken cancellationToken)
+    {
+        var lookup = new RemapLookup();
+
+        if (!store.CollectionExists(JournalStore.IdMappingCollection))
+        {
+            return lookup;
+        }
+
+        var collection = store.GetCollection(JournalStore.IdMappingCollection);
+
+        await foreach (var document in collection.ScanAsync(includeDeleted: true, cancellationToken).ConfigureAwait(false))
+        {
+            var sourceCollection = document.TryGetValue("SourceCollection", out var c) ? c.AsString : null;
+            var migrationName = document.TryGetValue("MigrationName", out var m) ? m.AsString : null;
+            var oldId = document.TryGetValue("OldId", out var o) ? o.AsString : null;
+            var newId = document.TryGetValue("NewObjectId", out var n) ? n.AsString : null;
+
+            if (sourceCollection != null && migrationName != null && oldId != null && newId != null)
+            {
+                lookup.Add(sourceCollection, migrationName, oldId, newId);
+            }
+        }
+
+        return lookup;
     }
 
     private List<string> ResolveCollections(string selector)

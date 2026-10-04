@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <AssemblyName>Saturn.Data.Migrations.Cli</AssemblyName>
+        <RootNamespace>Saturn.Data.Migrations.Cli</RootNamespace>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Saturn.Data.Migrations\Saturn.Data.Migrations.csproj" />
+        <ProjectReference Include="..\..\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX\Saturn.Data.LiteDbX.csproj" />
+        <ProjectReference Include="..\..\Saturn.Data.Sqlite\Saturn.Data.Sqlite\Saturn.Data.Sqlite.csproj" />
+        <ProjectReference Include="..\..\Saturn.Data.MongoDb\Saturn.Data.MongoDb\Saturn.Data.MongoDb.csproj" />
+    </ItemGroup>
+
+</Project>

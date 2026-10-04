@@ -229,6 +229,100 @@ internal sealed class PruneEmptyContainersOperation : IMigrationOperation
     }
 }
 
+internal sealed class RepairReferenceOperation : IMigrationOperation
+{
+    private readonly string path;
+    private readonly string sourceCollection;
+    private readonly string sourceMigration;
+    private readonly string referenceCollectionPath;
+
+    public RepairReferenceOperation(string path, string sourceCollection, string sourceMigration, string referenceCollectionPath)
+    {
+        this.path = path;
+        this.sourceCollection = sourceCollection;
+        this.sourceMigration = sourceMigration;
+        this.referenceCollectionPath = referenceCollectionPath;
+    }
+
+    public bool RequiresRebuild => false;
+
+    public bool Apply(MigrationObject document, DocumentMigrationExecutionContext context)
+    {
+        if (context.Remaps.IsEmpty)
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        foreach (var candidate in MigrationOperationSupport.Contexts(document, path, recursive: false, context))
+        {
+            if (!candidate.Exists || candidate.Value == null || candidate.Value.IsNull)
+            {
+                continue;
+            }
+
+            if (referenceCollectionPath != null && !MatchesReferenceCollection(document, context))
+            {
+                continue;
+            }
+
+            var oldId = MigrationOperationSupport.IdText(candidate.Value);
+
+            if (oldId == null || !context.Remaps.TryResolve(sourceCollection, sourceMigration, oldId, out var newId))
+            {
+                continue;
+            }
+
+            var replacement = candidate.Value.IsObjectId ? MigrationValue.From(new MigrationObjectId(newId)) : MigrationValue.From(newId);
+
+            if (DocumentPathNavigator.TryReplace(document, candidate.Path, replacement))
+            {
+                context.RecordRepairedReference();
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    private bool MatchesReferenceCollection(MigrationObject document, DocumentMigrationExecutionContext context)
+    {
+        if (!DocumentPathNavigator.TryGet(document, referenceCollectionPath, out _, out _, out var value) || value == null || value.IsNull)
+        {
+            return false;
+        }
+
+        return string.Equals(value.AsString, sourceCollection, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+internal sealed class InsertDocumentWhenOperation : IMigrationOperation
+{
+    private readonly MigrationObject template;
+    private readonly MigrationPredicate predicate;
+
+    public InsertDocumentWhenOperation(MigrationObject template, MigrationPredicate predicate)
+    {
+        this.template = template;
+        this.predicate = predicate;
+    }
+
+    public bool RequiresRebuild => false;
+
+    public bool Apply(MigrationObject document, DocumentMigrationExecutionContext context)
+    {
+        var candidate = new MigrationPredicateContext(document, MigrationIds.IdField, true, document, context.Collection, context.MigrationName);
+
+        if (predicate(candidate))
+        {
+            context.PendingInserts.Add(template.Clone());
+        }
+
+        return false;
+    }
+}
+
 internal sealed class ConvertFieldOperation : IMigrationOperation
 {
     private readonly string path;
@@ -328,6 +422,21 @@ internal static class MigrationOperationSupport
     public static IEnumerable<MigrationPredicateContext> CleanupContexts(MigrationObject document, bool recursive, DocumentMigrationExecutionContext context)
     {
         return DocumentPathNavigator.CreateCleanupContexts(document, recursive ? CleanupScope.Recursive : CleanupScope.TopLevel, context.Collection, context.MigrationName);
+    }
+
+    public static string IdText(MigrationValue value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        if (value.IsObjectId)
+        {
+            return value.AsObjectId.ToString();
+        }
+
+        return value.IsString ? value.AsString : null;
     }
 
     public static ConversionOutcome ConvertObjectId(MigrationValue value, InvalidObjectIdPolicy policy, DocumentMigrationExecutionContext context, string path)
