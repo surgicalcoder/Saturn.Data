@@ -17,8 +17,8 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 | 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
 | 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | done |
-| 3 | Sqlite adapter | in_progress |
-| 4 | DocumentDb adapter | pending |
+| 3 | Sqlite adapter | done |
+| 4 | DocumentDb adapter | in_progress |
 | 5 | Stellar decision + CLI | pending |
 | 6 | Hardening + docs | pending |
 
@@ -90,4 +90,20 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 3: `SqliteMigrationStore` in `Saturn.Data.Sqlite`; JSON `_doc` ⇄ `MigrationObject` via the provider's `EntityJsonSerializer`, projection-column maintenance, `PRAGMA index_list`, `ALTER TABLE` swap, `knownTables` invalidation.
+
+## Phase 3 log
+
+### Delivered
+- `Saturn.Data.Sqlite/Migrations/SqliteJsonConverter.cs` — `_doc` JSON ⇄ `MigrationObject` (PascalCase, refs/ids as strings, `_id` canonically from the `_id` column, `Id` written on output).
+- `Saturn.Data.Sqlite/Migrations/SqliteMigrationStore.cs` — table enumeration via `sqlite_master`, `INSERT ... ON CONFLICT(_id) DO UPDATE` upsert with recomputed `_v`/`_deleted`/`_scope`/`_scope2`/`_archived`, `ALTER TABLE ... RENAME`, canonical index drop/recreate, `knownTables` invalidation.
+- `SqliteRepository` partial implements `IMigrationStoreSource`.
+- `Phase3MigrationTests` passes; full suite 84/84.
+
+### Gotchas
+- SQLite `RenameCollection` does not rename indexes; the adapter drops `ix_{src}__*` and creates `ix_{dst}__*` so canonical provider indexes stay consistent.
+- JSON ids remain strings; `ConvertId`/`ConvertField` ObjectId kinds are serialized back to 24-hex strings (`SupportsObjectIdOnDisk=false`).
+- Seeding legacy docs is easiest via the store itself (`GetCollection().InsertAsync`) — it writes canonical `Id` + projections.
+
+### Next
+- Phase 4: `DocumentDbMigrationStore` for the Shiny shared `documents` table (logical collection = `TypeName`), discriminator re-tag rebuild.
 

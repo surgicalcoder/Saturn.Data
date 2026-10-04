@@ -894,7 +894,7 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | 0 | F1/F2 provider fixes + core `GoLive.Saturn.Data.Migrations` extraction | done |
 | 1 | LiteDbX adapter + parity | done |
 | 2 | MongoDb adapter | done |
-| 3 | Sqlite adapter | pending |
+| 3 | Sqlite adapter | done |
 | 4 | DocumentDb adapter | pending |
 | 5 | Stellar decision + CLI | pending |
 | 6 | Hardening + docs | pending |
@@ -930,6 +930,14 @@ Note: LiteDbX exposes async storage APIs (`ValueTask`, `IAsyncEnumerable`); the 
 - [x] Full MongoDb suite green (107/107).
 
 Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migrations currently target provider-physical names (§7.3).
+
+### Phase 3 checklist
+
+- [x] `SqliteMigrationStore` + `SqliteMigrationCollection` in `Saturn.Data.Sqlite` (`_doc` JSON⇄`MigrationObject`, projection-column maintenance, table enumeration, `ALTER TABLE` rename, canonical index recreation, `knownTables` invalidation).
+- [x] `IMigrationStoreSource` on `SqliteRepository` (`CreateMigrationStore()`; JSON ids stay strings, `SupportsObjectIdOnDisk=false`).
+- [x] End-to-end test on a real SQLite file: canonical `_id`/`Id`, `Scope` string, empty `Properties`/null `Payload` removed, rebuild/swap.
+- [x] Full Sqlite suite green (84/84).
+
 
 
 
