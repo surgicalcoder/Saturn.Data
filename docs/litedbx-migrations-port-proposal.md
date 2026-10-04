@@ -897,7 +897,7 @@ Live tracker. Detailed resume notes live in `docs/litedbx-migrations-port-worklo
 | 3 | Sqlite adapter | done |
 | 4 | DocumentDb adapter | done (in-place only) |
 | 5 | Stellar decision + CLI | done (Stellar 3a; CLI deferred) |
-| 6 | Hardening + docs | pending |
+| 6 | Hardening + docs | done (docs; backlog below) |
 
 ### Phase 0 checklist
 
@@ -952,6 +952,24 @@ DocumentDb therefore lands as **Tier 2 in-place only** for now (proposal §8.2),
 
 - [x] Stellar decision **3a**: `StellarRepository` implements `IMigrationStoreSource`; `CreateMigrationStore()` throws an actionable `NotSupportedException` (typed MessagePack, no document lane, no rename/tx/index). Test asserts the message.
 - [ ] Provider-agnostic CLI migrator — **deferred** (Phase 6/backlog). The ported `Program.cs` example in Appendix C remains the reference.
+
+### Phase 6 checklist and backlog
+
+- [x] Progress tracker (this section) and detailed `docs/litedbx-migrations-port-worklog.md`.
+- [x] Per-provider usage reflected in the capability matrix (§8.1).
+- [x] Whole-solution build clean (`dotnet build Saturn.Data.slnx`).
+- [ ] Engine backlog: `RepairReference` / `InsertDocumentWhen` operations, backup cleanup API (`CleanupBackupsAsync`, `KeepLatestCount`), duplicate-target-id detection, strict-path failure reporting, index replay.
+- [ ] Field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) so one definition spans BSON and JSON providers.
+- [ ] DocumentDb discriminator re-tag rebuild and a raw migration test (currently in-place only, unverified).
+- [ ] Provider-agnostic CLI.
+
+### Implemented result (summary)
+
+- **Core**: `GoLive.Saturn.Data.Migrations` — document model, path navigator, predicates, operations, runner (in-place + rebuild/swap), journal, id-remap log, dry-run, reports/progress, `IMigrationStore` abstraction. 11 tests.
+- **F1/F2**: uniform soft-delete semantics and LiteDbX `Properties`/`_p` persistence.
+- **Adapters**: LiteDbX (full), MongoDb (full), Sqlite (full), DocumentDb (in-place), Stellar (declared unsupported).
+- **Tests green**: core 11, LiteDbX 60, MongoDb 107, Sqlite 84, plus Stellar/DocumentDb phase tests.
+
 
 
 

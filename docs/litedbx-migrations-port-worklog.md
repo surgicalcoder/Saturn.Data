@@ -20,7 +20,7 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 | 3 | Sqlite adapter | done |
 | 4 | DocumentDb adapter | done (in-place only) |
 | 5 | Stellar decision + CLI | done (Stellar 3a; CLI deferred) |
-| 6 | Hardening + docs | in_progress |
+| 6 | Hardening + docs | done (docs; backlog recorded) |
 
 ## Resume notes
 
@@ -132,5 +132,23 @@ Companion to `docs/litedbx-migrations-port-proposal.md`. This file is the resume
 
 ### Next
 - Phase 6: authoring/DI polish, docs, and the deferred engine operations (`RepairReference`, backup cleanup, duplicate-id detection, index replay, alias map).
+
+## Phase 6 log
+
+### Delivered
+- Progress tracker in the proposal (§17) and this worklog; whole-solution build clean (`dotnet build Saturn.Data.slnx`).
+- Backlog recorded in the proposal (§17 Phase 6 checklist).
+
+### Backlog (not done)
+- Engine operations: `RepairReference`, `InsertDocumentWhen`, backup cleanup (`CleanupBackupsAsync`/`KeepLatestCount`), duplicate-target-id detection, strict-path failure reporting, index replay on rebuild.
+- Field-name alias map (`_p`/`_v`) for BSON⇄JSON parity.
+- DocumentDb discriminator re-tag rebuild + raw test.
+- Provider-agnostic CLI.
+
+### How to resume
+1. Read the proposal §17 and this file.
+2. `dotnet build Saturn.Data.slnx`.
+3. Run tests: core (`Saturn.Data.Migrations.Tests`), LiteDbX, MongoDb (needs localhost:27017), Sqlite.
+4. Pick a backlog item; add an adapter method only when an engine path needs it; keep the core provider-free.
 
 
