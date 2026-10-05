@@ -13,7 +13,19 @@ public class UnitTestableDb(RepositoryOptions repositoryOptions, StellarReposito
     public void DropRecreateDatabase()
     {
         database.Close();
-        Directory.Delete("e:\\_scratch\\_unit_tests\\stellardb\\", true);
+
+        var path = repOptions.BaseDirectory;
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+
+            Directory.CreateDirectory(path);
+        }
+
         database.Load();
     }
 };
