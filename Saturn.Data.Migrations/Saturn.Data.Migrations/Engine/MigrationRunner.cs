@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -44,6 +45,13 @@ public sealed class MigrationRunner
     public MigrationRunner WithIncludeDeleted(bool includeDeleted = true)
     {
         options.IncludeDeleted = includeDeleted;
+        return this;
+    }
+
+    public MigrationRunner WithStrictPathResolution(bool strict = true, bool throwOnFailure = true)
+    {
+        options.StrictPathResolution = strict;
+        options.ThrowOnStrictPathFailure = throwOnFailure;
         return this;
     }
 
@@ -153,6 +161,7 @@ public sealed class MigrationRunner
             var generated = 0;
             var repaired = 0;
             var invalid = 0;
+            var strictFailureCount = 0;
 
             foreach (var (plan, matched) in work)
             {
@@ -174,6 +183,7 @@ public sealed class MigrationRunner
                     generated += result.GeneratedIdMappings;
                     repaired += result.RepairedReferences;
                     invalid += result.InvalidValueCount;
+                    strictFailureCount += result.StrictPathFailureCount;
                     completedCollections++;
 
                     Report(runOptions, MigrationProgressStage.CollectionCompleted, definition.Name, plan.Selector, collectionName, runOptions.DryRun, completedCollections, totalCollections, scanned, modified, removed, inserted);
@@ -189,7 +199,7 @@ public sealed class MigrationRunner
 
             Report(runOptions, MigrationProgressStage.MigrationCompleted, definition.Name, null, null, runOptions.DryRun, completedCollections, totalCollections, scanned, modified, removed, inserted);
 
-            results.Add(new MigrationExecutionResult(definition.Name, runId, !runOptions.DryRun, runOptions.DryRun, selectorResults, scanned, modified, removed, inserted, generated, repaired, invalid));
+            results.Add(new MigrationExecutionResult(definition.Name, runId, !runOptions.DryRun, runOptions.DryRun, selectorResults, scanned, modified, removed, inserted, generated, repaired, invalid, strictFailureCount));
         }
 
         return new MigrationReport(results);
@@ -223,6 +233,7 @@ public sealed class MigrationRunner
         var ordinal = 0;
         var pendingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pendingList = new List<MigrationObject>();
+        var strictFailures = 0;
 
         await foreach (var raw in collection.ScanAsync(runOptions.IncludeDeleted, cancellationToken).ConfigureAwait(false))
         {
@@ -231,7 +242,7 @@ public sealed class MigrationRunner
 
             var document = raw.Clone();
             MigrationFieldTranslation.ApplyToLogical(document, store.FieldMap);
-            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps);
+            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps, runOptions.StrictPathResolution);
             var changed = false;
 
             foreach (var operation in plan.Operations)
@@ -253,6 +264,7 @@ public sealed class MigrationRunner
             repaired += context.RepairedReferences;
             CollectRemaps(context, remaps);
             CollectPending(context, pendingIds, pendingList);
+            strictFailures += context.StrictPathFailures.Count;
 
             if (!changed)
             {
@@ -275,7 +287,12 @@ public sealed class MigrationRunner
             await InsertPendingAsync(collection, pendingList, cancellationToken).ConfigureAwait(false);
         }
 
-        return new CollectionMigrationResult(collectionName, scanned, modified, 0, 0, generated, repaired, samples.Count, samples, null, null, BackupDisposition.None);
+        if (runOptions.StrictPathResolution && runOptions.ThrowOnStrictPathFailure && strictFailures > 0)
+        {
+            throw new InvalidOperationException($"Migration '{definition.Name}' found {strictFailures} strict path resolution failure(s) in collection '{collectionName}'.");
+        }
+
+        return new CollectionMigrationResult(collectionName, scanned, modified, 0, 0, generated, repaired, samples.Count, samples, null, null, BackupDisposition.None, strictPathFailureCount: strictFailures);
     }
 
     private async Task<CollectionMigrationResult> RebuildCollectionAsync(MigrationDefinition definition, CollectionMigrationPlan plan, string collectionName, string runId, MigrationRunOptions runOptions, RemapLookup remaps, CancellationToken cancellationToken)
@@ -293,8 +310,10 @@ public sealed class MigrationRunner
         var repaired = 0;
         var ordinal = 0;
         var targetIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var batchDocs = new List<MigrationObject>();
         var pendingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pendingList = new List<MigrationObject>();
+        var strictFailures = 0;
 
         await foreach (var raw in source.ScanAsync(runOptions.IncludeDeleted, cancellationToken).ConfigureAwait(false))
         {
@@ -303,7 +322,7 @@ public sealed class MigrationRunner
 
             var document = raw.Clone();
             MigrationFieldTranslation.ApplyToLogical(document, store.FieldMap);
-            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps);
+            var context = CreateContext(collectionName, definition.Name, runId, ordinal, remaps, runOptions.StrictPathResolution);
 
             foreach (var operation in plan.Operations)
             {
@@ -320,6 +339,7 @@ public sealed class MigrationRunner
             repaired += context.RepairedReferences;
             CollectRemaps(context, remaps);
             CollectPending(context, pendingIds, pendingList);
+            strictFailures += context.StrictPathFailures.Count;
 
             if (context.SkipDocument)
             {
@@ -340,9 +360,23 @@ public sealed class MigrationRunner
             {
                 var physical = document.Clone();
                 MigrationFieldTranslation.ApplyToPhysical(physical, store.FieldMap);
-                await shadow.InsertAsync(physical, cancellationToken).ConfigureAwait(false);
+
+                if (store.Capabilities.SupportsBatchInsert)
+                {
+                    batchDocs.Add(physical);
+                }
+                else
+                {
+                    await shadow.InsertAsync(physical, cancellationToken).ConfigureAwait(false);
+                }
+
                 await PersistRemapsAsync(context, remaps, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        if (!runOptions.DryRun && batchDocs.Count > 0)
+        {
+            await shadow.InsertManyAsync(AsAsyncEnumerable(batchDocs, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
 
         if (!runOptions.DryRun)
@@ -389,12 +423,17 @@ public sealed class MigrationRunner
             }
         }
 
+        if (runOptions.StrictPathResolution && runOptions.ThrowOnStrictPathFailure && strictFailures > 0)
+        {
+            throw new InvalidOperationException($"Migration '{definition.Name}' found {strictFailures} strict path resolution failure(s) in collection '{collectionName}'.");
+        }
+
         var validation = new RebuildValidationSummary(scanned, inserted + duplicates.Count, inserted, duplicates.Count);
-        return new CollectionMigrationResult(collectionName, scanned, 0, 0, inserted, generated, repaired, samples.Count, samples, validation, backupName, disposition, duplicates, replayedIndexes);
+        return new CollectionMigrationResult(collectionName, scanned, 0, 0, inserted, generated, repaired, samples.Count, samples, validation, backupName, disposition, duplicates, replayedIndexes, strictFailures);
     }
 
-    private static DocumentMigrationExecutionContext CreateContext(string collectionName, string migrationName, string runId, int ordinal, RemapLookup remaps)
-        => new(collectionName, migrationName, runId, strictPathResolution: true) { DocumentOrdinal = ordinal, Remaps = remaps };
+    private static DocumentMigrationExecutionContext CreateContext(string collectionName, string migrationName, string runId, int ordinal, RemapLookup remaps, bool strictPathResolution)
+        => new(collectionName, migrationName, runId, strictPathResolution) { DocumentOrdinal = ordinal, Remaps = remaps };
 
     private static void CollectRemaps(DocumentMigrationExecutionContext context, RemapLookup remaps)
     {
@@ -415,6 +454,17 @@ public sealed class MigrationRunner
                 pending.Add(document);
             }
         }
+    }
+
+    private static async IAsyncEnumerable<MigrationObject> AsAsyncEnumerable(IEnumerable<MigrationObject> documents, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        foreach (var document in documents)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return document;
+        }
+
+        await Task.CompletedTask;
     }
 
     private async Task InsertPendingAsync(IMigrationCollection collection, IReadOnlyList<MigrationObject> pending, CancellationToken cancellationToken)

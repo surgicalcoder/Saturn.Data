@@ -960,19 +960,20 @@ Deferred: field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) — migra
 - [x] Backup cleanup API (`CleanupBackupsAsync`, `BackupCleanupOptions.KeepLatestCount`).
 - [x] Duplicate-target-id detection during rebuild (`DuplicateTargetIdSample`, validation summary).
 - [x] Index replay on rebuild (Mongo/Sqlite enumerate; Sqlite reads columns via `PRAGMA index_info`).
-- [x] Field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) applied at the store boundary; LiteDbX and Mongo register maps, JSON providers are identity.
+- [x] Field-name alias map (`_p`↔`Properties`, `_v`↔`Version`) applied at the store boundary; centralized in `MigrationFieldAliases` and conformance-tested against the real LiteDbX and Mongo serializers.
 - [x] DocumentDb rebuild + raw end-to-end test.
 - [x] Provider-agnostic CLI.
-- [ ] Strict-path failure reporting (posture change to non-wildcard missing paths) — still open; the navigator already returns a failure enum if wanted.
-- [ ] Transactional/atomic DocumentDb swap (delete+reimport is not atomic) — wrap in a store transaction when the provider allows.
+- [x] Strict-path failure reporting: `WithStrictPathResolution()` records non-wildcard missing/mismatched paths and throws (configurable) with a per-collection count on the report.
+- [x] LiteDbX index enumeration via the `$indexes` system collection; DocumentDb index enumeration remains best-effort (the raw lane exposes `CreateIndex` but no public list).
+- [~] DocumentDb atomicity: shadow population and rename imports use `SingleTransaction` bulk restore (`SupportsBatchInsert`), and rename imports before deleting the source, so a failure never loses data; the delete still runs outside the import transaction, so the swap is crash-safe rather than fully atomic.
 
 ### Implemented result (summary)
 
-- **Core**: `GoLive.Saturn.Data.Migrations` — document model, path navigator, predicates, operations (incl. `RepairReference`, `InsertDocumentWhen`), runner (in-place + rebuild/swap, duplicate detection, index replay, backup cleanup), journal, id-remap log + resolver, field-alias map, dry-run, reports/progress, `IMigrationModule`. 17 tests.
+- **Core**: `GoLive.Saturn.Data.Migrations` — document model, path navigator, predicates, operations (incl. `RepairReference`, `InsertDocumentWhen`), runner (in-place + rebuild/swap, duplicate detection, index replay, backup cleanup, strict-path, batch insert), journal, id-remap log + resolver, field-alias map, dry-run, reports/progress, `IMigrationModule`. 19 tests.
 - **F1/F2**: uniform soft-delete semantics and LiteDbX `Properties`/`_p` persistence.
-- **Adapters**: LiteDbX (full), MongoDb (full), Sqlite (full), DocumentDb (backup lane, rebuild), Stellar (declared unsupported).
+- **Adapters**: LiteDbX (full, index enumeration), MongoDb (full), Sqlite (full), DocumentDb (backup lane, rebuild, batch), Stellar (declared unsupported).
 - **CLI**: `Saturn.Data.Migrations.Cli`.
-- **Tests green**: core 17, LiteDbX 60, MongoDb 107, Sqlite 84, DocumentDb 128.
+- **Tests green**: core 19, LiteDbX 62, MongoDb 108, Sqlite 84, DocumentDb 127.
 
 
 

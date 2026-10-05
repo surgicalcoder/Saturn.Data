@@ -24,6 +24,18 @@ public static class DocumentPathNavigator
 
     internal static bool HasRecursive(string path) => TryParsePath(path, out var segments) && HasRecursive(segments);
 
+    internal static bool HasPattern(string path) => TryParsePath(path, out var segments) && HasPattern(segments);
+
+    internal static MigrationPathResolutionFailure ResolveFailure(MigrationObject document, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !TryParsePath(path, out _))
+        {
+            return MigrationPathResolutionFailure.InvalidPath;
+        }
+
+        return TryGet(document, path, out _, out _, out _, out var failure) ? MigrationPathResolutionFailure.None : failure;
+    }
+
     internal static bool CanBindWildcardSiblingPath(string primaryPath, string siblingPath)
     {
         if (!TryParsePath(primaryPath, out var primarySegments) || !TryParsePath(siblingPath, out var siblingSegments))

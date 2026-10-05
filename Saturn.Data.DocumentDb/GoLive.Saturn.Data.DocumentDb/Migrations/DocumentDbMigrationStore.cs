@@ -30,7 +30,8 @@ internal sealed class DocumentDbMigrationStore : IMigrationStore
             SupportsIndexEnumeration = false,
             SupportsTransactions = true,
             SupportsObjectIdOnDisk = false,
-            SupportsIncludeDeleted = true
+            SupportsIncludeDeleted = true,
+            SupportsBatchInsert = backup != null
         };
     }
 
@@ -90,7 +91,7 @@ internal sealed class DocumentDbMigrationStore : IMigrationStore
         }
 
         var moved = sourceRows.Select(row => new RawDocument(row.Id, target, Encoding.UTF8.GetBytes(row.Data), null, null, null)).ToList();
-        await backup.BulkImportAsync(DocumentDbBackup.AsAsyncEnumerable(moved, cancellationToken), new BulkRestoreOptions(), cancellationToken).ConfigureAwait(false);
+        await backup.BulkImportAsync(DocumentDbBackup.AsAsyncEnumerable(moved, cancellationToken), new BulkRestoreOptions { SingleTransaction = true, ChunkSize = 500 }, cancellationToken).ConfigureAwait(false);
 
         var collection = store.Collection(source, "Id");
         await collection.BatchRemove(sourceRows.Select(row => (object)row.Id).ToList(), cancellationToken).ConfigureAwait(false);
@@ -172,6 +173,31 @@ internal sealed class DocumentDbMigrationCollection : IMigrationCollection
     {
         var collection = store.Collection(Name, "Id");
         await collection.Insert(DocumentDbJsonConverter.ToJsonObject(document), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task InsertManyAsync(IAsyncEnumerable<MigrationObject> documents, CancellationToken cancellationToken = default)
+    {
+        if (backup == null)
+        {
+            await foreach (var document in documents)
+            {
+                await InsertAsync(document, cancellationToken).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        await backup.BulkImportAsync(ToRawDocuments(documents, cancellationToken), new BulkRestoreOptions { SingleTransaction = true, ChunkSize = 500 }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async IAsyncEnumerable<RawDocument> ToRawDocuments(IAsyncEnumerable<MigrationObject> documents, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var document in documents.WithCancellation(cancellationToken))
+        {
+            var json = DocumentDbJsonConverter.ToJsonObject(document).ToJsonString();
+            var id = DocumentDbJsonConverter.GetIdText(document) ?? Guid.NewGuid().ToString("N");
+            yield return new RawDocument(id, Name, Encoding.UTF8.GetBytes(json), null, null, null);
+        }
     }
 
     public async Task<bool> UpdateAsync(MigrationObject document, CancellationToken cancellationToken = default)

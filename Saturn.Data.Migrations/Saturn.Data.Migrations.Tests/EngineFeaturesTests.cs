@@ -147,6 +147,37 @@ public class EngineFeaturesTests
         Assert.Equal(2, count);
     }
 
+    [Fact]
+    public async Task StrictPathResolution_FailsOnMissingPath()
+    {
+        var store = new InMemoryMigrationStore();
+        var seed = new MigrationObject();
+        seed.Set("_id", MigrationValue.From("67a92d08063e3290f03b29dc"));
+        store.Seed("User", seed);
+
+        await Assert.ThrowsAsync<System.InvalidOperationException>(async () =>
+            await store.Migrations()
+                .Migration("strict", m => m.ForCollection("User", c => c.RemoveFieldWhen("Missing.Path", MigrationPredicates.Always)))
+                .WithStrictPathResolution()
+                .RunAsync());
+    }
+
+    [Fact]
+    public async Task StrictPathResolution_DisabledDoesNotFail()
+    {
+        var store = new InMemoryMigrationStore();
+        var seed = new MigrationObject();
+        seed.Set("_id", MigrationValue.From("67a92d08063e3290f03b29dc"));
+        store.Seed("User", seed);
+
+        var report = await store.Migrations()
+            .Migration("lenient", m => m.ForCollection("User", c => c.RemoveFieldWhen("Missing.Path", MigrationPredicates.Always)))
+            .RunAsync();
+
+        var execution = Assert.Single(report.Migrations);
+        Assert.Equal(0, execution.StrictPathFailureCount);
+    }
+
     private static async Task<MigrationObject> FirstAsync(IMigrationCollection collection)
     {
         await foreach (var document in collection.ScanAsync(includeDeleted: true))

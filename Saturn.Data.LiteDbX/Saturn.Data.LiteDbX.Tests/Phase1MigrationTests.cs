@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using GoLive.Saturn.Data.Migrations;
 using LiteDbX;
+using Saturn.Data.LiteDbX.Tests.Entities;
 
 namespace Saturn.Data.LiteDbX.Tests;
 
@@ -45,6 +46,31 @@ public class Phase1MigrationTests(DatabaseFixture fixture) : IClassFixture<Datab
         Assert.False(migrated.ContainsKey("Properties"));
         Assert.False(migrated.ContainsKey("Payload"));
         Assert.True(repository.Database.CollectionExists("__saturn_migrations").AsTask().GetAwaiter().GetResult());
+    }
+
+    [Fact]
+    public void FieldAliases_MatchLiteDbxStorageShape()
+    {
+        var entity = new BasicEntity { Id = "67a92d08063e3290f03b29dc", Name = "x" };
+        entity.Properties["Theme"] = "dark";
+
+        var document = repository.SerializeToDocument(entity);
+
+        Assert.True(document.ContainsKey("_p"));
+        Assert.Equal("_p", MigrationFieldAliases.LiteDbx.ToPhysical("Properties"));
+        Assert.Equal("Properties", MigrationFieldAliases.LiteDbx.ToLogical("_p"));
+    }
+
+    [Fact]
+    public async Task IndexEnumeration_ReadsSystemIndexes()
+    {
+        var store = repository.CreateMigrationStore();
+        var collection = store.GetCollection("IndexedEntity");
+        await collection.EnsureIndexAsync(new MigrationIndexDefinition("ix_custom_name", "Name", false));
+
+        var indexes = collection.GetIndexes();
+
+        Assert.Contains(indexes, index => index.Name == "ix_custom_name");
     }
 
     private async Task<BsonDocument> FirstRawAsync(string collectionName)

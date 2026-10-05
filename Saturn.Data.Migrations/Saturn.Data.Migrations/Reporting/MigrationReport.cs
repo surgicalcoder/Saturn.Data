@@ -80,7 +80,8 @@ public sealed class CollectionMigrationResult
         string backupCollectionName,
         BackupDisposition backupDisposition,
         IReadOnlyList<DuplicateTargetIdSample> duplicateTargetIdSamples = null,
-        IReadOnlyList<MigrationIndexDefinition> replayedIndexes = null)
+        IReadOnlyList<MigrationIndexDefinition> replayedIndexes = null,
+        int strictPathFailureCount = 0)
     {
         CollectionName = collectionName;
         DocumentsScanned = documentsScanned;
@@ -96,6 +97,7 @@ public sealed class CollectionMigrationResult
         BackupDisposition = backupDisposition;
         DuplicateTargetIdSamples = duplicateTargetIdSamples ?? Array.Empty<DuplicateTargetIdSample>();
         ReplayedIndexes = replayedIndexes ?? Array.Empty<MigrationIndexDefinition>();
+        StrictPathFailureCount = strictPathFailureCount;
     }
 
     public string CollectionName { get; }
@@ -112,6 +114,7 @@ public sealed class CollectionMigrationResult
     public BackupDisposition BackupDisposition { get; }
     public IReadOnlyList<DuplicateTargetIdSample> DuplicateTargetIdSamples { get; }
     public IReadOnlyList<MigrationIndexDefinition> ReplayedIndexes { get; }
+    public int StrictPathFailureCount { get; }
 }
 
 public sealed class CollectionSelectorResult
@@ -143,7 +146,8 @@ public sealed class MigrationExecutionResult
         int documentsInserted,
         int generatedIdMappings,
         int repairedReferences,
-        int invalidValueCount)
+        int invalidValueCount,
+        int strictPathFailureCount = 0)
     {
         Name = name;
         RunId = runId;
@@ -157,6 +161,7 @@ public sealed class MigrationExecutionResult
         GeneratedIdMappings = generatedIdMappings;
         RepairedReferences = repairedReferences;
         InvalidValueCount = invalidValueCount;
+        StrictPathFailureCount = strictPathFailureCount;
     }
 
     public string Name { get; }
@@ -172,6 +177,7 @@ public sealed class MigrationExecutionResult
     public int GeneratedIdMappings { get; }
     public int RepairedReferences { get; }
     public int InvalidValueCount { get; }
+    public int StrictPathFailureCount { get; }
 }
 
 public sealed class MigrationReport

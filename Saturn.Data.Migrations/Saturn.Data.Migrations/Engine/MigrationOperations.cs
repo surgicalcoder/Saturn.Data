@@ -414,9 +414,22 @@ internal static class MigrationOperationSupport
 {
     public static IEnumerable<MigrationPredicateContext> Contexts(MigrationObject document, string path, bool recursive, DocumentMigrationExecutionContext context)
     {
-        return recursive
-            ? DocumentPathNavigator.CreateCleanupContexts(document, CleanupScope.Recursive, context.Collection, context.MigrationName)
-            : DocumentPathNavigator.CreateContexts(document, path, includeLeafWhenMissing: true, context.Collection, context.MigrationName);
+        if (recursive)
+        {
+            return DocumentPathNavigator.CreateCleanupContexts(document, CleanupScope.Recursive, context.Collection, context.MigrationName);
+        }
+
+        if (context.StrictPathResolution && !DocumentPathNavigator.HasPattern(path))
+        {
+            var failure = DocumentPathNavigator.ResolveFailure(document, path);
+
+            if (failure != MigrationPathResolutionFailure.None)
+            {
+                context.RecordPathFailure(path, failure.ToString());
+            }
+        }
+
+        return DocumentPathNavigator.CreateContexts(document, path, includeLeafWhenMissing: true, context.Collection, context.MigrationName);
     }
 
     public static IEnumerable<MigrationPredicateContext> CleanupContexts(MigrationObject document, bool recursive, DocumentMigrationExecutionContext context)

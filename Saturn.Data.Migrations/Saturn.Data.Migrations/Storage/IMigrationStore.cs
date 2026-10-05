@@ -32,6 +32,14 @@ public interface IMigrationCollection
 
     Task InsertAsync(MigrationObject document, CancellationToken cancellationToken = default);
 
+    async Task InsertManyAsync(IAsyncEnumerable<MigrationObject> documents, CancellationToken cancellationToken = default)
+    {
+        await foreach (var document in documents)
+        {
+            await InsertAsync(document, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     Task<bool> UpdateAsync(MigrationObject document, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(MigrationValue id, CancellationToken cancellationToken = default);

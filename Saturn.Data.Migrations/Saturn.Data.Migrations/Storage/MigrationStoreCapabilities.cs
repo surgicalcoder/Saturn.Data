@@ -9,6 +9,7 @@ public sealed class MigrationStoreCapabilities
     public bool SupportsTransactions { get; init; }
     public bool SupportsObjectIdOnDisk { get; init; }
     public bool SupportsIncludeDeleted { get; init; }
+    public bool SupportsBatchInsert { get; init; }
 
     public static MigrationStoreCapabilities Full { get; } = new()
     {

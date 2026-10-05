@@ -45,4 +45,23 @@ public class Phase2MigrationTests(DatabaseFixture fixture) : IClassFixture<Datab
         Assert.False(migrated.Contains("Properties"));
         Assert.False(migrated.Contains("Payload"));
     }
+
+    [Fact]
+    public async Task FieldAliases_MatchMongoStorageShape()
+    {
+        var entity = new BasicEntity { Id = "67a92d2a063e3290f03b29dd", Name = "x", Version = 4 };
+        entity.Properties["Theme"] = "dark";
+
+        await repository.Insert(entity, null, default);
+
+        var raw = repository.GetRawCollection<BasicEntity>()
+            .Find(Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(entity.Id)))
+            .FirstOrDefault();
+
+        Assert.NotNull(raw);
+        Assert.True(raw.Contains("_p"), raw.ToString());
+        Assert.True(raw.Contains("_v"), raw.ToString());
+        Assert.Equal("_p", MigrationFieldAliases.MongoDb.ToPhysical("Properties"));
+        Assert.Equal("_v", MigrationFieldAliases.MongoDb.ToPhysical("Version"));
+    }
 }

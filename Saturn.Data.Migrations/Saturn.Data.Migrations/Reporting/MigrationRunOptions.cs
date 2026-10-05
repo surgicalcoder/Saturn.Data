@@ -10,6 +10,10 @@ public sealed class MigrationRunOptions
 
     public bool ContinueOnError { get; set; }
 
+    public bool StrictPathResolution { get; set; }
+
+    public bool ThrowOnStrictPathFailure { get; set; } = true;
+
     public BackupRetentionPolicy BackupRetention { get; set; } = BackupRetentionPolicy.KeepAll;
 
     public Action<MigrationProgress> ProgressCallback { get; set; }

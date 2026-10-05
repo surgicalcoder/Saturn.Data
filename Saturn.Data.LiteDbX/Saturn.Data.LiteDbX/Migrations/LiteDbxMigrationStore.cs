@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,16 +23,13 @@ internal sealed class LiteDbxMigrationStore : IMigrationStore
         SupportsRawDocuments = true,
         SupportsRebuild = true,
         SupportsRenameCollection = true,
-        SupportsIndexEnumeration = false,
+        SupportsIndexEnumeration = true,
         SupportsTransactions = false,
         SupportsObjectIdOnDisk = true,
         SupportsIncludeDeleted = true
     };
 
-    public IMigrationFieldMap FieldMap { get; } = new MigrationFieldMap(new[]
-    {
-        new KeyValuePair<string, string>("Properties", "_p")
-    });
+    public IMigrationFieldMap FieldMap => MigrationFieldAliases.LiteDbx;
 
     public async IAsyncEnumerable<string> GetCollectionsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -60,10 +58,12 @@ internal sealed class LiteDbxMigrationStore : IMigrationStore
 
 internal sealed class LiteDbxMigrationCollection : IMigrationCollection
 {
+    private readonly LiteDatabase database;
     private readonly ILiteCollection<BsonDocument> collection;
 
     public LiteDbxMigrationCollection(LiteDatabase database, string name)
     {
+        this.database = database;
         Name = name;
         collection = database.GetCollection(name, BsonAutoId.ObjectId);
     }
@@ -91,8 +91,50 @@ internal sealed class LiteDbxMigrationCollection : IMigrationCollection
     public async Task<bool> DeleteAsync(MigrationValue id, CancellationToken cancellationToken = default)
         => await collection.Delete(LiteDbxBsonConverter.ToBsonValue(id), cancellationToken);
 
-    public IReadOnlyList<MigrationIndexDefinition> GetIndexes() => Array.Empty<MigrationIndexDefinition>();
+    public IReadOnlyList<MigrationIndexDefinition> GetIndexes()
+    {
+        var definitions = new List<MigrationIndexDefinition>();
+        var system = database.GetCollection("$indexes", BsonAutoId.ObjectId);
 
-    public Task EnsureIndexAsync(MigrationIndexDefinition index, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("LiteDbX indexes are not discoverable; re-declare them explicitly after a rebuild.");
+        foreach (var index in system.FindAll().ToBlockingEnumerable())
+        {
+            var owner = index.TryGetValue("collection", out var collectionValue) ? collectionValue.AsString : null;
+
+            if (!string.Equals(owner, Name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var name = index.TryGetValue("name", out var nameValue) ? nameValue.AsString : null;
+
+            if (string.IsNullOrEmpty(name) || string.Equals(name, "_id", StringComparison.Ordinal) || string.Equals(name, "_id_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var expression = index.TryGetValue("expression", out var expressionValue)
+                ? expressionValue.AsString
+                : index.TryGetValue("expr", out var exprValue) ? exprValue.AsString : null;
+
+            if (string.IsNullOrWhiteSpace(expression))
+            {
+                continue;
+            }
+
+            var unique = index.TryGetValue("unique", out var uniqueValue) && uniqueValue.AsBoolean;
+            definitions.Add(new MigrationIndexDefinition(name, expression, unique));
+        }
+
+        return definitions;
+    }
+
+    public async Task EnsureIndexAsync(MigrationIndexDefinition index, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(index.Expression))
+        {
+            throw new ArgumentException($"Index '{index.Name}' has no expression to replay.", nameof(index));
+        }
+
+        await collection.EnsureIndex(index.Name, BsonExpression.Create(index.Expression), index.Unique, cancellationToken);
+    }
 }

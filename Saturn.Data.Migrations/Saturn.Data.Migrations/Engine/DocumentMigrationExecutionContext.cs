@@ -86,12 +86,18 @@ public sealed class DocumentMigrationExecutionContext
     public List<InvalidValueSample> InvalidValueSamples { get; } = new();
     public List<IdRemapEntry> IdRemaps { get; } = new();
     public List<MigrationObject> PendingInserts { get; } = new();
+    public List<string> StrictPathFailures { get; } = new();
 
     public int InvalidValueCount => InvalidValueSamples.Count;
 
     public void RecordInvalidValue(string path, string value, string reason)
     {
         InvalidValueSamples.Add(new InvalidValueSample(Collection, path, value, reason));
+    }
+
+    public void RecordPathFailure(string path, string reason)
+    {
+        StrictPathFailures.Add(path + ": " + reason);
     }
 
     public void RecordGeneratedId(string oldId, string newId, InvalidObjectIdPolicy policy)

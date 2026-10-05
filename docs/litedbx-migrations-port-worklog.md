@@ -173,13 +173,22 @@ Fix: scan via `IDocumentBackup.ExportAsync` into a `MemoryStream` (a **snapshot*
 - CLI: `Saturn.Data.Migrations.Cli` + `IMigrationModule`.
 
 ### Backlog still open
-- Strict-path failure reporting (non-wildcard missing-path posture).
-- DocumentDb delete+reimport swap is not atomic; wrap in a store transaction where the provider permits.
-- Sqlite `ALTER TABLE` swap and DocumentDb bulk restore error-midway recovery semantics.
+- None blocking. Remaining polish:
+  - DocumentDb swap is crash-safe but not fully atomic (import is `SingleTransaction`; the source delete runs after). A true one-transaction swap needs `IDocumentSession` access, which the raw lane doesn't expose.
+  - DocumentDb index enumeration is best-effort (no public list API; only `CreateIndex`).
+  - Alias maps are centralized (`MigrationFieldAliases`) and conformance-tested, not introspected from provider conventions at runtime (providers don't expose that publicly).
+
+### Follow-up round (strict-path, LiteDbX indexes, Mongo conformance, DocumentDb batch)
+- Strict path: `MigrationRunOptions.StrictPathResolution` / `ThrowOnStrictPathFailure`, `WithStrictPathResolution()`; `DocumentMigrationExecutionContext.StrictPathFailures`; `DocumentPathNavigator.ResolveFailure`; counts surface on `CollectionMigrationResult`/`MigrationExecutionResult`. Tests `StrictPathResolution_*`.
+- LiteDbX `GetIndexes()` reads `$indexes` (`collection`/`name`/`expression`/`unique`, skips `_id`); `EnsureIndexAsync` replays via `BsonExpression.Create`. Capability `SupportsIndexEnumeration=true`. Test `IndexEnumeration_ReadsSystemIndexes`.
+- Mongo conformance test `FieldAliases_MatchMongoStorageShape` proves `_p`/`_v`. LiteDbX conformance `FieldAliases_MatchLiteDbxStorageShape`.
+- DocumentDb: `SupportsBatchInsert` + `IMigrationCollection.InsertManyAsync` (default loops; DocumentDb uses `BulkRestoreOptions { SingleTransaction = true }`); runner batches shadow inserts when supported.
+- Field aliases centralized in core `MigrationFieldAliases` (LiteDbx/Mongo); adapters reference them.
 
 ### Final verification
 - Whole solution builds (`dotnet build Saturn.Data.slnx`).
-- Tests: core 17, LiteDbX 60, MongoDb 107, Sqlite 84, DocumentDb 128, Stellar Phase5 1.
+- Tests: core 19, LiteDbX 62, MongoDb 108, Sqlite 84, DocumentDb 127, Stellar Phase5 1.
+
 
 
 
